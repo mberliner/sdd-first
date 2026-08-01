@@ -41,12 +41,16 @@ STATIC_DOCS = [
 # Wiring: (origen en templates/wiring, destino en target).
 WIRING = [
     ("wiring/claude-settings.json", ".claude/settings.json"),
+    ("wiring/sdd_gate_hook.sh", ".claude/sdd_gate_hook.sh"),
     ("wiring/.pre-commit-config.yaml", ".pre-commit-config.yaml"),
     ("wiring/opencode-sdd-gate.js", ".opencode/plugin/sdd-gate.js"),
     ("wiring/.gitattributes", ".gitattributes"),
     ("wiring/.gitignore", ".gitignore"),
     ("wiring/current-spec", ".sdd/current-spec"),
 ]
+
+# Wiring que necesita quedar con permiso de ejecucion tras copiarse.
+_EXECUTABLE_WIRING = {".claude/sdd_gate_hook.sh"}
 
 # Skills de proyecto que se instalan en el destino (fuente para el generador).
 PROJECT_SKILLS = ["analyze", "clarify"]
@@ -178,6 +182,8 @@ def main(argv: list[str]) -> int:
         log.append(
             _copy_text(TEMPLATES / src_rel, target / dst_rel, name, domain, force)
         )
+        if dst_rel in _EXECUTABLE_WIRING:
+            (target / dst_rel).chmod(0o755)
     log.append(_write_config(target, name, language, force))
     log.extend(_vendor_kit(target, language, force))
     log.extend(_install_project_skills(target, force))
