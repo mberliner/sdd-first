@@ -110,7 +110,15 @@ def _write_config(target: Path, name: str, language: str, force: bool) -> str:
 # `layers` va sembrado aunque requiera import-linter: el principio II del
 # config de ejemplo lo declara como enforcement y check_constitution exige el
 # paso cableado; sin la tool, el adaptador lo omite con aviso.
-_SEEDED_STEPS = ["constitution", "traceability", "naming", "layers", "skills", "tests"]
+_SEEDED_STEPS = [
+    "hooks",
+    "constitution",
+    "traceability",
+    "naming",
+    "layers",
+    "skills",
+    "tests",
+]
 _OPTIONAL_STEPS = ["lint", "format", "types", "security"]
 
 

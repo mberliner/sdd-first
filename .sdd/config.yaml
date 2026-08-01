@@ -49,6 +49,7 @@ layers: {}
 pipeline:
   # types/security: deuda (requieren trabajo de tipado/audit aparte, ver SPEC-002).
   steps:
+    - hooks
     - constitution
     - traceability
     - naming

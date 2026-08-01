@@ -28,7 +28,7 @@ KIT_ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 from sdd_config import find_repo_root, load  # noqa: E402
 
-PROCESS_STEPS = {"constitution", "traceability", "skills"}
+PROCESS_STEPS = {"hooks", "constitution", "traceability", "skills"}
 CODE_STEPS = {"naming", "layers", "lint", "format", "types", "security", "tests"}
 
 
@@ -37,6 +37,8 @@ def _run(cmd: list[str], cwd: Path) -> int:
 
 
 def _run_process_step(step: str, repo_root: Path) -> int:
+    if step == "hooks":
+        return _run([sys.executable, str(HERE / "bootstrap_hooks.py")], repo_root)
     if step == "constitution":
         return _run(
             [sys.executable, str(HERE / "check_constitution.py"), "CONSTITUTION.md"],

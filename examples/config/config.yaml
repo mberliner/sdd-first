@@ -94,6 +94,7 @@ pipeline:
   # skills) son agnosticos; naming/layers/lint/types/security/tests los provee
   # el adaptador del lenguaje activo.
   steps:
+    - hooks
     - constitution
     - traceability
     - naming

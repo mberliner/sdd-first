@@ -30,6 +30,31 @@ Archivo de una línea por spec vigente (SPEC-NNN-slug). El gate lo usa como
 declaración de intención: comparás la mtime de la spec contra la de este archivo
 para forzar el flujo **declarar → editar la spec → editar el código**.
 
+**Reset post-commit** (`core/sdd_reset.py`, hook `sdd-reset` en
+`.pre-commit-config.yaml`, `stages: [post-commit]`): tras cada commit exitoso
+limpia `.sdd/current-spec` dejando solo las líneas de comentario (`#`). Fuerza
+declaración explícita al inicio de cada iteración en vez de dejar una spec
+vieja "vigente" indefinidamente por descuido.
+
+**Bootstrap automático de hooks git** (`core/bootstrap_hooks.py`, paso `hooks`
+del pipeline, primero en `pipeline.steps`): git no instala hooks al clonar (por
+diseño, seguridad), así que `pre-commit install --hook-type pre-commit
+--hook-type post-commit` requiere un paso explícito. `bootstrap_hooks.py` lo
+automatiza: verifica si ya están instalados (no toca los existentes), los
+instala si faltan, es no-op con aviso sin `.git/`, y falla con instrucción
+accionable si falta el paquete `pre-commit`. Como el protocolo obliga a correr
+el pipeline al cerrar cada iteración, un clon nuevo queda reparado a más
+tardar en su primer `core/pipeline.py` — antes del primer commit.
+
+**`language: python`, no `system`, en los hooks locales de `pre-commit`**: los
+hooks `sdd-gate`/`sdd-traceability`/`sdd-reset` usan `language: python` en vez
+de `system`. Con `system`, pre-commit invoca el `python` que esté en el PATH
+del shell que dispara el commit — el mismo problema que resolvió
+`.claude/sdd_gate_hook.sh` para Claude Code, sin resolver a nivel git. Con
+`language: python`, pre-commit gestiona su propio entorno aislado con un
+intérprete que él mismo resuelve, así el hook corre igual en un sistema donde
+solo existe `python3` (sin `python` en el PATH).
+
 ## Límite: presencia, no adecuación
 
 El enforcement automático garantiza que *existe* una spec y que su estructura y

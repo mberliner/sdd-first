@@ -1,5 +1,44 @@
 # Historial SDD — sdd-kit
 
+## 2026-08-01 — SPEC-004: Enforcement hardening (comparación con evaluador-flujo-intent)
+
+**Scope:** cerrar dos huecos reales del gate spec-first descubiertos al
+comparar con `evaluador-flujo-intent` (proyecto que corrió el gate más tiempo
+en producción): `.sdd/current-spec` podía quedar vigente indefinidamente, y un
+`git clone` nuevo no tenía los hooks git instalados hasta que alguien corría
+`pre-commit install` a mano. De paso, mismo bug del `python` no encontrado que
+ya se había resuelto para Claude Code/opencode (sesión anterior), sin resolver
+en la capa `pre-commit`.
+
+**Hecho:**
+- `core/bootstrap_hooks.py` (nuevo): instala hooks `pre-commit`/`post-commit`
+  si faltan, idempotente, no-op sin `.git/`. Wireado como paso `hooks` en
+  `core/pipeline.py` (primero en `PROCESS_STEPS`) y en `_SEEDED_STEPS` de
+  `sdd_init.py` (primer paso sembrado en proyectos nuevos).
+- `core/sdd_reset.py` (nuevo): limpia `.sdd/current-spec` tras cada commit
+  exitoso, dejando solo comentarios. Wireado como hook `sdd-reset`
+  (`stages: [post-commit]`) en `.pre-commit-config.yaml` (kit) y
+  `templates/wiring/.pre-commit-config.yaml` (plantilla instalada).
+- `.pre-commit-config.yaml` y `templates/wiring/.pre-commit-config.yaml`:
+  `language: system` → `language: python` (+ `additional_dependencies:
+  [pyyaml]`) en los hooks locales — pre-commit gestiona su propio intérprete
+  aislado, ya no depende de que el shell invocador tenga `python` en el PATH.
+- `docs/SDD-ENFORCEMENT.md` (+ su copia en `templates/docs/`): documenta las
+  tres piezas nuevas.
+- Tests nuevos: `test_bootstrap_hooks.py`, `test_sdd_reset.py`,
+  `test_pipeline_hooks_step.py`, `test_sdd_init_seeded_steps.py`,
+  `test_sdd_gate_hook.py` (cubre `.claude/sdd_gate_hook.sh` y
+  `templates/wiring/sdd_gate_hook.sh`, ramas normal y fail-closed) — suite:
+  53 tests.
+- Validado con `pre-commit run --all-files` real (no solo tests unitarios:
+  crea el venv aislado, instala `pyyaml`, ambos hooks corren y pasan) y con
+  instalación fresca vía `sdd_init.py` en directorio temporal.
+
+**Deuda:**
+- No se portaron los coverage gates (`--cov-fail-under`) ni el wiring de
+  ruff/mypy como hooks de pre-commit — quedó fuera de alcance de este
+  hardening (ver "Fuera de alcance" en SPEC-004).
+
 ## 2026-07-02 — SPEC-003: Happy path de instalación (B-1..B-4 de docs/IDEAS.md)
 
 **Scope:** una instalación fresca con `sdd-init` arranca con pipeline VERDE y
