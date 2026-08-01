@@ -1,0 +1,10 @@
+# Datos no versionados (el repo tiene código y specs, no datasets).
+/data/
+/runs/
+# Python
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/

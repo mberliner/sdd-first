@@ -1,0 +1,17 @@
+# Wiring del gate spec-first y los checks de proceso para pre-commit.
+# El adaptador de lenguaje (ruff/mypy/etc.) se añade según el proyecto.
+repos:
+  - repo: local
+    hooks:
+      - id: sdd-gate
+        name: sdd gate (spec-first)
+        entry: python tools/sdd/core/sdd_gate.py
+        language: system
+        pass_filenames: true
+        files: '^(src|app|lib)/'
+      - id: sdd-traceability
+        name: sdd traceability
+        entry: python tools/sdd/core/check_traceability.py specs
+        language: system
+        pass_filenames: false
+        always_run: true

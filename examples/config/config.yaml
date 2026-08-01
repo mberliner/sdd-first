@@ -1,0 +1,106 @@
+# .sdd/config.yaml — SSOT de parametrizacion del proyecto.
+#
+# Este ejemplo reproduce los parametros del proyecto de referencia
+# (evaluador-flujo-intent) para demostrar el dogfooding. Copialo a
+# .sdd/config.yaml en tu proyecto y ajustalo, o generalo con `sdd-configure`.
+
+project:
+  name: mi-proyecto
+  domain: descripcion corta del dominio del proyecto
+  language: python              # python | none (node/go: roadmap)
+  kit_version: "0.1.0"          # version del sdd-kit usada (lo lee sdd-doctor)
+
+dirs:
+  domain: src/domain
+  application: src/application
+  adapters: src/adapters
+  ui: src/dashboard
+  tests_unit: tests/unit
+  tests_integration: tests/integration
+  # source_roots: [src]         # opcional; por defecto = top-level de las capas
+
+naming:
+  # Tokens prohibidos en identificadores de codigo (ver templates SPEC-000).
+  prohibited:
+    - watson
+    - orchestrate
+    - ibm
+    - azure
+    - aws
+    - openai
+    - anthropic
+    - bedrock
+    - streamlit
+    - flask
+    - fastapi
+    - django
+    - gradio
+    - csv
+    - json
+    - xml
+    - yaml
+    - parquet
+    - oauth
+    - iam
+    - jwt
+    - apikey
+  allowed_identifiers:
+    - json                      # contrato de requests.Response.json()
+  relax_in_tests:               # tokens de formato tolerados en tests/
+    - csv
+    - json
+    - xml
+    - yaml
+    - parquet
+
+principles:
+  # Los cuatro primeros son el NUCLEO MINIMO obligatorio del kit.
+  - id: I
+    title: Nomenclatura agnostica a tecnologia
+    invariant: Ningun identificador de codigo nombra proveedor, UI, formato o auth.
+    enforcement: check_naming.py
+    detail: specs/SPEC-000-naming.md
+  - id: II
+    title: Capas limpias con dependencia unidireccional
+    invariant: El dominio es puro; las dependencias apuntan al dominio.
+    enforcement: lint-imports
+    detail: docs/ARCHITECTURE.md
+  - id: III
+    title: Trazabilidad spec-codigo
+    invariant: Toda capacidad tiene spec registrada antes de implementar.
+    enforcement: check_traceability.py
+    detail: specs/SPECS_REGISTRY.md
+  - id: IV
+    title: Gate spec-first
+    invariant: No se edita codigo fuente sin una spec vigente declarada.
+    enforcement: sdd_gate.py
+    detail: docs/SDD-ENFORCEMENT.md
+  # A partir de aca, principios opcionales por proyecto:
+  - id: V
+    title: Datos no versionados
+    invariant: El repo contiene codigo y specs, no datasets.
+    enforcement: .gitignore
+    detail: docs/ARCHITECTURE.md
+
+layers:
+  # capa: [capas que PUEDE importar]. Genera los contratos de import-linter.
+  domain: []
+  application: [domain]
+  adapters: [domain, application]
+  ui: [domain, application, adapters]
+
+pipeline:
+  # Pasos del pipeline local. Los de proceso (constitution/traceability/gate/
+  # skills) son agnosticos; naming/layers/lint/types/security/tests los provee
+  # el adaptador del lenguaje activo.
+  steps:
+    - constitution
+    - traceability
+    - naming
+    - layers
+    - lint
+    - format
+    - types
+    - security
+    - skills
+    - tests

@@ -1,0 +1,58 @@
+# Config del propio sdd-kit (dogfooding). El kit usa su propio SDD para evolucionar.
+project:
+  name: sdd-kit
+  domain: andamiaje SDD universal, agnostico y personalizable para otros proyectos
+  language: python
+  kit_version: "0.1.0"
+
+dirs:
+  # El "codigo fuente" del kit son sus scripts de nucleo y adaptadores.
+  domain: core
+  adapters: adapters
+  tests_unit: tests/unit
+  source_roots: [core, adapters]
+
+naming:
+  # El kit maneja formatos (yaml/json) por diseno: no se prohiben esos tokens.
+  # Se veta acoplamiento a proveedores/UI concretos en la propia herramienta.
+  prohibited:
+    - watson
+    - streamlit
+    - flask
+    - django
+    - gradio
+    - oauth
+    - jwt
+    - apikey
+  allowed_identifiers: []
+  relax_in_tests: []
+
+principles:
+  - id: I
+    title: Nomenclatura agnostica a tecnologia
+    invariant: Ningun identificador del kit acopla a un proveedor o UI concretos.
+    enforcement: check_naming.py
+    detail: specs/SPEC-000-naming.md
+  - id: II
+    title: Trazabilidad spec-codigo
+    invariant: Toda capacidad del kit tiene spec registrada antes de implementar.
+    enforcement: check_traceability.py
+    detail: specs/SPECS_REGISTRY.md
+  - id: III
+    title: Gate spec-first
+    invariant: No se edita el nucleo del kit sin una spec vigente declarada.
+    enforcement: sdd_gate.py
+    detail: docs/SDD-ENFORCEMENT.md
+
+layers: {}
+
+pipeline:
+  # types/security: deuda (requieren trabajo de tipado/audit aparte, ver SPEC-002).
+  steps:
+    - constitution
+    - traceability
+    - naming
+    - lint
+    - format
+    - skills
+    - tests

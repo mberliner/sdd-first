@@ -1,0 +1,7 @@
+# Fuerza LF en los artefactos generados para que los --check de drift sean
+# deterministas entre Windows y Linux.
+.claude/skills/**/SKILL.md text eol=lf
+.opencode/command/*.md text eol=lf
+CONSTITUTION.md text eol=lf
+specs/SPEC-000-naming.md text eol=lf
+.importlinter text eol=lf

@@ -1,0 +1,17 @@
+# Wiring del gate spec-first y los checks de proceso para el PROPIO kit
+# (dogfooding, SPEC-002). El código fuente del kit vive en core/ y adapters/.
+repos:
+  - repo: local
+    hooks:
+      - id: sdd-gate
+        name: sdd gate (spec-first)
+        entry: python core/sdd_gate.py
+        language: system
+        pass_filenames: true
+        files: '^(core|adapters)/'
+      - id: sdd-traceability
+        name: sdd traceability
+        entry: python core/check_traceability.py specs
+        language: system
+        pass_filenames: false
+        always_run: true
