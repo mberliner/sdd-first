@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python core/sdd_gate.py"
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/sdd_gate_hook.sh\""
           }
         ]
       }
