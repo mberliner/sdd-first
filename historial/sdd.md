@@ -1,5 +1,42 @@
 # Historial SDD — sdd-kit
 
+## 2026-08-01 — SPEC-005: Desduplicar SSOTs del kit (R-1, R-2, R-3 de docs/IDEAS.md)
+
+**Scope:** eliminar la duplicación de archivos y defaults dentro del propio
+repo que "No duplicar SSOT" prohíbe: `docs/` vs `templates/docs/`
+(`SDD-ENFORCEMENT.md`, playbooks `analyze`/`clarify`), `specs/SPEC-TEMPLATE.md`
+duplicado dos veces (archivo + embebido en prosa en `SPEC-FORMAT.md`), y los
+literales `"src"`/`"tests/unit"` repetidos como fallback en `sdd_gate.py` y
+`adapter.py`.
+
+**Hecho:**
+- `core/sdd_config.py`: nuevas constantes `DEFAULT_SOURCE_ROOT` (`"src"`) y
+  `DEFAULT_TESTS_UNIT` (`"tests/unit"`); `sdd_gate.py` y
+  `adapters/python/adapter.py` las importan en vez de repetir el literal.
+- `templates/docs/SPEC-FORMAT.md`: la sección "Template copiable" ya no
+  embebe el template completo — referencia `specs/SPEC-TEMPLATE.md` como
+  único archivo fuente.
+- `core/render.py`: además de generar `CONSTITUTION.md`/`SPEC-000-naming.md`
+  desde el config, ahora sincroniza (copia byte a byte, `--check` detecta
+  drift) `docs/SDD-ENFORCEMENT.md`, `docs/playbooks/analyze.md`,
+  `docs/playbooks/clarify.md` y `specs/SPEC-TEMPLATE.md` desde `templates/`
+  — pero solo cuando el repo tiene su propia carpeta `templates/` (el caso
+  del kit dogfoodeando sobre sí mismo); en un proyecto instalado con
+  `sdd-init` (sin `templates/`) estas entradas son no-op.
+- `core/pipeline.py`: nuevo paso de proceso `render` (corre
+  `render.py --check`), agregado a `PROCESS_STEPS` y a `pipeline.steps` en
+  `.sdd/config.yaml` del kit — el drift entre `templates/` y sus copias ahora
+  bloquea el pipeline como cualquier otro paso.
+- Tests nuevos: `test_render.py`, `test_pipeline_render_step.py`,
+  `test_spec_format_reference.py`, más una prueba en `test_sdd_config.py`
+  que verifica que `sdd_gate` y `adapter` reusan la misma constante (no la
+  repiten) — suite: 62 tests.
+
+**Deuda:** ninguna nueva; `docs/IDEAS.md` mantiene registradas G-8 (idea del
+usuario sobre trazabilidad FR→test), E-1/E-2/E-3 (skills en destino,
+`sdd-update`, packaging) y G-7 (multi-spec en `current-spec`) para specs
+futuras.
+
 ## 2026-08-01 — SPEC-004: Enforcement hardening (comparación con evaluador-flujo-intent)
 
 **Scope:** cerrar dos huecos reales del gate spec-first descubiertos al

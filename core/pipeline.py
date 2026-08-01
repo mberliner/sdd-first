@@ -4,7 +4,7 @@ Reemplaza al pipeline_local.sh especifico: corre los pasos declarados en
 `pipeline.steps` de .sdd/config.yaml, en orden. Cada paso es:
 
   - de PROCESO (agnostico de lenguaje): lo ejecuta el nucleo directamente
-    (constitution, traceability, skills).
+    (constitution, traceability, skills, render).
   - de CODIGO (especifico de lenguaje): lo delega al adaptador del lenguaje
     activo (`adapters/<language>/adapter.py <step>`): naming, layers, lint,
     format, types, security, tests.
@@ -28,7 +28,7 @@ KIT_ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 from sdd_config import find_repo_root, load  # noqa: E402
 
-PROCESS_STEPS = {"hooks", "constitution", "traceability", "skills"}
+PROCESS_STEPS = {"hooks", "constitution", "traceability", "skills", "render"}
 CODE_STEPS = {"naming", "layers", "lint", "format", "types", "security", "tests"}
 
 
@@ -52,6 +52,8 @@ def _run_process_step(step: str, repo_root: Path) -> int:
         return _run(
             [sys.executable, str(HERE / "gen_skill_adapters.py"), "--check"], repo_root
         )
+    if step == "render":
+        return _run([sys.executable, str(HERE / "render.py"), "--check"], repo_root)
     print(f"    (paso de proceso desconocido: {step})")
     return 0
 

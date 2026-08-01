@@ -34,6 +34,10 @@ except ModuleNotFoundError as exc:  # pragma: no cover - dependencia declarada
 
 CONFIG_RELPATH = Path(".sdd") / "config.yaml"
 
+# Defaults compartidos cuando el config no declara la carpeta explicitamente.
+DEFAULT_SOURCE_ROOT = "src"
+DEFAULT_TESTS_UNIT = "tests/unit"
+
 # Marcadores que identifican la raiz de un proyecto con SDD instalado.
 _ROOT_MARKERS = (
     CONFIG_RELPATH,
@@ -112,7 +116,7 @@ class SddConfig:
             top = Path(path).parts[0] if path else path
             if top and top not in roots:
                 roots.append(top)
-        return roots or ["src"]
+        return roots or [DEFAULT_SOURCE_ROOT]
 
     # -- naming ----------------------------------------------------------------
     @property

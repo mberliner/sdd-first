@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sdd_config import find_repo_root, load  # noqa: E402
+from sdd_config import DEFAULT_SOURCE_ROOT, find_repo_root, load  # noqa: E402
 
 
 def _source_roots(repo_root: Path) -> list[str]:
@@ -33,7 +33,7 @@ def _source_roots(repo_root: Path) -> list[str]:
         return load(repo_root).source_roots
     except SystemExit:
         # PyYAML ausente: degradar al default clasico en vez de romper el gate.
-        return ["src"]
+        return [DEFAULT_SOURCE_ROOT]
 
 
 def _is_source_path(file_path: str, repo_root: Path) -> bool:

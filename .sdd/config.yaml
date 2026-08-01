@@ -56,4 +56,5 @@ pipeline:
     - lint
     - format
     - skills
+    - render
     - tests

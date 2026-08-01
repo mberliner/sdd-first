@@ -17,56 +17,9 @@
 
 ## Template copiable
 
-```markdown
-# SPEC-NNN: <título agnóstico>
-
-## User Story (Priority Pn)
-
-Como <rol>, quiero <capacidad> para <beneficio>.
-
-**Why this priority:** ...
-**Independent Test:** ...
-
-## Clarifications
-
-### Session YYYY-MM-DD
-- Q: ... → A: ...
-
-## Acceptance Scenarios
-
-- **Given** ... **When** ... **Then** ...
-
-## Functional Requirements
-
-- **FR-001** MUST: ...
-- **FR-002** SHOULD: ...
-
-## Key Entities
-
-- ...
-
-## Success Criteria
-
-- **SC-001** ...
-
-## Assumptions
-
-- ...
-
-## Coverage mapping
-
-| Requisito | Cubierto por |
-|-----------|--------------|
-| FR-001 | tests/unit/test_x.py |
-
-## Fuera de alcance
-
-- ...
-
-## Historial
-
-- YYYY-MM-DD: creada (draft).
-```
+El template real vive en un único archivo, `specs/SPEC-TEMPLATE.md` (lo
+consume `core/sdd_spec.py` al crear una spec nueva). No se embebe una copia
+acá para no duplicar el SSOT — abrí ese archivo directamente.
 
 ## Ciclo de vida
 

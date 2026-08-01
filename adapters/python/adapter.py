@@ -28,7 +28,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / "core"))
-from sdd_config import find_repo_root, load  # noqa: E402
+from sdd_config import DEFAULT_TESTS_UNIT, find_repo_root, load  # noqa: E402
 
 
 def _run(cmd: list[str], cwd: Path) -> int:
@@ -120,7 +120,7 @@ def step_security(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
 def step_tests(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
     if not _module_available("pytest"):
         return _skip("tool 'pytest' no instalada (pip install pytest), paso 'tests'")
-    unit = cfg.dirs.get("tests_unit", "tests/unit")
+    unit = cfg.dirs.get("tests_unit", DEFAULT_TESTS_UNIT)
     if not (repo_root / unit).exists():
         return _skip(f"sin carpeta de tests '{unit}' todavia, paso 'tests'")
     return _run([sys.executable, "-m", "pytest", unit, "-q"], repo_root)

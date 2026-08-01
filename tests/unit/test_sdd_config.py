@@ -1,8 +1,8 @@
-"""Tests del loader de configuración (SPEC-002 FR-003)."""
+"""Tests del loader de configuración (SPEC-002 FR-003, SPEC-005 FR-005)."""
 
 from pathlib import Path
 
-from sdd_config import SddConfig
+from sdd_config import DEFAULT_SOURCE_ROOT, DEFAULT_TESTS_UNIT, SddConfig
 
 
 def _cfg(raw: dict) -> SddConfig:
@@ -12,7 +12,7 @@ def _cfg(raw: dict) -> SddConfig:
 def test_defaults_con_config_vacio():
     cfg = _cfg({})
     assert cfg.language == "none"
-    assert cfg.source_roots == ["src"]
+    assert cfg.source_roots == [DEFAULT_SOURCE_ROOT]
     assert cfg.naming_prohibited == ()
     assert cfg.principles == []
     assert cfg.pipeline_steps == []
@@ -52,3 +52,14 @@ def test_principles_ignora_entradas_no_dict():
 def test_layers_tolera_listas_nulas():
     cfg = _cfg({"layers": {"domain": None, "app": ["domain"]}})
     assert cfg.layers == {"domain": [], "app": ["domain"]}
+
+
+def test_defaults_source_root_y_tests_unit_son_las_constantes_compartidas():
+    """SPEC-005 FR-005: un único literal, reusado por sdd_gate y el adaptador."""
+    import adapter
+    import sdd_gate
+
+    assert sdd_gate.DEFAULT_SOURCE_ROOT is DEFAULT_SOURCE_ROOT
+    assert adapter.DEFAULT_TESTS_UNIT is DEFAULT_TESTS_UNIT
+    assert DEFAULT_SOURCE_ROOT == "src"
+    assert DEFAULT_TESTS_UNIT == "tests/unit"

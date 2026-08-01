@@ -110,8 +110,18 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 - **G-7 · `sdd_spec.py` sobrescribe `.sdd/current-spec` completo.** El formato
   documenta una spec por línea (multi-spec), pero crear la segunda des-declara
   la primera sin aviso. Definir semántica (append vs replace con flag).
+- **G-8 · `check_traceability` no verifica que los tests referencien el FR
+  que dicen cubrir.** El Coverage mapping de una spec `hibrido` declara
+  FR-NNN → archivo de test, pero nada valida que ese ID aparezca en el código
+  o docstring del test (hoy alcanza con que el archivo exista). Extender
+  `check_traceability.py` para grepear el ID del FR (`FR-NNN`) dentro del
+  archivo de test mapeado en `tests/unit/`, y fallar si no aparece —
+  trazabilidad requisito↔test auditable por máquina, no solo por convención.
 
 ## P2 — Duplicación de SSOT dentro del kit
+
+> **(ya con spec) → [[SPEC-005-desduplicar-ssot]]** — R-1, R-2, R-3
+> implementados el 2026-08-01 (pipeline 9/9 VERDE, doctor sano, 62 tests).
 
 - **R-1 · `docs/` del kit duplica `templates/docs/` byte a byte.**
   `SDD-ENFORCEMENT.md` y los playbooks `analyze`/`clarify` existen dos veces y
