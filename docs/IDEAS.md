@@ -88,10 +88,12 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   con código en `core/` (como el propio kit) tiene ese gate muerto. Viola el
   principio "no hardcodear listas". Fix: generar la regex desde el config
   (render del wiring) o quitar `files:` y dejar que `sdd_gate` decida.
-- **G-2 · El gate no verifica el estado de la spec.** `_spec_is_valid` hace
-  substring match de `spec_id` sobre el texto del registro: una spec
-  `archived`/`superseded` (o mencionada en prosa del roadmap) desbloquea el
-  gate igual que una `active`. Fix: parsear la fila y exigir estado
+- **G-2 · El gate no verifica el estado de la spec.**
+  **(ya con spec) → [[SPEC-006-gate-verifica-estado-spec]]** — implementado
+  el 2026-08-01. `_spec_is_valid` hacía substring match de `spec_id` sobre el
+  texto del registro: una spec `archived`/`superseded` (o mencionada en
+  prosa del roadmap) desbloqueaba el gate igual que una `active`. Fix:
+  parsea la fila (reusa `check_traceability._parse_registry`) y exige estado
   `draft`/`active`.
 - **G-3 · Matcher del hook de Claude solo cubre `Edit|Write`.**
   `MultiEdit`, `NotebookEdit` y `Bash` (`echo > src/x.py`) lo evitan. Ampliar

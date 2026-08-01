@@ -1,4 +1,9 @@
-"""Tests de la lógica de decisión del gate spec-first (SPEC-002 FR-002/FR-003)."""
+"""Tests de la lógica de decisión del gate spec-first.
+
+SPEC-002 FR-002/FR-003 (declaración + edición posterior) y SPEC-006
+FR-001/FR-002/FR-003 (el gate verifica el estado de la spec, no solo su
+existencia por substring).
+"""
 
 import os
 import time
@@ -88,3 +93,63 @@ def test_payload_sin_ruta_permite(tmp_path):
     repo = _make_repo(tmp_path)
     allow, _ = sdd_gate.decide({"tool_input": {}}, repo)
     assert allow
+
+
+def _set_registry_estado(repo: Path, spec_id: str, estado: str) -> None:
+    (repo / "specs" / "SPECS_REGISTRY.md").write_text(
+        "| ID | Título | Estado | Iteración | Formato | Archivo |\n"
+        "|----|--------|--------|-----------|---------|---------|\n"
+        f"| SPEC-001 | Demo | {estado} | - | casero | [{spec_id}.md]({spec_id}.md) |\n",
+        encoding="utf-8",
+    )
+
+
+def test_bloquea_spec_archivada_aunque_registrada(tmp_path):
+    """SPEC-006 FR-002: una fila 'archived' ya no desbloquea el gate."""
+    repo = _make_repo(tmp_path)
+    _set_registry_estado(repo, "SPEC-001-demo", "archived")
+    _declare(repo, "SPEC-001-demo", touch_spec_after=True)
+
+    allow, reason = sdd_gate.decide(_payload(str(repo / "src" / "a.py")), repo)
+
+    assert not allow
+    assert "archived" in reason
+
+
+def test_bloquea_spec_superseded(tmp_path):
+    repo = _make_repo(tmp_path)
+    _set_registry_estado(repo, "SPEC-001-demo", "superseded")
+    _declare(repo, "SPEC-001-demo", touch_spec_after=True)
+
+    allow, reason = sdd_gate.decide(_payload(str(repo / "src" / "a.py")), repo)
+
+    assert not allow
+    assert "superseded" in reason
+
+
+def test_bloquea_spec_mencionada_solo_en_prosa_no_en_tabla(tmp_path):
+    """Antes de SPEC-006, un substring match dejaba pasar esto (bug real)."""
+    repo = _make_repo(tmp_path)
+    (repo / "specs" / "SPECS_REGISTRY.md").write_text(
+        "| ID | Título | Estado | Iteración | Formato | Archivo |\n"
+        "|----|--------|--------|-----------|---------|---------|\n"
+        "| SPEC-001 | Demo | draft | - | casero | [SPEC-001-demo.md](SPEC-001-demo.md) |\n"
+        "\n## Roadmap\n\n- Pendiente: SPEC-002-fantasma en el futuro.\n",
+        encoding="utf-8",
+    )
+    _declare(repo, "SPEC-002-fantasma", touch_spec_after=True)
+
+    allow, reason = sdd_gate.decide(_payload(str(repo / "src" / "a.py")), repo)
+
+    assert not allow
+    assert "SPEC-002-fantasma" in reason
+
+
+def test_permite_spec_con_estado_active(tmp_path):
+    repo = _make_repo(tmp_path)
+    _set_registry_estado(repo, "SPEC-001-demo", "active")
+    _declare(repo, "SPEC-001-demo", touch_spec_after=True)
+
+    allow, reason = sdd_gate.decide(_payload(str(repo / "src" / "a.py")), repo)
+
+    assert allow, reason

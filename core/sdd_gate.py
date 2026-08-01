@@ -25,7 +25,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_traceability import _parse_registry  # noqa: E402
 from sdd_config import DEFAULT_SOURCE_ROOT, find_repo_root, load  # noqa: E402
+
+# Estados de SPECS_REGISTRY.md que dejan pasar el gate (SPEC-006 FR-002).
+_VALID_ESTADOS = frozenset({"draft", "active"})
 
 
 def _source_roots(repo_root: Path) -> list[str]:
@@ -66,14 +70,34 @@ def _declared_specs(repo_root: Path) -> list[str]:
     return specs
 
 
-def _spec_is_valid(spec_id: str, repo_root: Path) -> bool:
-    spec_file = repo_root / "specs" / f"{spec_id}.md"
-    if not spec_file.exists():
-        return False
+def _registry_row(spec_id: str, repo_root: Path):  # type: ignore[no-untyped-def]
+    """Fila de SPECS_REGISTRY.md cuyo Archivo matchea `spec_id`, o None."""
     registry = repo_root / "specs" / "SPECS_REGISTRY.md"
     if not registry.exists():
-        return False
-    return spec_id in registry.read_text(encoding="utf-8")
+        return None
+    errors: list[str] = []
+    for row in _parse_registry(registry, errors):
+        if row.archivo == f"{spec_id}.md":
+            return row
+    return None
+
+
+def _spec_invalid_reason(spec_id: str, repo_root: Path) -> str | None:
+    """None si `spec_id` esta vigente (draft/active); si no, el motivo del rechazo.
+
+    SPEC-006: reemplaza el viejo substring-match sobre el texto crudo del
+    registro (bypasseable con specs archived/superseded mencionadas en
+    prosa) por un parseo real de la fila y su estado.
+    """
+    spec_file = repo_root / "specs" / f"{spec_id}.md"
+    if not spec_file.exists():
+        return "no existe el archivo de spec"
+    row = _registry_row(spec_id, repo_root)
+    if row is None:
+        return "no esta registrada en SPECS_REGISTRY.md"
+    if row.estado not in _VALID_ESTADOS:
+        return f"estado '{row.estado}' no vigente (debe ser draft o active)"
+    return None
 
 
 def _any_spec_touched_after_declaration(declared: list[str], repo_root: Path) -> bool:
@@ -105,12 +129,18 @@ def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:
             "vigente declarada. Declara la SPEC-NNN en .sdd/current-spec (o creala "
             "con sdd-spec). Ver docs/SDD-ENFORCEMENT.md."
         )
-    invalid = [s for s in declared if not _spec_is_valid(s, repo_root)]
+    invalid = {
+        s: reason
+        for s in declared
+        for reason in [_spec_invalid_reason(s, repo_root)]
+        if reason is not None
+    }
     if invalid:
+        detalle = "; ".join(f"{s} ({reason})" for s, reason in invalid.items())
         return False, (
             "Edicion de codigo fuente bloqueada (gate spec-first): spec(s) "
-            f"declarada(s) invalida(s): {', '.join(invalid)}. Deben existir en "
-            "specs/ y estar registradas en SPECS_REGISTRY.md."
+            f"declarada(s) invalida(s) — {detalle}. Deben existir en specs/ y "
+            "estar registradas en SPECS_REGISTRY.md con estado draft o active."
         )
     if not _any_spec_touched_after_declaration(declared, repo_root):
         return False, (

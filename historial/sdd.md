@@ -1,5 +1,29 @@
 # Historial SDD — sdd-kit
 
+## 2026-08-01 — SPEC-006: El gate verifica el estado de la spec declarada (G-2 de docs/IDEAS.md)
+
+**Scope:** cerrar un bypass real del gate spec-first: `_spec_is_valid` en
+`core/sdd_gate.py` validaba una spec declarada con `spec_id in
+registry.read_text(...)` — un substring match sobre el texto crudo del
+registro. Una spec `archived`/`superseded` (o solo mencionada en prosa, p. ej.
+en un roadmap fuera de la tabla) desbloqueaba el gate igual que una `active`,
+rompiendo la garantía central del kit ("no se edita código sin spec vigente").
+
+**Hecho:**
+- `core/sdd_gate.py`: `_spec_is_valid` reemplazada por `_registry_row` +
+  `_spec_invalid_reason`, que parsean la fila real del registro (reusando
+  `check_traceability._parse_registry`, sin duplicar el parser) y exigen
+  `estado` en `{draft, active}`. El mensaje de bloqueo ahora distingue "no
+  existe el archivo", "no está registrada" y "estado 'X' no vigente".
+- Tests nuevos en `test_sdd_gate.py` (archived, superseded, mención solo en
+  prosa, estado active) — suite: 66 tests.
+- Verificado además con una instalación real vendorizada en `/tmp` (no solo
+  tests unitarios): los tres escenarios (archived bloquea, active permite,
+  mención en prosa bloquea) reproducen igual que en los tests.
+
+**Deuda:** ninguna nueva; `docs/IDEAS.md` mantiene G-1 (pre-commit hardcodea
+`files:`), G-3..G-8 y E-1..E-6 para specs futuras.
+
 ## 2026-08-01 — SPEC-005: Desduplicar SSOTs del kit (R-1, R-2, R-3 de docs/IDEAS.md)
 
 **Scope:** eliminar la duplicación de archivos y defaults dentro del propio
