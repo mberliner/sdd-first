@@ -34,6 +34,27 @@ def _next_number(specs_dir: Path) -> int:
     return (max(nums) + 1) if nums else 1
 
 
+def _declare_current_spec(current: Path, spec_id: str) -> None:
+    """Declara `spec_id` preservando las líneas de comentario ya presentes.
+
+    SPEC-004 FR-007: antes esto pisaba el archivo entero, destruyendo el
+    header de `templates/wiring/current-spec`; `sdd_reset.py` (FR-002) filtra
+    comentarios post-commit, pero sin header no había nada que preservar y el
+    working tree quedaba sucio tras cada commit.
+    """
+    comments: list[str] = []
+    if current.exists():
+        comments = [
+            ln
+            for ln in current.read_text(encoding="utf-8").splitlines()
+            if ln.startswith("#")
+        ]
+    current.parent.mkdir(exist_ok=True)
+    current.write_text(
+        "\n".join([*comments, spec_id]) + "\n", encoding="utf-8", newline="\n"
+    )
+
+
 def _insert_registry_row(text: str, row: str) -> str:
     """Inserta `row` al final de la tabla de specs, no al final del archivo.
 
@@ -97,8 +118,7 @@ def main(argv: list[str]) -> int:
 
     # Declara la spec vigente para el gate.
     current = repo_root / ".sdd" / "current-spec"
-    current.parent.mkdir(exist_ok=True)
-    current.write_text(f"{spec_id}\n", encoding="utf-8", newline="\n")
+    _declare_current_spec(current, spec_id)
     print(f"Declarada en {current}")
     print(
         "\nEditá la spec (agregá los FR) ANTES de tocar código: el gate exige que la "

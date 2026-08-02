@@ -34,6 +34,21 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
   `tools/sdd/core/` de cada proyecto instalado (`_vendor_kit`); ponerlos ahí
   los distribuye gratis a los derivados sin tocar la lista `WIRING`.
 
+### Session 2026-08-01 (reabierta)
+- Q: tras un commit real, `.sdd/current-spec` no quedaba con "solo
+  comentarios" (SC-002) sino casi vacío, distinto del header committeado —
+  working tree sucio después de todo commit. ¿Por qué el test de FR-002 no lo
+  detectó? → A: `test_sdd_reset.py` siembra el archivo a mano ya con el header
+  puesto; nunca ejercita el camino real `sdd_spec.py` (declara) → commit →
+  `sdd_reset.py` (limpia). `sdd_spec.py::main` pisa el archivo entero con
+  `f"{spec_id}\n"` (línea ~101), destruyendo el header de comentarios *antes*
+  de que `sdd_reset.py` tenga algo que preservar — el filtro `startswith("#")`
+  no tiene nada que filtrar. Es el mismo bug ya anotado como G-7 en
+  `docs/IDEAS.md`, visto ahora desde el ángulo de esta spec.
+- Q: ¿nueva spec o se reabre SPEC-004? → A: se reabre — el invariante roto
+  (SC-002/FR-002) es literalmente el que esta spec ya declara como propio;
+  las specs son vivas (`AGENTS.md`).
+
 ## Acceptance Scenarios
 
 - **Given** un repo con `.git/` y sin hooks instalados, **When** corre
@@ -48,6 +63,15 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
   `core/`, **Then** el hook igual se ejecuta y decide (bloquea o permite)
   porque `language: python` deja que `pre-commit` resuelva su propio
   intérprete en vez de depender del `python` del shell invocador.
+- **Given** `.sdd/current-spec` con el header de comentarios de la plantilla,
+  **When** `sdd_spec.py` declara una spec nueva, **Then** el archivo conserva
+  las líneas `#` y solo agrega/reemplaza la línea del spec-id — no pisa el
+  archivo entero.
+- **Given** ese mismo flujo (`sdd_spec.py` declara → se edita la spec → se
+  commitea), **When** corre el hook post-commit `sdd-reset`, **Then**
+  `.sdd/current-spec` queda **byte a byte igual** al header de
+  `templates/wiring/current-spec` — el working tree no queda sucio después
+  del commit.
 
 ## Functional Requirements
 
@@ -75,6 +99,11 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
   `templates/wiring/sdd_gate_hook.sh` (plantilla) tienen test que cubre la
   rama fail-closed (sin intérprete Python disponible) y la rama normal
   (con `python3` disponible, gate corre y decide).
+- **FR-007** MUST: `core/sdd_spec.py` preserva las líneas de comentario (`#`)
+  ya presentes en `.sdd/current-spec` al declarar una spec nueva; solo agrega
+  o reemplaza la línea del spec-id, nunca pisa el archivo entero. Cierra el
+  hueco por el que `sdd_reset.py` (FR-002) no tenía comentarios que preservar
+  tras un ciclo real declarar→commitear→reset.
 
 ## Key Entities
 
@@ -93,6 +122,9 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
 - **SC-003** El hook `sdd-gate` de `pre-commit` sigue bloqueando/permitiendo
   correctamente en un entorno donde el binario `python` no existe (solo
   `python3`).
+- **SC-004** Tras el ciclo real `sdd_spec.py` declara → se edita la spec → se
+  commitea → corre `sdd-reset`, `.sdd/current-spec` queda idéntico al header
+  de la plantilla — `git status` no lo marca modificado.
 
 ## Assumptions
 
@@ -110,6 +142,7 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
 | FR-004 | inspección manual de `.pre-commit-config.yaml` y `templates/wiring/.pre-commit-config.yaml` (no hay runner de pre-commit en CI del kit) |
 | FR-005 | tests/unit/test_sdd_init_seeded_steps.py |
 | FR-006 | tests/unit/test_sdd_gate_hook.py |
+| FR-007, SC-004 | tests/unit/test_sdd_spec.py |
 
 ## Fuera de alcance
 
@@ -128,3 +161,14 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
   hook `sdd-reset`. Validado con `pre-commit run --all-files` real (crea su
   venv aislado, instala `pyyaml`, ambos hooks pasan) y con instalación fresca
   vía `sdd_init.py` en directorio temporal.
+- 2026-08-01: reabierta y cerrada de nuevo (FR-007/SC-004). Tras usar
+  `sdd_spec.py` en la práctica se detectó que `.sdd/current-spec` quedaba
+  sucio después de todo commit: `sdd_spec.py` pisaba el archivo entero al
+  declarar, destruyendo el header de comentarios que `sdd_reset.py` (FR-002)
+  necesitaba preservar. `sdd_spec.py::_declare_current_spec` ahora conserva
+  las líneas `#` existentes. Verificado con 4 tests nuevos en
+  `test_sdd_spec.py` (incluye el ciclo real declarar→reset) y con una
+  instalación fresca en `/tmp`: el archivo queda byte a byte igual al header
+  de `templates/wiring/current-spec` tras el ciclo completo. Relacionado con
+  G-7 de `docs/IDEAS.md` (parcialmente resuelto — la semántica multi-spec
+  sigue pendiente). Pipeline 9/9 VERDE, 70 tests.

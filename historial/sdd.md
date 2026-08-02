@@ -1,5 +1,36 @@
 # Historial SDD — sdd-kit
 
+## 2026-08-01 — SPEC-004 (reabierta): sdd_spec.py preserva el header de current-spec (G-7 de docs/IDEAS.md)
+
+**Scope:** al usar `sdd_spec.py` en la práctica (durante esta misma sesión,
+para SPEC-006), se notó que `.sdd/current-spec` quedaba modificado en el
+working tree después de cada commit exitoso, pese a que `sdd_reset.py`
+(SPEC-004 FR-002) corría bien. Causa: `sdd_spec.py::main` pisaba el archivo
+entero con `f"{spec_id}\n"`, destruyendo el header de comentarios de la
+plantilla *antes* de que hubiera un commit — `sdd_reset.py` filtra líneas `#`
+post-commit, pero no había ninguna que filtrar, así que el resultado nunca
+coincidía con lo committeado. SPEC-004 ya declaraba esta garantía como FR-002/
+SC-002 (con un test que la ejercitaba solo de forma aislada, sembrando el
+archivo a mano); se reabrió esa spec en vez de crear una nueva, porque el
+invariante roto es el mismo que ya gobierna.
+
+**Hecho:**
+- `core/sdd_spec.py`: nueva `_declare_current_spec` que preserva las líneas
+  `#` existentes y solo agrega/reemplaza la línea del spec-id (antes pisaba
+  todo el archivo).
+- SPEC-004 suma FR-007, dos Acceptance Scenarios y SC-004 (el ciclo real
+  declarar→commit→reset deja el archivo byte a byte igual al header de
+  `templates/wiring/current-spec`).
+- Tests nuevos en `test_sdd_spec.py` (preserva comentarios, reemplaza sin
+  apilar, sin archivo previo no falla, ciclo real declarar→reset) — suite:
+  70 tests. Verificado además con una instalación fresca en `/tmp`
+  (`sdd_init.py` → `sdd_spec.py` → `sdd_reset.py`): diff vacío contra el
+  header de la plantilla.
+- `docs/IDEAS.md`: G-7 marcado como parcialmente resuelto — la semántica
+  multi-spec (append vs replace) sigue pendiente, separada de este fix.
+
+**Deuda:** ninguna nueva.
+
 ## 2026-08-01 — SPEC-006: El gate verifica el estado de la spec declarada (G-2 de docs/IDEAS.md)
 
 **Scope:** cerrar un bypass real del gate spec-first: `_spec_is_valid` en

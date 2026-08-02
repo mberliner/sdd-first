@@ -109,9 +109,13 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 - **G-6 · `check_traceability` no exige keyword en los FR.** SPEC-FORMAT
   declara obligatorio `MUST:/SHOULD:/MAY:` pero nada lo verifica. Chequeo de
   una línea; alinear doc y check en cualquier dirección.
-- **G-7 · `sdd_spec.py` sobrescribe `.sdd/current-spec` completo.** El formato
-  documenta una spec por línea (multi-spec), pero crear la segunda des-declara
-  la primera sin aviso. Definir semántica (append vs replace con flag).
+- **G-7 · `sdd_spec.py` sobrescribe `.sdd/current-spec` completo.**
+  Parcialmente resuelto → [[SPEC-004-enforcement-hardening]] FR-007
+  (2026-08-01): ahora preserva el header de comentarios (el síntoma que
+  dejaba el working tree sucio tras cada commit, vía `sdd_reset.py`). Sigue
+  pendiente la semántica multi-spec en sí: crear una segunda spec todavía
+  des-declara la primera sin aviso — falta definir append vs replace (con
+  flag).
 - **G-8 · `check_traceability` no verifica que los tests referencien el FR
   que dicen cubrir.** El Coverage mapping de una spec `hibrido` declara
   FR-NNN → archivo de test, pero nada valida que ese ID aparezca en el código
