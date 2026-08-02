@@ -124,6 +124,25 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   `check_traceability.py` para grepear el ID del FR (`FR-NNN`) dentro del
   archivo de test mapeado en `tests/unit/`, y fallar si no aparece —
   trazabilidad requisito↔test auditable por máquina, no solo por convención.
+- **G-9 · El reset post-commit de `.sdd/current-spec` nunca queda commiteado
+  — el working tree SIEMPRE sale sucio tras un commit con spec declarada.**
+  `core/sdd_reset.py` (hook `post-commit`, SPEC-004 FR-002) edita el archivo
+  para dejar solo el header, pero no hace ningún `git add`/commit de ese
+  cambio — es un hook post-commit, corre *después* de que el commit ya
+  cerró. El criterio de aceptación de SPEC-004 dice textualmente "el working
+  tree no queda sucio después del commit", pero el test que lo cubre
+  (`test_ciclo_declarar_luego_reset_deja_solo_el_header`) solo verifica el
+  *contenido* del archivo tras `sdd_reset.main()`, nunca el ciclo real con
+  `git commit` de por medio — por eso el hueco pasó dos rondas de SPEC-004 sin
+  detectarse. Reproducido en vivo durante SPEC-007 (2026-08-02): tras cerrar
+  la spec, `git status` mostraba `.sdd/current-spec` modificado. Ya había
+  pasado antes: el commit `1bc4881 "Restaura header de comentarios perdido"`
+  de la sesión 2026-08-01 fue un commit manual de limpieza para el mismo
+  síntoma. Opciones a evaluar: (a) que el hook post-commit haga su propio
+  commit del reset (riesgo de encadenar/recursar hooks), (b) documentar el
+  comportamiento como esperado y sumar el `git add .sdd/current-spec` al
+  playbook de cierre de iteración, (c) repensar el mecanismo para no
+  depender de tocar un archivo fuera del commit que lo origina.
 
 ## P2 — Duplicación de SSOT dentro del kit
 
