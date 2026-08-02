@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sdd_config import find_repo_root  # noqa: E402
+from sdd_config import find_repo_root, write_text_lf  # noqa: E402
 
 PLAYBOOK_TEMPLATE = "docs/playbooks/{name}.md"
 
@@ -147,7 +147,7 @@ def _validate(skill: Skill, repo_root: Path) -> list[str]:
 
 def _write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8", newline="\n")
+    write_text_lf(path, content)
 
 
 def _check(path: Path, content: str) -> bool:

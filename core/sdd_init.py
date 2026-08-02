@@ -18,6 +18,10 @@ import shutil
 import sys
 from pathlib import Path
 
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from sdd_config import write_text_lf  # noqa: E402
+
 KIT_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = KIT_ROOT / "templates"
 
@@ -26,13 +30,18 @@ STATIC_DOCS = [
     ("AGENTS.md", "AGENTS.md"),
     ("CLAUDE.md", "CLAUDE.md"),
     ("00-INDEX.md", "00-INDEX.md"),
+    ("README.md", "README.md"),
     ("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.md"),
     ("docs/CONTRIBUTING.md", "docs/CONTRIBUTING.md"),
     ("docs/SPEC-FORMAT.md", "docs/SPEC-FORMAT.md"),
     ("docs/SDD-ENFORCEMENT.md", "docs/SDD-ENFORCEMENT.md"),
+    ("docs/SDD-OPERACION.md", "docs/SDD-OPERACION.md"),
     ("docs/IDEAS.md", "docs/IDEAS.md"),
     ("docs/playbooks/analyze.md", "docs/playbooks/analyze.md"),
     ("docs/playbooks/clarify.md", "docs/playbooks/clarify.md"),
+    ("docs/playbooks/sdd-spec.md", "docs/playbooks/sdd-spec.md"),
+    ("docs/playbooks/sdd-doctor.md", "docs/playbooks/sdd-doctor.md"),
+    ("docs/playbooks/sdd-configure.md", "docs/playbooks/sdd-configure.md"),
     ("specs/SPECS_REGISTRY.md", "specs/SPECS_REGISTRY.md"),
     ("specs/SPEC-TEMPLATE.md", "specs/SPEC-TEMPLATE.md"),
     ("historial/sdd.md", "historial/sdd.md"),
@@ -53,7 +62,9 @@ WIRING = [
 _EXECUTABLE_WIRING = {".claude/sdd_gate_hook.sh"}
 
 # Skills de proyecto que se instalan en el destino (fuente para el generador).
-PROJECT_SKILLS = ["analyze", "clarify"]
+# No incluye "sdd-init": es bootstrap de una sola vez, no una skill operativa
+# del día a día del proyecto ya instalado.
+PROJECT_SKILLS = ["analyze", "clarify", "sdd-spec", "sdd-doctor", "sdd-configure"]
 
 
 def _substitute(text: str, name: str, domain: str) -> str:
@@ -67,7 +78,7 @@ def _copy_text(src: Path, dst: Path, name: str, domain: str, force: bool) -> str
     text = src.read_text(encoding="utf-8")
     if src.suffix in {".md", ".json", ".yaml", ".yml", ".js"}:
         text = _substitute(text, name, domain)
-    dst.write_text(text, encoding="utf-8", newline="\n")
+    write_text_lf(dst, text)
     return f"  instalado {dst}"
 
 
@@ -100,7 +111,7 @@ def _write_config(target: Path, name: str, language: str, force: bool) -> str:
     example = example.replace("language: python", f"language: {language}")
     example = _seed_pipeline_steps(example)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    dst.write_text(example, encoding="utf-8", newline="\n")
+    write_text_lf(dst, example)
     return f"  sembrado {dst}"
 
 
@@ -157,11 +168,7 @@ def _install_project_skills(target: Path, force: bool) -> list[str]:
             dst = target / ".agents" / "skills" / skill / "SKILL.md"
             if not dst.exists() or force:
                 dst.parent.mkdir(parents=True, exist_ok=True)
-                dst.write_text(
-                    skill_src.read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                    newline="\n",
-                )
+                write_text_lf(dst, skill_src.read_text(encoding="utf-8"))
                 out.append(f"  instalado {dst}")
         _ = src  # el playbook ya se copió en STATIC_DOCS
     return out

@@ -1,7 +1,8 @@
 # Índice de documentación — {{project.name}}
 
 > Navegación y mapa de SSOTs. Evita duplicación: cada tema tiene un único archivo
-> autoritativo.
+> autoritativo. Este índice es sobre el protocolo SDD; `README.md` (fuera de este
+> mapa) es la puerta de entrada al *producto* del proyecto, no a su gobernanza.
 
 ## Ruta de lectura recomendada
 
@@ -13,7 +14,8 @@
 6. `docs/ARCHITECTURE.md` — capas.
 7. `docs/SPEC-FORMAT.md` — cómo se escribe una spec.
 8. `docs/SDD-ENFORCEMENT.md` — cómo se obliga el SDD.
-9. `docs/CONTRIBUTING.md` — Definition of done y code review.
+9. `docs/SDD-OPERACION.md` — catálogo de las skills SDD instaladas.
+10. `docs/CONTRIBUTING.md` — Definition of done y code review.
 
 ## Mapa de SSOTs
 
@@ -27,6 +29,7 @@
 | Capas / arquitectura | `docs/ARCHITECTURE.md` (matriz en `.sdd/config.yaml`) |
 | Formato de spec | `docs/SPEC-FORMAT.md` |
 | Enforcement | `docs/SDD-ENFORCEMENT.md` |
+| Catálogo de skills SDD | `docs/SDD-OPERACION.md` |
 | Workflow / DoD | `docs/CONTRIBUTING.md` |
 | Historial de iteraciones | `historial/sdd.md` |
 | Ideas pre-spec | `docs/IDEAS.md` |

@@ -29,7 +29,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import SddConfig, find_repo_root, load  # noqa: E402
+from sdd_config import SddConfig, find_repo_root, load, write_text_lf  # noqa: E402
 
 _TODAY = _dt.date.today().isoformat()
 
@@ -132,6 +132,9 @@ _SYNCED_FROM_TEMPLATES = {
     "docs/SDD-ENFORCEMENT.md": "docs/SDD-ENFORCEMENT.md",
     "docs/playbooks/analyze.md": "docs/playbooks/analyze.md",
     "docs/playbooks/clarify.md": "docs/playbooks/clarify.md",
+    "docs/playbooks/sdd-spec.md": "docs/playbooks/sdd-spec.md",
+    "docs/playbooks/sdd-doctor.md": "docs/playbooks/sdd-doctor.md",
+    "docs/playbooks/sdd-configure.md": "docs/playbooks/sdd-configure.md",
     "specs/SPEC-TEMPLATE.md": "specs/SPEC-TEMPLATE.md",
 }
 
@@ -168,7 +171,7 @@ def main(argv: list[str]) -> int:
                 drift.append(rel)
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(content, encoding="utf-8", newline="\n")
+            write_text_lf(target, content)
             print(f"  generado  {rel}")
 
     if check:

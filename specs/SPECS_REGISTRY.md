@@ -20,3 +20,4 @@
 | SPEC-004 | Enforcement hardening (bootstrap hooks, reset post-commit, pre-commit robusto) | active | 1 | hibrido | [SPEC-004-enforcement-hardening.md](SPEC-004-enforcement-hardening.md) |
 | SPEC-005 | Desduplicar SSOTs del kit (docs/templates, defaults) | active | 1 | hibrido | [SPEC-005-desduplicar-ssot.md](SPEC-005-desduplicar-ssot.md) |
 | SPEC-006 | El gate verifica el estado (draft/active) de la spec declarada | active | 1 | hibrido | [SPEC-006-gate-verifica-estado-spec.md](SPEC-006-gate-verifica-estado-spec.md) |
+| SPEC-007 | README propio y manual de operación SDD en el proyecto derivado | active | 1 | hibrido | [SPEC-007-derived-project-onboarding.md](SPEC-007-derived-project-onboarding.md) |

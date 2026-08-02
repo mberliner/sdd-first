@@ -55,6 +55,14 @@ def find_repo_root(start: Path | None = None) -> Path:
     return origin
 
 
+def write_text_lf(path: Path, text: str) -> None:
+    """Escribe `text` en UTF-8 forzando fin de linea LF (determinismo en
+    Windows). `Path.write_text` no admite `newline=`; solo `Path.open` lo
+    admite."""
+    with path.open("w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+
+
 @dataclass(frozen=True)
 class Principle:
     id: str

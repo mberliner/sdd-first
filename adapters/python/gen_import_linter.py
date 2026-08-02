@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "core"))
-from sdd_config import find_repo_root, load  # noqa: E402
+from sdd_config import find_repo_root, load, write_text_lf  # noqa: E402
 
 
 def _module_of(repo_root: Path, layer_path: str) -> str:
@@ -68,7 +68,7 @@ def main(argv: list[str]) -> int:
             ".importlinter desincronizado (corre: python adapters/python/gen_import_linter.py)."
         )
         return 1
-    target.write_text(content, encoding="utf-8", newline="\n")
+    write_text_lf(target, content)
     print(f"Generado {target.name} desde layers de config.yaml.")
     return 0
 

@@ -24,6 +24,7 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 3. **SPEC-004 — Endurecer el gate y la trazabilidad** → G-1..G-5 (P1).
 4. **SPEC-005 — Desduplicar SSOTs del kit** → R-1, R-2, R-3 (P2).
 5. **SPEC-006 — Distribución y ciclo de vida** → E-2, E-3, E-4 (P2/P3).
+6. **SPEC-007 — Onboarding del proyecto derivado** → E-1, E-7 (P2/P3).
 
 ---
 
@@ -171,6 +172,10 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 
 ## P2/P3 — Producto y distribución
 
+> **(ya con spec) → [[SPEC-007-derived-project-onboarding]]** — E-1, E-7
+> implementados el 2026-08-02 (pipeline 9/9 VERDE, doctor sano, 77 tests,
+> instalación fresca verificada en `/tmp`).
+
 - **E-1 · El proyecto instalado no recibe las skills `sdd-*`.** `sdd-init`
   instala solo `analyze`/`clarify`, pero README y playbooks instruyen "corré
   `sdd-configure`" / "usá `sdd-spec`" — que solo existen en el repo del kit.
@@ -196,16 +201,12 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   proyecto instalado es `tools/sdd/core/pipeline.py` y el wrapper no existe.
   Corregir la plantilla.
 - **E-7 · El proyecto derivado no recibe un README humano ni un manual de
-  skills.** `sdd_init.py` no instala ningún `README.md` (no está en
+  skills.** `sdd_init.py` no instalaba ningún `README.md` (no estaba en
   `STATIC_DOCS`), pese a que `templates/AGENTS.md` ya asume su existencia
-  ("no dupliques información entre `docs/`, `specs/` y README"). El derivado
-  tiene su propio scope de producto — el README debe ser específico de ese
-  proyecto (qué es, cómo se corre, links de salida a `00-INDEX.md`/`AGENTS.md`),
-  no una copia de la gobernanza SDD. Sumar `templates/README.md` +
-  `templates/docs/SKILLS.md` (catálogo humano de las skills SDD instaladas:
-  qué hace cada una, cuándo invocarla) a `STATIC_DOCS`. Depende de **E-1**
-  (qué skills se instalan de verdad determina qué documenta el manual) y
-  choca con el mismo gap que **E-6** en `AGENTS.md`.
+  ("no dupliques información entre `docs/`, `specs/` y README"). Resuelto:
+  `templates/README.md` (solo producto derivado, sin explicar SDD) +
+  `templates/docs/SDD-OPERACION.md` (catálogo humano de las skills SDD
+  instaladas) sumados a `STATIC_DOCS`.
 
 ## Técnicas (ideas sueltas, sin prioridad asignada)
 

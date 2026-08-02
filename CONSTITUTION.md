@@ -1,6 +1,6 @@
 # Constitución del proyecto
 
-**Versión:** 0.1.0 | Ratificada: 2026-08-01 | Última enmienda: 2026-08-01
+**Versión:** 0.1.0 | Ratificada: 2026-08-02 | Última enmienda: 2026-08-02
 
 > Generado por `core/render.py` desde `.sdd/config.yaml`. La forma de cada
 > principio (invariante + Enforcement + Detalle) es lo que valida

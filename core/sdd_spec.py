@@ -17,7 +17,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import find_repo_root  # noqa: E402
+from sdd_config import find_repo_root, write_text_lf  # noqa: E402
 
 
 def _slugify(text: str) -> str:
@@ -50,9 +50,7 @@ def _declare_current_spec(current: Path, spec_id: str) -> None:
             if ln.startswith("#")
         ]
     current.parent.mkdir(exist_ok=True)
-    current.write_text(
-        "\n".join([*comments, spec_id]) + "\n", encoding="utf-8", newline="\n"
-    )
+    write_text_lf(current, "\n".join([*comments, spec_id]) + "\n")
 
 
 def _insert_registry_row(text: str, row: str) -> str:
@@ -103,7 +101,7 @@ def main(argv: list[str]) -> int:
         body = body.replace("SPEC-NNN: <título agnóstico>", f"{spec_id}: {title}")
     else:
         body = f"# {spec_id}: {title}\n\n(TODO: completar según docs/SPEC-FORMAT.md)\n"
-    spec_file.write_text(body, encoding="utf-8", newline="\n")
+    write_text_lf(spec_file, body)
     print(f"Creada {spec_file}")
 
     # Registro: agrega una fila draft a la tabla de SPECS_REGISTRY.md.
@@ -111,9 +109,7 @@ def main(argv: list[str]) -> int:
     row = f"| SPEC-{number:03d} | {title} | draft | - | hibrido | [{spec_id}.md]({spec_id}.md) |"
     if registry.exists():
         text = registry.read_text(encoding="utf-8")
-        registry.write_text(
-            _insert_registry_row(text, row), encoding="utf-8", newline="\n"
-        )
+        write_text_lf(registry, _insert_registry_row(text, row))
         print(f"Registrada en {registry}")
 
     # Declara la spec vigente para el gate.

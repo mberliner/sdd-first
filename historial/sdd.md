@@ -1,5 +1,48 @@
 # Historial SDD — sdd-kit
 
+## 2026-08-02 — SPEC-007: README propio y manual de operación SDD en el proyecto derivado (E-1, E-7 de docs/IDEAS.md)
+
+**Scope:** cerrar dos huecos del happy path de instalación: el proyecto
+derivado solo recibía las skills `analyze`/`clarify` (E-1) y no recibía ni
+`README.md` ni un manual humano de las herramientas SDD (E-7). Decisión de
+diseño: el README del derivado habla solo del producto (nunca de SDD); el
+manual de operación de SDD vive aparte, en `docs/SDD-OPERACION.md`.
+
+**Bloqueante encontrado y resuelto primero:** `Path.write_text(...,
+newline="\n")` no es una llamada válida en ninguna versión de Python (el
+kwarg no existe en `write_text`, solo en `Path.open`) — bug preexistente en
+`sdd_spec.py`, `render.py`, `gen_skill_adapters.py`, `sdd_init.py` y
+`adapters/python/gen_import_linter.py` que nunca se había disparado porque el
+kit siempre estaba en sync (sin drift que forzara una escritura real).
+Bloqueaba por completo la creación de esta misma spec. Fix: helper
+`sdd_config.write_text_lf` (vía `Path.open(newline="\n")`) usado en los 5
+puntos.
+
+**Hecho:**
+- `templates/README.md` (nuevo): producto derivado, placeholders `{{project.name}}`/
+  `{{project.domain}}`, sección final "Desarrollo" con un único link a
+  `AGENTS.md` y `docs/SDD-OPERACION.md` — sin explicar el protocolo SDD.
+- `templates/docs/SDD-OPERACION.md` (nuevo): catálogo humano de las 5 skills
+  SDD instaladas (qué hace cada una, cuándo invocarla).
+- `templates/docs/playbooks/{sdd-spec,sdd-doctor,sdd-configure}.md`: movidos
+  desde `docs/playbooks/` (pasan a ser SSOT en `templates/`); las copias del
+  propio kit ahora se generan vía `_SYNCED_FROM_TEMPLATES` en `render.py`
+  (patrón SPEC-005), no se editan a mano.
+- `core/sdd_init.py`: `STATIC_DOCS` suma `README.md`, `docs/SDD-OPERACION.md`
+  y los 3 playbooks movidos; `PROJECT_SKILLS` suma `sdd-spec`, `sdd-doctor`,
+  `sdd-configure` (no `sdd-init`, bootstrap de una sola vez).
+- Tests nuevos: `test_sdd_init.py` (instalación completa, idempotencia del
+  README, README sin detalle de SDD), `test_render.py` (sync de los 3
+  playbooks nuevos), `test_sdd_config.py` (`write_text_lf`) — suite: 77
+  tests.
+- Verificado con instalación fresca en `/tmp`: `sdd_init.py` → `render.py` →
+  `gen_skill_adapters.py` → `sdd_doctor.py` sano, 5 skills generadas para
+  Claude y opencode.
+- `docs/IDEAS.md`: E-1 y E-7 marcados con puntero a esta spec.
+
+**Deuda:** ninguna nueva. Sigue pendiente `sdd-init` como skill instalable
+(fuera de alcance, ver SPEC-007 "Fuera de alcance") y `sdd-update` (E-2).
+
 ## 2026-08-01 — SPEC-004 (reabierta): sdd_spec.py preserva el header de current-spec (G-7 de docs/IDEAS.md)
 
 **Scope:** al usar `sdd_spec.py` en la práctica (durante esta misma sesión,

@@ -2,11 +2,21 @@
 
 from pathlib import Path
 
-from sdd_config import DEFAULT_SOURCE_ROOT, DEFAULT_TESTS_UNIT, SddConfig
+from sdd_config import DEFAULT_SOURCE_ROOT, DEFAULT_TESTS_UNIT, SddConfig, write_text_lf
 
 
 def _cfg(raw: dict) -> SddConfig:
     return SddConfig(repo_root=Path("."), raw=raw)
+
+
+def test_write_text_lf_escribe_utf8_con_fin_de_linea_lf(tmp_path):
+    # SPEC-007 FR-006: Path.write_text no admite newline= en ninguna version de
+    # Python; este helper via Path.open es el reemplazo correcto.
+    target = tmp_path / "out.md"
+    write_text_lf(target, "línea 1\nlínea 2\n")
+    raw = target.read_bytes()
+    assert raw == "línea 1\nlínea 2\n".encode("utf-8")
+    assert b"\r\n" not in raw
 
 
 def test_defaults_con_config_vacio():
