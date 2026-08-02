@@ -187,7 +187,7 @@ def main(argv: list[str]) -> int:
     name = target.name
     domain = "TODO: describir el dominio"
 
-    print(f"Instalando sdd-kit en {target} (language={language})")
+    print(f"Instalando sdd-first en {target} (language={language})")
     log: list[str] = []
     for src_rel, dst_rel in STATIC_DOCS:
         log.append(

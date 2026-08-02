@@ -21,3 +21,4 @@
 | SPEC-005 | Desduplicar SSOTs del kit (docs/templates, defaults) | active | 1 | hibrido | [SPEC-005-desduplicar-ssot.md](SPEC-005-desduplicar-ssot.md) |
 | SPEC-006 | El gate verifica el estado (draft/active) de la spec declarada | active | 1 | hibrido | [SPEC-006-gate-verifica-estado-spec.md](SPEC-006-gate-verifica-estado-spec.md) |
 | SPEC-007 | README propio y manual de operación SDD en el proyecto derivado | active | 1 | hibrido | [SPEC-007-derived-project-onboarding.md](SPEC-007-derived-project-onboarding.md) |
+| SPEC-008 | Renombrar mensajes internos sdd-kit a sdd-first | draft | - | hibrido | [SPEC-008-rename-sdd-first.md](SPEC-008-rename-sdd-first.md) |

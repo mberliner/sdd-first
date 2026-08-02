@@ -29,7 +29,7 @@ try:
     import yaml
 except ModuleNotFoundError as exc:  # pragma: no cover - dependencia declarada
     raise SystemExit(
-        "sdd-kit requiere PyYAML para leer .sdd/config.yaml (pip install pyyaml)."
+        "sdd-first requiere PyYAML para leer .sdd/config.yaml (pip install pyyaml)."
     ) from exc
 
 CONFIG_RELPATH = Path(".sdd") / "config.yaml"
