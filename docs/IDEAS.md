@@ -195,6 +195,17 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   ("`python core/pipeline.py` (o el wrapper `tools/pipeline`)"): en un
   proyecto instalado es `tools/sdd/core/pipeline.py` y el wrapper no existe.
   Corregir la plantilla.
+- **E-7 · El proyecto derivado no recibe un README humano ni un manual de
+  skills.** `sdd_init.py` no instala ningún `README.md` (no está en
+  `STATIC_DOCS`), pese a que `templates/AGENTS.md` ya asume su existencia
+  ("no dupliques información entre `docs/`, `specs/` y README"). El derivado
+  tiene su propio scope de producto — el README debe ser específico de ese
+  proyecto (qué es, cómo se corre, links de salida a `00-INDEX.md`/`AGENTS.md`),
+  no una copia de la gobernanza SDD. Sumar `templates/README.md` +
+  `templates/docs/SKILLS.md` (catálogo humano de las skills SDD instaladas:
+  qué hace cada una, cuándo invocarla) a `STATIC_DOCS`. Depende de **E-1**
+  (qué skills se instalan de verdad determina qué documenta el manual) y
+  choca con el mismo gap que **E-6** en `AGENTS.md`.
 
 ## Técnicas (ideas sueltas, sin prioridad asignada)
 
