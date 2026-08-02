@@ -6,7 +6,7 @@
 
 ## User Story (Priority P1)
 
-Como mantenedor de sdd-kit, quiero que el kit cumpla íntegramente su propio
+Como mantenedor de sdd-first, quiero que el kit cumpla íntegramente su propio
 protocolo SDD (gate activo, tests, doctor sano, specs con ciclo de vida real)
 para que el dogfooding sea creíble y cada regla que el kit impone a otros
 proyectos esté demostrada sobre sí mismo.

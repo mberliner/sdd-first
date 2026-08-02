@@ -4,7 +4,7 @@
 > directo los asistentes que buscan `AGENTS.md` (opencode, Cursor, Codex, Aider,
 > Gemini CLI…). Claude Code la recibe vía `@AGENTS.md` en `CLAUDE.md`.
 >
-> Andamiaje provisto por **sdd-kit**. Parámetros del proyecto en `.sdd/config.yaml`.
+> Andamiaje provisto por **sdd-first**. Parámetros del proyecto en `.sdd/config.yaml`.
 
 Dominio: {{project.domain}}
 

@@ -1,6 +1,6 @@
-# Config del propio sdd-kit (dogfooding). El kit usa su propio SDD para evolucionar.
+# Config del propio sdd-first (dogfooding). El kit usa su propio SDD para evolucionar.
 project:
-  name: sdd-kit
+  name: sdd-first
   domain: andamiaje SDD universal, agnostico y personalizable para otros proyectos
   language: python
   kit_version: "0.1.0"

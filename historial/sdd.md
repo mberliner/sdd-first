@@ -1,4 +1,4 @@
-# Historial SDD — sdd-kit
+# Historial SDD — sdd-first
 
 ## 2026-08-02 — SPEC-007: README propio y manual de operación SDD en el proyecto derivado (E-1, E-7 de docs/IDEAS.md)
 

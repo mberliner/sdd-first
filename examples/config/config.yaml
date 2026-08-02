@@ -8,7 +8,7 @@ project:
   name: mi-proyecto
   domain: descripcion corta del dominio del proyecto
   language: python              # python | none (node/go: roadmap)
-  kit_version: "0.1.0"          # version del sdd-kit usada (lo lee sdd-doctor)
+  kit_version: "0.1.0"          # version del sdd-first usada (lo lee sdd-doctor)
 
 dirs:
   domain: src/domain

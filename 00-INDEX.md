@@ -1,4 +1,4 @@
-# Índice de documentación — sdd-kit
+# Índice de documentación — sdd-first
 
 > Navegación y mapa de SSOTs del propio kit (dogfooding). Evita duplicación:
 > cada tema tiene un único archivo autoritativo.

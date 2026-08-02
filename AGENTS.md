@@ -1,4 +1,4 @@
-# Protocolo SDD para asistentes IA — sdd-kit
+# Protocolo SDD para asistentes IA — sdd-first
 
 > **SSOT del protocolo del agente de este repositorio.** Fuente única
 > cross-asistente: la leen directo los asistentes que buscan `AGENTS.md`

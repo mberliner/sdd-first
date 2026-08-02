@@ -1,7 +1,7 @@
-# sdd-kit
+# sdd-first
 
 **Un método de trabajo, listo para instalar, que hace que tus specs manden sobre
-el código.** sdd-kit lleva el desarrollo guiado por especificaciones (SDD) a
+el código.** sdd-first lleva el desarrollo guiado por especificaciones (SDD) a
 cualquier proyecto: define principios, obliga a escribir la spec antes de codear,
 verifica la trazabilidad entre spec y código, y trae skills para asistentes de IA
 (Claude Code, Codex, opencode, Cursor…) — todo configurable desde un único

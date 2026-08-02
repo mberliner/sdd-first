@@ -5,7 +5,7 @@
 
 ## User Story (Priority P2)
 
-Como mantenedor de sdd-kit, quiero que los documentos y defaults que hoy
+Como mantenedor de sdd-first, quiero que los documentos y defaults que hoy
 existen duplicados dentro del propio repo tengan un único archivo autoritativo
 (el resto se genera o referencia), para que una edición futura no pueda dejar
 `docs/` y `templates/docs/` (o dos constantes de código) divergiendo en

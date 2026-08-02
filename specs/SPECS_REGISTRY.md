@@ -1,4 +1,4 @@
-# Registro de specs — sdd-kit
+# Registro de specs — sdd-first
 
 > SSOT de specs vigentes del propio kit. `core/check_traceability.py` valida la
 > consistencia disco↔registro.

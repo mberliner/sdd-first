@@ -2,9 +2,9 @@
 
 > Log evolutivo, una entrada por cierre de iteración, orden cronológico inverso.
 
-## YYYY-MM-DD — Instalación de sdd-kit
+## YYYY-MM-DD — Instalación de sdd-first
 
-**Scope:** bootstrap del andamiaje SDD con sdd-kit.
+**Scope:** bootstrap del andamiaje SDD con sdd-first.
 
 **Decisiones tomadas:** (completar)
 

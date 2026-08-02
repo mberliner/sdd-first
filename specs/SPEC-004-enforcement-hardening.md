@@ -2,11 +2,11 @@
 
 > Origen: comparación con el proyecto de referencia `evaluador-flujo-intent`
 > (2026-08-01), que corrió más tiempo el gate spec-first en producción y
-> endureció capas que sdd-kit todavía no tiene.
+> endureció capas que sdd-first todavía no tiene.
 
 ## User Story (Priority P1)
 
-Como mantenedor de un proyecto instalado con sdd-kit, quiero que la capa git
+Como mantenedor de un proyecto instalado con sdd-first, quiero que la capa git
 del enforcement (hooks pre-commit/post-commit) se instale sola y que la spec
 vigente se limpie automáticamente después de cada commit, para que el gate
 spec-first no dependa de que alguien recuerde instalar hooks a mano ni de que

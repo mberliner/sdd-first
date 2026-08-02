@@ -5,7 +5,7 @@
 
 ## User Story (Priority P1)
 
-Como mantenedor de un proyecto con sdd-kit, quiero que el gate spec-first
+Como mantenedor de un proyecto con sdd-first, quiero que el gate spec-first
 rechace una spec declarada en `.sdd/current-spec` cuyo estado en
 `SPECS_REGISTRY.md` sea `archived`/`superseded`/`notas` (o que ni siquiera
 esté registrada como fila), para que declarar una spec cerrada no sirva como
