@@ -1,8 +1,10 @@
 # Arquitectura — {{project.name}}
 
 > SSOT de capas. La matriz concreta de dependencias vive en `layers` de
-> `.sdd/config.yaml` y se traduce a contratos de import-linter con
-> `{{sdd.adapters}}/python/gen_import_linter.py`.
+> `.sdd/config.yaml`; el adaptador del lenguaje la traduce a contratos de
+> imports verificables (en Python, import-linter). Sin adaptador
+> (`language: none`) la matriz sigue siendo el SSOT, pero se verifica en code
+> review en vez de automáticamente.
 
 ## Capas (Clean Architecture)
 

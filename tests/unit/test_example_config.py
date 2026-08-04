@@ -41,6 +41,30 @@ def test_los_principios_opcionales_van_despues_del_nucleo_minimo():
     assert titulos[: len(nucleo)] == nucleo
 
 
+def test_conserva_el_catalogo_completo_de_principios():
+    # SPEC-013 FR-002: lo que se recorta es el sembrado del derivado, no el
+    # ejemplo — que sigue siendo el catálogo de referencia.
+    assert [p["id"] for p in _cargado()["principles"]] == [
+        "I",
+        "II",
+        "III",
+        "IV",
+        "V",
+        "VI",
+    ]
+
+
+def test_conserva_el_marcador_que_separa_los_opcionales():
+    # SPEC-013 FR-001: `sdd_init._seed_principles` comenta todo lo que sigue a
+    # este marcador. Si alguien reescribe el comentario, el sembrado dejaría de
+    # recortar y el derivado volvería a heredar principios no elegidos, en
+    # silencio. El acoplamiento es deliberado (evita duplicar la lista en el
+    # código); este test es su ancla.
+    import sdd_init
+
+    assert sdd_init._OPTIONAL_PRINCIPLES_MARKER in EXAMPLE.read_text(encoding="utf-8")
+
+
 def test_todo_principio_declara_invariante_enforcement_y_detalle():
     for p in _cargado()["principles"]:
         assert p.get("invariant"), p

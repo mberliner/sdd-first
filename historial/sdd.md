@@ -1,5 +1,67 @@
 # Historial SDD — sdd-first
 
+## 2026-08-04 — SPEC-013: el derivado solo declara lo que eligió y lo que tiene
+
+**Scope:** qué recibe un proyecto recién derivado en su `CONSTITUTION.md` y en
+sus docs.
+
+**Hallazgos (auditados sobre instalaciones reales, no sobre las plantillas):**
+
+1. El config sembrado copiaba el catálogo completo de principios, opcionales
+   incluidos: la constitución de un proyecto nuevo declaraba "Datos no
+   versionados" y "SSOT único por tema" sin que nadie los eligiera. Peor: el
+   playbook de `sdd-configure` ya mandaba "partí del núcleo mínimo y preguntá
+   qué opcionales agregar" — el sembrado contradecía a la skill.
+2. `docs/ARCHITECTURE.md` citaba `{{sdd.adapters}}/python/gen_import_linter.py`,
+   que con `--language none` no existe: no se vendoriza ningún adaptador.
+3. Con `language: none` los principios I y II declaran enforcements que la
+   instalación no puede ejecutar. `check_constitution` no lo detecta porque
+   `check_naming.py` y `lint-imports` no son rutas.
+
+**Por qué importa:** un principio que el dueño no eligió, o cuyo enforcement no
+puede correr, enseña que la constitución es decorativa. Si el primer contacto
+con ella es "esto no aplica a mi proyecto", deja de leerse — y es el artefacto
+central del kit.
+
+**Decisiones:**
+- Se recorta el **sembrado**, no el ejemplo: `examples/config/config.yaml`
+  sigue siendo el catálogo de referencia con los seis principios, igual que
+  conserva los 10 pasos de pipeline aunque se siembren 8 (SPEC-003 FR-005).
+- `_seed_principles` busca el marcador "principios OPCIONALES" del ejemplo en
+  vez de contar cuatro: la lista vive en un solo lugar (Principio VI). El
+  acoplamiento al texto del comentario es deliberado y quedó anclado con un
+  test — sin él, reescribir ese comentario habría desactivado el recorte en
+  silencio.
+- Los opcionales se comentan con prefijo fijo e indentación relativa, así
+  descomentar es borrar `# ` y el YAML sigue alineado; hay un test que lo
+  descomenta y valida el parseo.
+- `ARCHITECTURE.md` describe el mecanismo (el adaptador del lenguaje traduce
+  `layers` a contratos de imports) en vez de citar un archivo que puede no
+  estar. El doc de capas se instala con cualquier lenguaje.
+- Para el hallazgo 3, que no da para automatizar: `sdd-configure` avisa al
+  ofrecer un principio cuyo enforcement esta instalación no puede ejecutar.
+
+**Anti-regresión:** `test_derived_references.py` instala de verdad en los dos
+lenguajes, corre `render.py` (sin eso, SPEC-000 y el CI generado aparecen como
+rutas rotas) y falla si algún doc instalado cita un archivo ausente.
+`check_constitution` ya cubría las líneas de la constitución; nada cubría el
+resto de los documentos.
+
+**SSOTs afectados:** `templates/docs/ARCHITECTURE.md`,
+`templates/docs/playbooks/sdd-configure.md`.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-013-proyecto-derivado-coherente, SPEC-003, SPEC-010,
+  CONSTITUTION.md
+- Includes/excludes verificados: core/sdd_init.py (_seed_principles) +
+  templates/docs/{ARCHITECTURE.md,playbooks/sdd-configure.md} + 3 tests
+- SSOTs afectados: plantillas de docs; examples/config/config.yaml intacto
+- Verificación: constitución fresca con 4 principios (antes 6); cero rutas
+  colgadas en `none` y `python`; pipelines VERDE (derivado none 4/4, derivado
+  python 8/8, kit 10/10); 147 passed + 1 skipped
+```
+
 ## 2026-08-04 — SPEC-012: el pipeline del kit corre verde en Windows
 
 **Scope:** la deuda que dejó SPEC-011. `python core/pipeline.py` salía ROJO

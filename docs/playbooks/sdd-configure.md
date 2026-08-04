@@ -14,7 +14,11 @@ artefactos derivados.
      que el proyecto quiere vetar). Confirmá también `allowed_identifiers` y
      `relax_in_tests`.
    - **principles**: partí del núcleo mínimo obligatorio (nomenclatura, capas,
-     trazabilidad, gate) y preguntá qué principios opcionales agregar.
+     trazabilidad, gate) y preguntá qué principios opcionales agregar — el
+     config los trae comentados, listos para descomentar. Si un principio
+     declara un `enforcement` que esta instalación no puede ejecutar (por
+     `language: none`, o porque la tool no está), decílo al ofrecerlo: se
+     verificará en code review, no automáticamente.
    - **layers**: nombres de capas y matriz de imports permitidos.
    - **dirs**: rutas de cada capa y de los tests.
    - **pipeline.steps**: qué pasos correr.

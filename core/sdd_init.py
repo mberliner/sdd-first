@@ -125,6 +125,7 @@ def _write_config(target: Path, name: str, language: str, force: bool) -> str:
     example = example.replace("name: mi-proyecto", f"name: {name}")
     example = example.replace("language: python", f"language: {language}")
     example = _seed_pipeline_steps(example)
+    example = _seed_principles(example)
     dst.parent.mkdir(parents=True, exist_ok=True)
     write_text_lf(dst, example)
     return f"  sembrado {dst}"
@@ -173,6 +174,51 @@ def _seed_pipeline_steps(config_text: str) -> str:
             in_steps = True
             replaced = True
             continue
+        out.append(line)
+    return "\n".join(out).rstrip() + "\n"
+
+
+# Marcador que separa el nucleo minimo de los principios opcionales dentro de
+# `principles:` en el config de ejemplo. Se busca el marcador en vez de contar
+# principios: la lista vive en el ejemplo (SSOT), no duplicada aca.
+_OPTIONAL_PRINCIPLES_MARKER = "principios OPCIONALES"
+
+
+def _seed_principles(config_text: str) -> str:
+    """Comenta los principios opcionales del ejemplo (SPEC-013 FR-001).
+
+    Un principio que el dueno del proyecto nunca eligio ensena que la
+    constitucion es decorativa. Se siembra solo el nucleo minimo obligatorio;
+    el resto queda a la vista pero inactivo, y `sdd-configure` los pregunta al
+    configurar el derivado.
+    """
+    lines = config_text.splitlines()
+    out: list[str] = []
+    in_block = False
+    base = ""  # indentacion del marcador: prefijo comun de lo comentado
+    commenting = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "principles:":
+            in_block = True
+            out.append(line)
+            continue
+        if in_block and line and not line[0].isspace():
+            in_block = commenting = False  # arranca otra clave de nivel superior
+        if in_block and not commenting and _OPTIONAL_PRINCIPLES_MARKER in stripped:
+            base = line[: len(line) - len(line.lstrip())]
+            out.append(f"{base}# Principios OPCIONALES: descomenta los que apliquen a")
+            out.append(f"{base}# tu proyecto (sdd-configure te los pregunta).")
+            commenting = True
+            continue
+        if commenting:
+            if stripped.startswith("#"):
+                continue  # notas del ejemplo: las reemplaza el aviso de arriba
+            if stripped:
+                # Prefijo fijo + indentacion relativa: descomentar es borrar
+                # `# ` de cada linea y el YAML sigue alineado.
+                out.append(f"{base}# {line[len(base) :]}")
+                continue
         out.append(line)
     return "\n".join(out).rstrip() + "\n"
 
