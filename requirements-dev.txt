@@ -1,0 +1,9 @@
+# Dependencias de desarrollo del propio kit (deuda E-3 de docs/IDEAS.md).
+# El nucleo solo necesita pyyaml; el resto son las tools de los pasos de codigo
+# declarados en .sdd/config.yaml (lint, format, tests, coverage). Sin ellas el
+# adaptador omite el paso con aviso, pero la CI del kit debe correrlos de verdad.
+pyyaml
+ruff
+pytest
+pytest-cov
+pre-commit

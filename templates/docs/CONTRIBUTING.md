@@ -15,7 +15,7 @@ spec completa + `clarify`/`analyze` antes de codear.
 - [ ] El dominio quedó limpio (sin imports hacia afuera).
 - [ ] Hay tests para todo cambio de comportamiento.
 - [ ] La spec se actualizó si el comportamiento difiere.
-- [ ] `python core/pipeline.py` está verde.
+- [ ] `python {{sdd.core}}/pipeline.py` está verde.
 - [ ] Entrada agregada en `historial/sdd.md`.
 - [ ] Commit con bloque `[SDD-Check]`.
 

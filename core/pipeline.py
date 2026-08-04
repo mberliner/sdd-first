@@ -7,7 +7,7 @@ Reemplaza al pipeline_local.sh especifico: corre los pasos declarados en
     (constitution, traceability, skills, render).
   - de CODIGO (especifico de lenguaje): lo delega al adaptador del lenguaje
     activo (`adapters/<language>/adapter.py <step>`): naming, layers, lint,
-    format, types, security, tests.
+    format, types, security, tests, coverage.
 
 Con `language: none`, los pasos de codigo se omiten con aviso (modo doc-solo:
 quedan activos solo los gates de proceso). Contrato: exit 0 si todos los pasos
@@ -29,7 +29,16 @@ sys.path.insert(0, str(HERE))
 from sdd_config import find_repo_root, load  # noqa: E402
 
 PROCESS_STEPS = {"hooks", "constitution", "traceability", "skills", "render"}
-CODE_STEPS = {"naming", "layers", "lint", "format", "types", "security", "tests"}
+CODE_STEPS = {
+    "naming",
+    "layers",
+    "lint",
+    "format",
+    "types",
+    "security",
+    "tests",
+    "coverage",
+}
 
 
 def _run(cmd: list[str], cwd: Path) -> int:

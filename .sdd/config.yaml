@@ -27,6 +27,13 @@ naming:
   allowed_identifiers: []
   relax_in_tests: []
 
+constitution:
+  # Metadatos de CONSTITUTION.md. Bumpear al enmendar un principio y regenerar
+  # con render.py (SPEC-010 FR-003); antes estaban hardcodeados en render.py.
+  version: "0.2.0"
+  ratified: 2026-08-02
+  amended: 2026-08-04
+
 principles:
   - id: I
     title: Nomenclatura agnostica a tecnologia
@@ -58,3 +65,12 @@ pipeline:
     - skills
     - render
     - tests
+    - coverage
+
+  # Umbrales de cobertura del propio kit (SPEC-009). Se fijan en el piso actual
+  # medido, no en un ideal: sirven como trinquete (impiden que baje) y se suben
+  # a medida que se cubren los modulos hoy sin tests (check_constitution,
+  # gen_skill_adapters y sdd_doctor estan en 0% — deuda anotada en IDEAS).
+  coverage:
+    - paths: [core, adapters]
+      min: 50

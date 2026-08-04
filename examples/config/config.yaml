@@ -53,6 +53,14 @@ naming:
     - yaml
     - parquet
 
+constitution:
+  # Metadatos de CONSTITUTION.md (generado por render.py). El procedimiento de
+  # enmienda que el propio documento describe consiste en bumpear esto y
+  # regenerar. Si omitis la seccion, se usan 0.1.0 y la fecha de hoy.
+  version: "0.1.0"
+  ratified: 2026-01-01
+  amended: 2026-01-01
+
 principles:
   # Los cuatro primeros son el NUCLEO MINIMO obligatorio del kit.
   - id: I
@@ -75,12 +83,21 @@ principles:
     invariant: No se edita codigo fuente sin una spec vigente declarada.
     enforcement: sdd_gate.py
     detail: docs/SDD-ENFORCEMENT.md
-  # A partir de aca, principios opcionales por proyecto:
+  # A partir de aca, principios OPCIONALES: elegi los que apliquen a tu
+  # proyecto y borra el resto. No tienen por que enforzarse con una tool;
+  # check_constitution solo exige paso de pipeline para los enforcements que
+  # conoce (check_naming.py, lint-imports, check_traceability.py,
+  # check_constitution.py). El resto se verifica en code review.
   - id: V
     title: Datos no versionados
     invariant: El repo contiene codigo y specs, no datasets.
     enforcement: .gitignore
     detail: docs/ARCHITECTURE.md
+  - id: VI
+    title: SSOT unico por tema
+    invariant: Toda regla o contrato vive en un unico documento; el resto lo referencia.
+    enforcement: docs/playbooks/analyze.md
+    detail: 00-INDEX.md
 
 layers:
   # capa: [capas que PUEDE importar]. Genera los contratos de import-linter.
@@ -91,8 +108,8 @@ layers:
 
 pipeline:
   # Pasos del pipeline local. Los de proceso (constitution/traceability/gate/
-  # skills) son agnosticos; naming/layers/lint/types/security/tests los provee
-  # el adaptador del lenguaje activo.
+  # skills) son agnosticos; naming/layers/lint/types/security/tests/coverage los
+  # provee el adaptador del lenguaje activo.
   steps:
     - hooks
     - constitution
@@ -105,3 +122,15 @@ pipeline:
     - security
     - skills
     - tests
+    - coverage
+
+  # Umbrales de cobertura (OPCIONAL). Cada entrada mide sus `paths` juntas
+  # contra `min`. Sin esta clave, el paso `coverage` se omite con aviso: un
+  # proyecto recien instalado no arranca en ROJO por una metrica que todavia no
+  # tiene sentido medir. Descomentar cuando la suite este madura.
+  # El patron util es exigirle mas al nucleo que al resto:
+  # coverage:
+  #   - paths: [src]
+  #     min: 80
+  #   - paths: [src/domain]
+  #     min: 96

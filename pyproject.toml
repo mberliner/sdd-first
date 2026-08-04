@@ -1,0 +1,23 @@
+# Configuración de tooling del propio kit (deuda E-3 de docs/IDEAS.md).
+# El kit NO se publica como paquete: esto solo fija la config de las tools que
+# corren sus pasos de pipeline, para que `lint`/`format` den lo mismo en la
+# máquina de cada quien y en la CI. Sin este archivo, cada versión de ruff trae
+# defaults distintos y el paso arranca ROJO por reglas que nadie eligió.
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+# E402 va explícito: los módulos del núcleo ajustan sys.path antes de importar
+# (es la forma de ser ejecutables tanto desde el kit como vendorizados bajo
+# tools/sdd/), y marcan esa línea con `# noqa: E402`. Si E402 no está
+# seleccionada, esos noqa quedan "sin usar" y ruff los reporta como RUF100.
+select = ["E4", "E7", "E9", "E402", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Los tests importan los módulos del núcleo vía conftest (que manipula sys.path).
+"tests/**" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]

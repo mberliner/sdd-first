@@ -5,7 +5,7 @@
 
 ## Las tres capas
 
-1. **Gate de autoría (preventivo)** — `core/sdd_gate.py`. Se dispara *antes* de
+1. **Gate de autoría (preventivo)** — `{{sdd.core}}/sdd_gate.py`. Se dispara *antes* de
    editar código fuente. Bloquea la edición si no hay una spec vigente declarada
    en `.sdd/current-spec` y editada *después* de declararla. Multi-transporte:
    - `PreToolUse` de Claude Code (stdin JSON) — `.claude/settings.json`.
@@ -15,7 +15,7 @@
    Contrato: exit 0 permite, exit 2 bloquea. Las carpetas consideradas "código
    fuente" se leen de `dirs.source_roots` en `.sdd/config.yaml`.
 
-2. **Backstop determinista** — `core/check_traceability.py` en el pipeline.
+2. **Backstop determinista** — `{{sdd.core}}/check_traceability.py` en el pipeline.
    Verifica *estructura* (secciones obligatorias), *consistencia* disco↔registro
    y *cobertura* FR→test en specs `active`. No juzga adecuación.
 
@@ -30,13 +30,13 @@ Archivo de una línea por spec vigente (SPEC-NNN-slug). El gate lo usa como
 declaración de intención: comparás la mtime de la spec contra la de este archivo
 para forzar el flujo **declarar → editar la spec → editar el código**.
 
-**Reset post-commit** (`core/sdd_reset.py`, hook `sdd-reset` en
+**Reset post-commit** (`{{sdd.core}}/sdd_reset.py`, hook `sdd-reset` en
 `.pre-commit-config.yaml`, `stages: [post-commit]`): tras cada commit exitoso
 limpia `.sdd/current-spec` dejando solo las líneas de comentario (`#`). Fuerza
 declaración explícita al inicio de cada iteración en vez de dejar una spec
 vieja "vigente" indefinidamente por descuido.
 
-**Bootstrap automático de hooks git** (`core/bootstrap_hooks.py`, paso `hooks`
+**Bootstrap automático de hooks git** (`{{sdd.core}}/bootstrap_hooks.py`, paso `hooks`
 del pipeline, primero en `pipeline.steps`): git no instala hooks al clonar (por
 diseño, seguridad), así que `pre-commit install --hook-type pre-commit
 --hook-type post-commit` requiere un paso explícito. `bootstrap_hooks.py` lo
@@ -44,7 +44,7 @@ automatiza: verifica si ya están instalados (no toca los existentes), los
 instala si faltan, es no-op con aviso sin `.git/`, y falla con instrucción
 accionable si falta el paquete `pre-commit`. Como el protocolo obliga a correr
 el pipeline al cerrar cada iteración, un clon nuevo queda reparado a más
-tardar en su primer `core/pipeline.py` — antes del primer commit.
+tardar en su primer `{{sdd.core}}/pipeline.py` — antes del primer commit.
 
 **`language: python`, no `system`, en los hooks locales de `pre-commit`**: los
 hooks `sdd-gate`/`sdd-traceability`/`sdd-reset` usan `language: python` en vez

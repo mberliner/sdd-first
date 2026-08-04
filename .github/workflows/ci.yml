@@ -1,0 +1,41 @@
+# Generado por `core/render.py` desde `.sdd/config.yaml`. No editar a mano:
+# los pasos que corre son los de `pipeline.steps`, no una lista propia.
+name: ci (sdd-first)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "adapters/**"
+      - "tests/unit/**"
+      - ".sdd/config.yaml"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "core/**"
+      - "adapters/**"
+      - "tests/unit/**"
+      - ".sdd/config.yaml"
+      - ".github/workflows/ci.yml"
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Pipeline SDD
+        run: python core/pipeline.py

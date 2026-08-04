@@ -1,10 +1,13 @@
-"""Tests del sync docs/templates (SPEC-005 FR-001, FR-002)."""
+"""Tests del render: sync docs/templates (SPEC-005 FR-001, FR-002), constitucion
+enriquecida y metadatos configurables (SPEC-010 FR-001..FR-003, FR-007) y
+workflow de CI derivado del config (SPEC-009 FR-005)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import render
+from sdd_config import SddConfig
 
 
 def _make_repo(tmp_path: Path) -> Path:
@@ -14,6 +17,9 @@ def _make_repo(tmp_path: Path) -> Path:
     (tmp_path / "specs").mkdir(parents=True)
     (tmp_path / "templates" / "docs" / "SDD-ENFORCEMENT.md").write_text(
         "contenido autoritativo\n", encoding="utf-8"
+    )
+    (tmp_path / "templates" / "docs" / "SKILLS-MULTITOOL.md").write_text(
+        "skills multi-asistente\n", encoding="utf-8"
     )
     (tmp_path / "templates" / "docs" / "playbooks" / "analyze.md").write_text(
         "analyze\n", encoding="utf-8"
@@ -83,3 +89,145 @@ def test_check_detecta_drift_en_archivo_sincronizado(tmp_path, monkeypatch, caps
     assert code == 1
     out = capsys.readouterr().out
     assert "docs/SDD-ENFORCEMENT.md" in out
+
+
+# --- SPEC-010: constitucion con preambulo, governance y metadatos del config ---
+
+
+def _cfg(tmp_path: Path, raw: dict) -> SddConfig:
+    return SddConfig(repo_root=tmp_path, raw=raw)
+
+
+_PRINCIPIO = {
+    "principles": [
+        {
+            "id": "I",
+            "title": "Un principio",
+            "invariant": "Algo que no cede.",
+            "enforcement": "check_naming.py",
+            "detail": "specs/SPEC-000-naming.md",
+        }
+    ]
+}
+
+
+def test_constitucion_incluye_preambulo_y_governance(tmp_path):
+    # FR-001/FR-002: el documento explica que ES una constitucion y como se
+    # enmienda; sin eso, quien lo recibe no sabe que hacer con el.
+    text = render.render_constitution(_cfg(tmp_path, _PRINCIPIO))
+
+    assert "## Preámbulo" in text
+    assert "se ajusta la spec, no el principio" in text
+    assert "## Governance" in text
+    assert "MAJOR" in text and "MINOR" in text and "PATCH" in text
+    assert "Procedimiento de enmienda" in text
+
+
+def test_constitucion_toma_version_y_fechas_del_config(tmp_path):
+    # FR-003: antes estaban hardcodeadas en render.py (ítem C-5 de IDEAS).
+    raw = dict(
+        _PRINCIPIO,
+        constitution={
+            "version": "0.7.1",
+            "ratified": "2020-01-02",
+            "amended": "2021-03-04",
+        },
+    )
+    text = render.render_constitution(_cfg(tmp_path, raw))
+
+    assert (
+        "**Versión:** 0.7.1 | Ratificada: 2020-01-02 | Última enmienda: 2021-03-04"
+        in text
+    )
+
+
+def test_constitucion_sin_seccion_constitution_usa_defaults(tmp_path):
+    # FR-003: retrocompatible con los configs ya instalados.
+    text = render.render_constitution(_cfg(tmp_path, _PRINCIPIO))
+
+    assert "**Versión:** 0.1.0" in text
+
+
+def test_constitucion_apunta_al_andamiaje_vendorizado_en_proyecto_instalado(tmp_path):
+    # FR-007: sin templates/ el repo es un proyecto instalado -> tools/sdd/core.
+    text = render.render_constitution(_cfg(tmp_path, _PRINCIPIO))
+
+    assert "tools/sdd/core/render.py" in text
+    assert "`core/render.py`" not in text
+
+
+def test_constitucion_apunta_a_core_en_el_kit(tmp_path):
+    # ...y con templates/ es el propio kit, donde el andamiaje vive en core/.
+    (tmp_path / "templates").mkdir()
+    text = render.render_constitution(_cfg(tmp_path, _PRINCIPIO))
+
+    assert "`core/render.py`" in text
+    assert "tools/sdd" not in text
+
+
+def test_sync_resuelve_los_placeholders_de_ruta(tmp_path, monkeypatch):
+    # FR-007: una sola plantilla sirve al kit y al proyecto instalado.
+    repo = _make_repo(tmp_path)
+    (repo / "templates" / "docs" / "SDD-ENFORCEMENT.md").write_text(
+        "Corré `python {{sdd.core}}/pipeline.py`.\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(repo)
+    render.load.cache_clear()
+
+    render.main([])
+
+    text = (repo / "docs" / "SDD-ENFORCEMENT.md").read_text(encoding="utf-8")
+    assert "python core/pipeline.py" in text
+    assert "{{sdd.core}}" not in text
+
+
+# --- SPEC-009 FR-005: workflow de CI derivado del config ----------------------
+
+
+def test_ci_invoca_el_pipeline_y_no_enumera_los_pasos(tmp_path):
+    raw = {
+        "project": {"name": "demo", "language": "python"},
+        "pipeline": {"steps": ["constitution", "traceability", "lint", "tests"]},
+    }
+    text = render.render_ci_workflow(_cfg(tmp_path, raw))
+
+    assert "python tools/sdd/core/pipeline.py" in text
+    # El SSOT de los pasos es pipeline.steps: el YAML no los repite.
+    assert "ruff" not in text
+    assert "traceability" not in text
+
+
+def test_ci_deriva_los_paths_de_disparo_del_config(tmp_path):
+    raw = {
+        "project": {"name": "demo", "language": "python"},
+        "dirs": {"source_roots": ["src"], "tests_unit": "tests/unit"},
+        "pipeline": {"steps": ["tests"]},
+    }
+    text = render.render_ci_workflow(_cfg(tmp_path, raw))
+
+    assert '- "src/**"' in text
+    assert '- "tests/unit/**"' in text
+    assert '- ".sdd/config.yaml"' in text
+    # Cambios que solo tocan documentacion no gastan una corrida.
+    assert "docs/**" not in text
+
+
+def test_ci_no_duplica_patrones(tmp_path):
+    # En el kit, el andamiaje ya esta entre los source_roots.
+    (tmp_path / "templates").mkdir()
+    raw = {
+        "project": {"name": "kit"},
+        "dirs": {"source_roots": ["core", "adapters"]},
+        "pipeline": {"steps": ["tests"]},
+    }
+    text = render.render_ci_workflow(_cfg(tmp_path, raw))
+
+    assert text.count('- "core/**"') == 2  # una vez por evento (push, PR)
+
+
+def test_ci_de_proyecto_sin_lenguaje_no_instala_tooling(tmp_path):
+    raw = {"project": {"name": "docs-only", "language": "none"}}
+    text = render.render_ci_workflow(_cfg(tmp_path, raw))
+
+    assert "requirements-dev.txt" not in text
+    assert "pip install pyyaml" in text

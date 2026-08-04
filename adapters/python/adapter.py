@@ -6,7 +6,7 @@ ecosistema Python y respeta el contrato exit 0 = OK / exit != 0 = falla.
 
     python adapters/python/adapter.py <step>
 
-Pasos: naming | layers | lint | format | types | security | tests
+Pasos: naming | layers | lint | format | types | security | tests | coverage
 
 El pipeline agnostico (core/pipeline.py) invoca `adapter.py <step>` para cada paso
 de codigo declarado en pipeline.steps. Los pasos de proceso (constitution,
@@ -15,7 +15,9 @@ traceability, skills) los corre el nucleo directamente, no el adaptador.
 Omisiones con aviso (exit 0), para que una instalacion fresca no arranque en
 ROJO (SPEC-003 FR-001/FR-004):
   - paso sin targets existentes (proyecto todavia sin codigo);
-  - paso cuya tool no esta instalada (ruff/mypy/bandit/pytest/import-linter).
+  - paso cuya tool no esta instalada (ruff/mypy/bandit/pytest/import-linter);
+  - paso `coverage` sin umbrales declarados en el config (SPEC-009 FR-002):
+    los umbrales son opcionales por diseno.
 """
 
 from __future__ import annotations
@@ -126,6 +128,65 @@ def step_tests(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
     return _run([sys.executable, "-m", "pytest", unit, "-q"], repo_root)
 
 
+def step_coverage(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
+    """Verifica los umbrales de cobertura declarados (SPEC-009 FR-001/FR-002).
+
+    Cada entrada de `pipeline.coverage` mide sus `paths` juntas contra su
+    `min`. Se corre una invocacion de pytest por entrada porque
+    `--cov-fail-under` es un umbral unico por corrida: dos exigencias
+    distintas (p. ej. 80% global y 96% en el dominio) no entran en la misma.
+    """
+    targets = cfg.pipeline_coverage
+    if not targets:
+        return _skip(
+            "sin umbrales declarados en pipeline.coverage del config, paso 'coverage'"
+        )
+    if not _module_available("pytest"):
+        return _skip("tool 'pytest' no instalada (pip install pytest), paso 'coverage'")
+    if not _module_available("pytest_cov"):
+        return _skip(
+            "tool 'pytest-cov' no instalada (pip install pytest-cov), paso 'coverage'"
+        )
+
+    _, tests = _source_and_test_dirs(cfg)
+    test_dirs = _existing_targets(repo_root, tests)
+    if not test_dirs:
+        return _skip("sin carpetas de tests todavia, paso 'coverage'")
+
+    failed: list[str] = []
+    measured = 0
+    for target in targets:
+        paths = _existing_targets(repo_root, list(target.paths))
+        if not paths:
+            print(f"    (omitido: {'/'.join(target.paths)} no existe todavia)")
+            continue
+        measured += 1
+        code = _run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                *test_dirs,
+                *(f"--cov={p}" for p in paths),
+                "--cov-report=term-missing",
+                f"--cov-fail-under={target.minimum}",
+                "-q",
+            ],
+            repo_root,
+        )
+        if code != 0:
+            failed.append(f"{', '.join(paths)} (< {target.minimum}%)")
+
+    if not measured:
+        return _skip("ningun target de cobertura existe todavia, paso 'coverage'")
+    if failed:
+        print("    cobertura por debajo del umbral en:")
+        for f in failed:
+            print(f"      x {f}")
+        return 1
+    return 0
+
+
 STEPS = {
     "naming": step_naming,
     "layers": step_layers,
@@ -134,6 +195,7 @@ STEPS = {
     "types": step_types,
     "security": step_security,
     "tests": step_tests,
+    "coverage": step_coverage,
 }
 
 

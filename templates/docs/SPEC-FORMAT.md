@@ -6,7 +6,7 @@
 
 ## Secciones obligatorias (formato híbrido)
 
-`core/check_traceability.py` exige, en specs `hibrido`:
+`{{sdd.core}}/check_traceability.py` exige, en specs `hibrido`:
 
 1. **User Story** con **prioridad** declarada (P1/P2/P3) y un *Independent Test*.
 2. **Functional Requirements** con IDs `FR-NNN` (o `FR-USk-NNN` en specs multi-HU).
@@ -18,7 +18,7 @@
 ## Template copiable
 
 El template real vive en un único archivo, `specs/SPEC-TEMPLATE.md` (lo
-consume `core/sdd_spec.py` al crear una spec nueva). No se embebe una copia
+consume `{{sdd.core}}/sdd_spec.py` al crear una spec nueva). No se embebe una copia
 acá para no duplicar el SSOT — abrí ese archivo directamente.
 
 ## Ciclo de vida

@@ -2,7 +2,7 @@
 
 > SSOT de capas. La matriz concreta de dependencias vive en `layers` de
 > `.sdd/config.yaml` y se traduce a contratos de import-linter con
-> `adapters/python/gen_import_linter.py`.
+> `{{sdd.adapters}}/python/gen_import_linter.py`.
 
 ## Capas (Clean Architecture)
 

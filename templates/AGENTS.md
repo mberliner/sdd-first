@@ -32,8 +32,7 @@ Cuando trabajes en este proyecto, seguí este protocolo:
 
 ## Al cerrar una iteración
 
-1. Corré `python core/pipeline.py` (o el wrapper `tools/pipeline`) y asegurate de
-   que esté verde.
+1. Corré `python {{sdd.core}}/pipeline.py` y asegurate de que esté verde.
 2. Actualizá `specs/SPECS_REGISTRY.md` con el estado de las specs.
 3. Agregá una entrada en `historial/sdd.md` (fecha, scope, decisiones, deuda).
 4. El commit de cierre incluye el bloque `[SDD-Check]`:

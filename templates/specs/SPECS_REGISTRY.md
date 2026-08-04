@@ -1,7 +1,7 @@
 # Registro de specs — {{project.name}}
 
 > SSOT de specs vigentes. Toda spec en `specs/` debe estar acá con un Estado
-> válido. `core/check_traceability.py` valida la consistencia disco↔registro.
+> válido. `{{sdd.core}}/check_traceability.py` valida la consistencia disco↔registro.
 
 ## Convenciones
 

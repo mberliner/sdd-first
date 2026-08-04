@@ -17,5 +17,5 @@
 - Specs leídas: SPEC-000-naming
 - Includes/excludes verificados: bootstrap
 - SSOTs afectados: CONSTITUTION.md, AGENTS.md, specs/, docs/
-- Verificación: python core/pipeline.py
+- Verificación: python {{sdd.core}}/pipeline.py
 ```

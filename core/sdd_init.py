@@ -20,7 +20,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import write_text_lf  # noqa: E402
+from sdd_config import VENDOR_PREFIX, write_text_lf  # noqa: E402
 
 KIT_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = KIT_ROOT / "templates"
@@ -36,6 +36,8 @@ STATIC_DOCS = [
     ("docs/SPEC-FORMAT.md", "docs/SPEC-FORMAT.md"),
     ("docs/SDD-ENFORCEMENT.md", "docs/SDD-ENFORCEMENT.md"),
     ("docs/SDD-OPERACION.md", "docs/SDD-OPERACION.md"),
+    ("docs/SKILLS-MULTITOOL.md", "docs/SKILLS-MULTITOOL.md"),
+    ("docs/DEVELOPMENT.md", "docs/DEVELOPMENT.md"),
     ("docs/IDEAS.md", "docs/IDEAS.md"),
     ("docs/playbooks/analyze.md", "docs/playbooks/analyze.md"),
     ("docs/playbooks/clarify.md", "docs/playbooks/clarify.md"),
@@ -68,7 +70,18 @@ PROJECT_SKILLS = ["analyze", "clarify", "sdd-spec", "sdd-doctor", "sdd-configure
 
 
 def _substitute(text: str, name: str, domain: str) -> str:
-    return text.replace("{{project.name}}", name).replace("{{project.domain}}", domain)
+    """Resuelve los placeholders de plantilla para el proyecto destino.
+
+    Los de ruta (`{{sdd.core}}`, `{{sdd.adapters}}`) resuelven al andamiaje
+    vendorizado, que es donde vive en un proyecto instalado — no en `core/`
+    como en el repo del kit (SPEC-010 FR-007).
+    """
+    return (
+        text.replace("{{project.name}}", name)
+        .replace("{{project.domain}}", domain)
+        .replace("{{sdd.core}}", f"{VENDOR_PREFIX}/core")
+        .replace("{{sdd.adapters}}", f"{VENDOR_PREFIX}/adapters")
+    )
 
 
 def _copy_text(src: Path, dst: Path, name: str, domain: str, force: bool) -> str:
@@ -121,6 +134,9 @@ def _write_config(target: Path, name: str, language: str, force: bool) -> str:
 # `layers` va sembrado aunque requiera import-linter: el principio II del
 # config de ejemplo lo declara como enforcement y check_constitution exige el
 # paso cableado; sin la tool, el adaptador lo omite con aviso.
+# `coverage` va sembrado por visibilidad (SPEC-009 FR-002): sin umbrales
+# declarados se omite con aviso, asi que no puede poner en ROJO una instalacion
+# fresca, pero deja el paso a la vista para cuando la suite madure.
 _SEEDED_STEPS = [
     "hooks",
     "constitution",
@@ -129,6 +145,7 @@ _SEEDED_STEPS = [
     "layers",
     "skills",
     "tests",
+    "coverage",
 ]
 _OPTIONAL_STEPS = ["lint", "format", "types", "security"]
 

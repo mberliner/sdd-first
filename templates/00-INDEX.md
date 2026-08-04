@@ -16,6 +16,8 @@
 8. `docs/SDD-ENFORCEMENT.md` — cómo se obliga el SDD.
 9. `docs/SDD-OPERACION.md` — catálogo de las skills SDD instaladas.
 10. `docs/CONTRIBUTING.md` — Definition of done y code review.
+11. `docs/DEVELOPMENT.md` — setup local y comandos del día a día.
+12. `docs/SKILLS-MULTITOOL.md` — cómo una skill sirve a varios asistentes.
 
 ## Mapa de SSOTs
 
@@ -30,6 +32,10 @@
 | Formato de spec | `docs/SPEC-FORMAT.md` |
 | Enforcement | `docs/SDD-ENFORCEMENT.md` |
 | Catálogo de skills SDD | `docs/SDD-OPERACION.md` |
+| Mecanismo de skills multi-asistente | `docs/SKILLS-MULTITOOL.md` |
+| Setup local y comandos | `docs/DEVELOPMENT.md` |
 | Workflow / DoD | `docs/CONTRIBUTING.md` |
+| Umbrales de cobertura y pasos del pipeline | `.sdd/config.yaml` |
+| Workflow de CI | `.github/workflows/ci.yml` (← `.sdd/config.yaml`, generado) |
 | Historial de iteraciones | `historial/sdd.md` |
 | Ideas pre-spec | `docs/IDEAS.md` |

@@ -15,7 +15,7 @@ def test_write_text_lf_escribe_utf8_con_fin_de_linea_lf(tmp_path):
     target = tmp_path / "out.md"
     write_text_lf(target, "línea 1\nlínea 2\n")
     raw = target.read_bytes()
-    assert raw == "línea 1\nlínea 2\n".encode("utf-8")
+    assert raw == "línea 1\nlínea 2\n".encode()
     assert b"\r\n" not in raw
 
 
