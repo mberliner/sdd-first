@@ -25,3 +25,4 @@
 | SPEC-009 | Paso `coverage` con umbrales opcionales y plantilla de CI derivada del config | active | 2 | hibrido | [SPEC-009-coverage-y-ci.md](SPEC-009-coverage-y-ci.md) |
 | SPEC-010 | Constitución con preámbulo y governance, principio de SSOT y rutas correctas en plantillas | active | 2 | hibrido | [SPEC-010-gobernanza-y-docs.md](SPEC-010-gobernanza-y-docs.md) |
 | SPEC-011 | Onboarding del operador del kit: bootstrap reproducible en el README | active | 2 | hibrido | [SPEC-011-operator-bootstrap.md](SPEC-011-operator-bootstrap.md) |
+| SPEC-012 | El pipeline del kit corre verde en Windows y POSIX | active | 2 | hibrido | [SPEC-012-suite-multiplataforma.md](SPEC-012-suite-multiplataforma.md) |

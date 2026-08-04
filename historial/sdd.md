@@ -1,5 +1,50 @@
 # Historial SDD — sdd-first
 
+## 2026-08-04 — SPEC-012: el pipeline del kit corre verde en Windows
+
+**Scope:** la deuda que dejó SPEC-011. `python core/pipeline.py` salía ROJO
+8/10 en Windows de forma permanente e inevitable.
+
+**Causa:** `Path.chmod(0o755)` corre sin error en NTFS pero `st_mode` reporta
+los bits de ejecución apagados. `test_main_instala_y_marca_ejecutable`
+aseveraba un efecto que la plataforma no puede producir. El paso `coverage`
+caía en cascada del paso `tests` (medido aparte daba 55% ≥ 50%).
+
+**Por qué importaba más de lo que parece:** un ROJO permanente destruye el
+valor del pipeline como señal — el desarrollador aprende a ignorarlo y a
+recordar "cuál es el fallo de siempre". Es exactamente el problema que el kit
+existe para resolver, y lo tenía sobre sí mismo, en contra del Principio III.
+
+**Decisiones:**
+- El `chmod` de `sdd_init.py` **no** se toca: en POSIX el bit es real y
+  necesario (`.claude/sdd_gate_hook.sh` se invoca como ejecutable). El defecto
+  era del test.
+- Se descartó el `skipif` pelado: habría dejado el wiring ejecutable sin
+  cobertura alguna en la plataforma donde más se desarrolla. En su lugar, la
+  aserción se parte en dos niveles — la **intención** (que el instalador
+  aplique `chmod(0o755)` a cada destino de `_EXECUTABLE_WIRING`, espiando
+  `Path.chmod`) corre en todas las plataformas; el **efecto** sobre `st_mode`
+  solo donde el filesystem lo expresa.
+- El criterio de plataforma vive en `conftest.py` como marca reutilizable
+  (`requiere_permisos_posix`), con motivo explícito: el próximo test con el
+  mismo problema no tiene que re-derivarlo, y un skip mudo no enseña nada a
+  quien lee la salida.
+
+**Verificación del test, no solo del código:** se parcheó `sdd_init.py` para
+omitir el `chmod` y se confirmó que la suite **falla en Windows**. Sin ese
+paso, FR-001 podía ser un test que no protege nada.
+
+**SSOTs afectados:** ninguno (solo la suite de tests).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-012-suite-multiplataforma, SPEC-004, CONSTITUTION.md
+- Includes/excludes verificados: tests/unit/{conftest,test_sdd_init_seeded_steps}.py
+- SSOTs afectados: ninguno; core/sdd_init.py sin cambios (FR-003)
+- Verificación: python core/pipeline.py → VERDE 10/10 en Windows (antes ROJO
+  8/10); 139 passed + 1 skipped; SC-002 verificado parcheando el chmod
+```
+
 ## 2026-08-04 — SPEC-011: bootstrap reproducible en el README del kit
 
 **Scope:** el `README.md` de la raíz, único punto de entrada del operador que
