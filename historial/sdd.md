@@ -1,5 +1,67 @@
 # Historial SDD — sdd-first
 
+## 2026-08-04 — SPEC-011: bootstrap reproducible en el README del kit
+
+**Scope:** el `README.md` de la raíz, único punto de entrada del operador que
+clona el kit para sembrar un proyecto derivado.
+
+**Hallazgo:** la sección "Cómo se usa" arrancaba a mitad de camino. Un operador
+que la seguía literalmente no llegaba: faltaba el `git clone`, faltaba
+`pip install pyyaml` —bloqueante desde el primer comando, porque `sdd_config`
+importa `yaml` a nivel módulo y sale con `SystemExit`—, y el cambio de
+directorio entre los comandos del kit (`core/…`) y los del destino
+(`tools/sdd/core/…`) era implícito. A eso se sumaban tres cosas que el operador
+solo podía descubrir leyendo el código: que `sdd-init` **no** se instala en el
+derivado (bootstrap de una sola vez, decidido en SPEC-007), que el clon queda
+descartable tras la vendorización, y que el gate bloquea toda edición hasta
+crear la primera spec.
+
+**Por qué una spec propia:** SPEC-003 cubrió el happy path *técnico* de
+instalación (que el pipeline fresco salga VERDE) y SPEC-007 le dio README y
+manual al *proyecto derivado*. El onboarding del operador **del kit** no tenía
+dueño — un hueco de gobernanza, no de comportamiento.
+
+**Decisiones:**
+- El comportamiento de instalación no cambia (`sdd_init.py` ya crea el destino y
+  ya es idempotente); lo que fallaba era la comunicación, en sus **dos** caras:
+  el README y el mensaje de cierre del instalador. El operador termina mirando
+  esa salida, no el README, y ahí también faltaba el `cd` al destino —sin el
+  cual los `tools/sdd/...` que seguían no resuelven desde el clon— y la primera
+  spec. El mensaje ahora imprime el path real y **omite los pasos ya
+  satisfechos** (`git init` si ya es repo, `pip install pre-commit` si ya está
+  importable): un paso innecesario resta credibilidad al que sí hace falta.
+- No se revierte la decisión de SPEC-007 sobre `sdd-init`: el bootstrap
+  circular se resuelve explicándolo en el README, no instalando la skill.
+- El README no es artefacto generado, así que la protección contra drift es un
+  test (`test_readme_bootstrap.py`), que además verifica que cada script del
+  kit citado exista en disco — mismo rol que `test_template_paths.py` cumple
+  para las plantillas.
+- `pre-commit install` no se documenta a mano: el paso `hooks` ya lo hace. Lo
+  que se documenta son sus dos precondiciones (repo git + `pre-commit`
+  instalado), porque sin ellas el bloqueo en el commit queda inactivo en
+  silencio.
+
+**Deuda detectada, no tocada:**
+- `test_sdd_init_seeded_steps.py::test_main_instala_y_marca_ejecutable` falla
+  en Windows: `Path.chmod(0o755)` no setea bits de ejecución en NTFS. Es
+  **preexistente** (verificado sobre HEAD limpio) y ajeno a esta spec; el
+  pipeline del kit queda ROJO 8/10 en Windows por eso y por `coverage` en
+  cascada. En Linux/CI no se manifiesta. Requiere su propia spec.
+
+**SSOTs afectados:** `README.md` y el mensaje de cierre de `core/sdd_init.py`.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-011-operator-bootstrap, SPEC-003, SPEC-007, CONSTITUTION.md
+- Includes/excludes verificados: README.md + core/sdd_init.py (_next_steps) +
+  tests/unit/{test_readme_bootstrap,test_sdd_init_next_steps}.py
+- SSOTs afectados: README.md (onboarding del operador del kit); sdd_init.py
+  imprime la misma secuencia, resuelta al destino real
+- Verificación: bootstrap end-to-end en sandbox siguiendo README y mensaje del
+  instalador → pipeline VERDE 8/8; pytest 138 passed (1 fallo preexistente de
+  Windows, ajeno); coverage 55% ≥ 50%; ruff check + format limpios
+```
+
 ## 2026-08-04 — SPEC-009 + SPEC-010: segunda cosecha del proyecto de referencia (coverage, CI, gobernanza, rutas)
 
 **Scope:** comparación sistemática con `evaluador-flujo-intent` (la primera

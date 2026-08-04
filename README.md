@@ -59,27 +59,70 @@ capas, principios, pasos del pipeline). No hay listas escondidas en el código.
 
 ## Cómo se usa
 
-Desde tu asistente de IA, lo natural es pedirle que corra las skills `sdd-init` y
-`sdd-configure`. Por debajo, esto es lo que ocurre:
+El kit no se instala como paquete: se clona una vez y se usa para **sembrar** el
+andamiaje dentro de tu proyecto. Los comandos siguientes son la secuencia
+completa, en orden, desde cero.
+
+### 1. Obtener el kit e instalar su única dependencia
 
 ```bash
-# 1. Instalar el andamiaje en tu proyecto
-python core/sdd_init.py /ruta/a/tu/proyecto --language=python   # o --language=none
+git clone https://github.com/mberliner/sdd-first.git
+cd sdd-first
+pip install pyyaml
+```
 
-# En tu proyecto ya quedaron: CONSTITUTION.md, AGENTS.md, specs/, docs/,
-# los gates cableados y el kit vendorizado en tools/sdd/.
+`pyyaml` es obligatorio desde el primer comando: el instalador lee
+`.sdd/config.yaml` y aborta con un mensaje explícito si falta.
 
-# 2. Personalizar (o corré la skill sdd-configure, que es un wizard)
-#    Editá .sdd/config.yaml: dominio, tokens prohibidos, capas, principios.
+### 2. Sembrar el andamiaje en tu proyecto
 
-# 3. Generar los artefactos derivados del config y verificar
+```bash
+python core/sdd_init.py /ruta/a/mi-proyecto --language=python
+```
+
+`--language` acepta `python` (default) o `none` (solo gobernanza y specs, sin
+validar código). El directorio destino se crea si no existe, y la instalación es
+idempotente: no pisa archivos tuyos salvo que pases `--force`.
+
+En tu proyecto quedaron `CONSTITUTION.md`, `AGENTS.md`, `specs/`, `docs/`, los
+gates cableados y el kit **vendorizado** en `tools/sdd/`. A partir de acá el clon
+del kit es descartable: tu proyecto ya tiene su propia copia del andamiaje.
+
+### 3. Configurar y verificar — desde tu proyecto
+
+Los comandos que siguen corren en el **proyecto destino**, no en el clon del kit;
+por eso la ruta es `tools/sdd/core/…`:
+
+```bash
+cd /ruta/a/mi-proyecto
+git init                    # si todavía no es repo (ver nota abajo)
+pip install pre-commit      # para que el paso `hooks` pueda cablear la capa git
+
+# Editá .sdd/config.yaml: dominio, tokens prohibidos, capas, principios.
+# (o pedile a tu asistente que corra la skill `sdd-configure`, que es un wizard)
+
 python tools/sdd/core/render.py               # CONSTITUTION.md + SPEC-000 + CI
 python tools/sdd/core/gen_skill_adapters.py   # skills para cada asistente
 python tools/sdd/core/pipeline.py             # chequeo completo → VERDE / ROJO
 ```
 
-Para arrancar una capacidad nueva: la skill `sdd-spec` crea la spec, la registra y
-la declara vigente; a partir de ahí el gate te deja tocar el código.
+> **Sobre la capa git:** el paso `hooks` del pipeline instala los hooks de
+> `pre-commit` (gate en el commit, reset post-commit), pero necesita que el
+> destino sea un repo git y que `pre-commit` esté instalado. Si falta alguna de
+> las dos, el paso avisa y sigue: el gate spec-first del asistente funciona igual
+> —sin git— por diseño, pero el bloqueo en el commit queda inactivo.
+
+### 4. Primera spec, y recién ahí, código
+
+El gate spec-first bloquea las ediciones de código mientras `.sdd/current-spec`
+esté vacío. Antes de codear, pedile a tu asistente la skill `sdd-spec` (o corré
+`python tools/sdd/core/sdd_spec.py "<slug>" --title="<Título>"`): crea la spec,
+la registra y la declara vigente. Lo mismo vale para cada capacidad nueva.
+
+> **Nota sobre las skills:** `sdd-init` es bootstrap de una sola vez y **no** se
+> instala en el proyecto derivado — se corre desde el clon del kit, como en el
+> paso 2. Las que sí quedan instaladas y usás en el día a día son `sdd-configure`,
+> `sdd-doctor`, `sdd-spec`, `analyze` y `clarify`.
 
 ## Cómo está armado
 
