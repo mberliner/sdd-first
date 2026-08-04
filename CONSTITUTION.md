@@ -1,10 +1,23 @@
 # Constitución del proyecto
 
-**Versión:** 0.1.0 | Ratificada: 2026-08-02 | Última enmienda: 2026-08-02
+**Versión:** 0.2.0 | Ratificada: 2026-08-02 | Última enmienda: 2026-08-04
 
 > Generado por `core/render.py` desde `.sdd/config.yaml`. La forma de cada
 > principio (invariante + Enforcement + Detalle) es lo que valida
 > `core/check_constitution.py`. Para enmendar, editá el config y regenerá.
+
+## Preámbulo
+
+- **Qué es:** la lista curada de los principios no-negociables de *este*
+  proyecto. No es documentación de referencia ni el protocolo del asistente
+  (`AGENTS.md`): es lo que nunca cede.
+- **Cómo se usa:** se lee antes de diseñar una spec o encarar un cambio. Si
+  una spec o una decisión de implementación entra en conflicto con un
+  principio, **se ajusta la spec, no el principio**.
+- **Alcance:** cada principio declara un **invariante** estable y
+  autocontenido. El detalle operativo —que evoluciona— vive en el SSOT que
+  el principio referencia en `Detalle:`. La constitución nunca duplica ese
+  detalle: declara el invariante y apunta.
 
 ## Principios
 
@@ -31,10 +44,21 @@ No se edita el nucleo del kit sin una spec vigente declarada.
 
 ## Governance
 
-- **Versionado:** semver. Fase pre-1.0 (serie `0.y.z`): los principios
-  pueden cambiar entre minors sin ruptura formal.
-- **Precedencia:** ningún cambio ni spec puede violar un principio. Si una
-  spec entra en conflicto, se ajusta la spec, no el principio.
-- **Enmienda:** editá `principles` en `.sdd/config.yaml`, regenerá con
-  `python core/render.py`, y verificá con `python core/check_constitution.py
-  CONSTITUTION.md`.
+- **Versionado semver:** MAJOR remueve o redefine un principio; MINOR
+  agrega un principio o una sección; PATCH aclara la redacción sin cambiar
+  el invariante.
+- **Fase pre-1.0:** mientras el proyecto no alcance madurez sostenida la
+  serie es `0.y.z`: lo que tras `1.0.0` sería MAJOR o MINOR sube `y`; lo que
+  sería PATCH sube `z`.
+- **Precedencia:** un principio prevalece sobre cualquier spec o decisión de
+  implementación. El protocolo del asistente (`AGENTS.md`) referencia esta
+  constitución pero no la contiene: si se cambia de asistente, la
+  constitución sigue vigente.
+- **Procedimiento de enmienda:**
+  1. Editá `principles` (y `constitution.version`) en `.sdd/config.yaml`,
+     subiendo la versión según la regla de arriba y actualizando
+     `constitution.amended`.
+  2. Regenerá este documento: `python core/render.py`.
+  3. Registrá el cambio en `historial/sdd.md` (qué principio, por qué).
+  4. Revisá los SSOTs que referencia el principio afectado.
+  5. Verificá: `python core/check_constitution.py CONSTITUTION.md`.

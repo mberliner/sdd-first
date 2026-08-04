@@ -227,6 +227,72 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   `templates/docs/SDD-OPERACION.md` (catálogo humano de las skills SDD
   instaladas) sumados a `STATIC_DOCS`.
 
+## P1 — Hallazgos de la segunda comparación con el proyecto de referencia
+
+> Revisión del 2026-08-04 sobre `evaluador-flujo-intent`. Decisión tomada: los
+> dos proyectos siguen **independientes** (migrar el evaluador al kit implicaría
+> rehacer su andamiaje y no es el espíritu del SDD); lo que se porta es el
+> *mecanismo*, generalizado. Comparando línea a línea, el núcleo del kit está
+> **adelante** del evaluador en casi todo (`check_constitution` verifica contra
+> `pipeline.steps` en vez de hardcodear `PIPELINE_TOOLS`; `sdd_gate`/`sdd_reset`
+> centralizan `find_repo_root`); lo que faltaba era otra cosa.
+
+- **F-1 · Umbrales de cobertura como paso del pipeline.**
+  **(ya con spec) → [[SPEC-009-coverage-y-ci]]** — el evaluador exige `>=80%`
+  global y `>=96%` en el dominio; el adaptador Python del kit no tenía paso
+  `coverage`. Implementado como lista opcional `pipeline.coverage`
+  (`[{paths, min}]`): ausente ⇒ se omite con aviso.
+- **F-2 · Sin CI, ni propia ni instalable.**
+  **(ya con spec) → [[SPEC-009-coverage-y-ci]]** — deuda E-3 parcial. Resuelto
+  generando `.github/workflows/ci.yml` desde el config: los `paths:` derivan de
+  `dirs.source_roots` y el job invoca el pipeline en vez de repetir los pasos.
+  Nota de diseño: el evaluador **sí** duplica la lista y sus dos copias ya
+  divergieron (11 pasos en `pipeline_local.sh` vs 10 en `ci.yml`, sin `hooks`
+  ni `skills`); el kit evita ese drift por construcción.
+- **F-3 · `gen_skill_adapters.py` sin ninguna documentación.**
+  **(ya con spec) → [[SPEC-010-gobernanza-y-docs]]** — el mecanismo existía y
+  estaba en el pipeline, pero quien recibía el kit veía carpetas con
+  "NO EDITAR A MANO" y no sabía qué las generaba. Portado y generalizado desde
+  `docs/SKILLS-MULTITOOL.md` del evaluador.
+- **F-4 · La constitución generada era mucho más pobre que la de referencia.**
+  **(ya con spec) → [[SPEC-010-gobernanza-y-docs]]** — faltaban el preámbulo
+  (qué es / cómo se usa / alcance) y una Governance real (semver desglosado,
+  procedimiento de enmienda). Arrastraba C-5: la versión estaba hardcodeada en
+  `render.py`, así que el procedimiento de enmienda no tenía dónde bumpear.
+  Resuelto con la sección `constitution` del config.
+- **F-5 · E-6 era más ancho de lo registrado.**
+  **(ya con spec) → [[SPEC-010-gobernanza-y-docs]]** — no era solo
+  `templates/AGENTS.md`: ocho plantillas citaban `core/...`, que en un proyecto
+  instalado es `tools/sdd/core/...`. Resuelto con placeholders `{{sdd.core}}` /
+  `{{sdd.adapters}}` que `render.py` resuelve para el kit y `sdd_init.py` para
+  el destino, más un test parametrizado que barre `templates/`.
+- **F-6 · `.gitattributes` no forzaba LF en los `.sh` — el gate queda roto en
+  un checkout de Windows.** `sh` no ejecuta un script con CRLF: falla con
+  `\n: not found` y `Syntax error: word unexpected`, así que
+  `.claude/sdd_gate_hook.sh` devuelve 2 para *todo* (incluido lo que debería
+  permitir) o, peor, el hook se cuelga como fail-closed permanente. Se detectó
+  porque los 4 tests de `test_sdd_gate_hook.py` fallaban en el clon actual.
+  Corregido en `.gitattributes` (kit y plantilla), pero **el working tree ya
+  convertido necesita renormalizarse a mano** (`git add --renormalize .`); la
+  regla nueva solo evita que vuelva a pasar.
+- **F-7 · Módulos del núcleo con 0% de cobertura.** Medido al fijar los
+  umbrales de F-1: `check_constitution.py`, `gen_skill_adapters.py` y
+  `sdd_doctor.py` no tienen ni un test directo (total del kit: 52%). El umbral
+  se fijó en el piso actual como trinquete; subirlo requiere cubrirlos.
+
+## Descartado explícitamente del proyecto de referencia
+
+No todo lo que tiene el evaluador tiene sentido en un kit agnóstico. Se
+evaluó y se dejó afuera:
+
+- `schema_drift_check.py`, `connection_check.py`, `e2e_probe.py`,
+  `conversation_probe.py` — específicos de su dominio (validar un agente
+  conversacional contra un schema versionado).
+- Su principio "Evaluación determinista" — es un invariante de *producto*, no
+  de método; un proyecto que lo quiera lo escribe en su propio config.
+- Migrar el evaluador a consumir el kit — descartado por decisión de producto,
+  no por viabilidad técnica.
+
 ## Técnicas (ideas sueltas, sin prioridad asignada)
 
 - Render de `SPEC-000` genera secciones vacías ("Tokens relajados" sin ítems)

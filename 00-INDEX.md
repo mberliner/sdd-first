@@ -11,8 +11,9 @@
 4. `specs/SPECS_REGISTRY.md` — specs vigentes del kit.
 5. `specs/SPEC-000-naming.md` — nomenclatura agnóstica (generado).
 6. `docs/SDD-ENFORCEMENT.md` — cómo se obliga el SDD.
-7. `adapters/CONTRACT.md` — contrato de adaptador de lenguaje.
-8. `docs/IDEAS.md` — backlog de ideas pre-spec.
+7. `docs/SKILLS-MULTITOOL.md` — cómo una skill sirve a varios asistentes.
+8. `adapters/CONTRACT.md` — contrato de adaptador de lenguaje.
+9. `docs/IDEAS.md` — backlog de ideas pre-spec.
 
 ## Mapa de SSOTs
 
@@ -27,6 +28,8 @@
 | Formato de spec | `templates/docs/SPEC-FORMAT.md` |
 | Enforcement | `docs/SDD-ENFORCEMENT.md` |
 | Contrato de adaptadores | `adapters/CONTRACT.md` |
+| Mecanismo de skills multi-asistente | `docs/SKILLS-MULTITOOL.md` |
+| Workflow de CI | `.github/workflows/ci.yml` (← `.sdd/config.yaml`, generado) |
 | Fuente de skills | `.agents/skills/` (genera `.claude/` y `.opencode/`) |
 | Playbooks de skills | `docs/playbooks/` |
 | Plantillas instalables | `templates/` |

@@ -1,5 +1,115 @@
 # Historial SDD — sdd-first
 
+## 2026-08-04 — SPEC-009 + SPEC-010: segunda cosecha del proyecto de referencia (coverage, CI, gobernanza, rutas)
+
+**Scope:** comparación sistemática con `evaluador-flujo-intent` (la primera
+fue SPEC-004) para decidir qué coordinar entre ambos. **Decisión de producto
+del usuario: los proyectos siguen independientes** — migrar el evaluador a
+consumir el kit implicaría rehacer su andamiaje entero y no es el espíritu del
+SDD. Lo que se porta es el *mecanismo*, generalizado y parametrizado.
+
+**Hallazgo que orientó todo:** línea a línea, el núcleo del kit está
+**adelante** del evaluador (`check_constitution` verifica el cableado contra
+`pipeline.steps` en vez de hardcodear `PIPELINE_TOOLS`; `sdd_gate`/`sdd_reset`
+centralizan `find_repo_root` en `sdd_config`). Lo que le faltaba al kit no era
+lógica de validación sino **capas de verificación y de explicación**. De ahí
+las dos specs: 009 es comportamiento de pipeline, 010 es gobernanza y docs.
+
+**SPEC-009 (coverage + CI):**
+
+1. Paso `coverage` en el adaptador Python, con umbrales **opcionales** por
+   target: `pipeline.coverage: [{paths, min}]`. Varias entradas porque el
+   patrón útil del evaluador es "el dominio se exige más que el resto" y
+   `--cov-fail-under` es un umbral único por corrida (de ahí una invocación de
+   pytest por entrada). Ausente, sin `pytest-cov`, sin carpeta de tests o con
+   el target todavía inexistente ⇒ se omite con aviso: una instalación fresca
+   no puede salir ROJO por una métrica que aún no tiene sentido medir
+   (SPEC-003 FR-001).
+2. `.github/workflows/ci.yml` **generado** por `render.py` desde el config, no
+   una plantilla copiada. Los `paths:` de disparo derivan de
+   `dirs.source_roots` + carpetas de tests (un cambio que solo toca `docs/` no
+   gasta una corrida) y el job **invoca el pipeline en vez de enumerar los
+   pasos**. Esto último es una corrección deliberada al modelo del evaluador,
+   donde la lista está duplicada y las dos copias ya divergieron: su
+   `pipeline_local.sh` corre 11 pasos y su `ci.yml` 10, sin `hooks` ni
+   `skills`. Al ser artefacto generado, entra al `render --check` del pipeline
+   y no puede driftear.
+3. `requirements-dev.txt` del kit (deuda E-3 parcial): sin él, la CI generada
+   omitía todos los pasos de código "con aviso" y habría sido verde vacío.
+
+**SPEC-010 (gobernanza y docs):**
+
+4. `CONSTITUTION.md` generada ahora incluye **Preámbulo** (qué es, cómo se usa,
+   alcance: invariante + puntero, nunca duplicar el detalle) y **Governance**
+   real (semver desglosado por MAJOR/MINOR/PATCH, fase pre-1.0, procedimiento
+   de enmienda en 5 pasos, precedencia). Arrastraba C-5: la versión estaba
+   hardcodeada en `render.py`, así que prometer un procedimiento de enmienda
+   era incoherente — ahora sale de `constitution.{version,ratified,amended}`
+   del config, con defaults retrocompatibles.
+5. `docs/SKILLS-MULTITOOL.md`: el mecanismo de `gen_skill_adapters.py` existía
+   y estaba en el pipeline, pero **no estaba documentado en ninguna parte**.
+   Quien recibía el kit veía carpetas marcadas "NO EDITAR A MANO" sin saber
+   qué las generaba ni cómo agregar una skill propia.
+6. `docs/DEVELOPMENT.md` para el proyecto derivado (setup, comandos, tooling
+   opcional por paso, umbrales de cobertura).
+7. Principio opcional "SSOT único por tema" al catálogo de
+   `examples/config/config.yaml` — el kit lo predicaba en su `AGENTS.md` pero
+   no lo ofrecía como principio configurable. Va con enforcement editorial
+   (`docs/playbooks/analyze.md`), que `check_constitution` no exige cablear
+   como paso.
+
+**Bug E-6, más ancho de lo registrado:** no era solo `templates/AGENTS.md`.
+Ocho plantillas citaban `core/...`, que en un proyecto instalado es
+`tools/sdd/core/...`: el usuario copiaba el comando del `CONTRIBUTING.md` que
+el propio kit le había instalado y no funcionaba. La causa es estructural —
+un mismo documento sirve a dos layouts. Resuelto con placeholders
+`{{sdd.core}}` / `{{sdd.adapters}}` (mismo mecanismo que `{{project.name}}`),
+que `render.py` resuelve a `core`/`adapters` al sincronizar hacia la raíz del
+kit y `sdd_init.py` a `tools/sdd/...` al instalar. Un test parametrizado barre
+`templates/` y falla ante cualquier ruta pelada nueva.
+
+**Bug nuevo encontrado de paso (F-6, fuera de las dos specs):**
+`.gitattributes` no forzaba LF en los `.sh`. `sh` no ejecuta un script con
+CRLF (falla con `\n: not found` / `Syntax error: word unexpected`), así que en
+un checkout de Windows **el hook del gate spec-first está roto en silencio**:
+devuelve 2 para todo, incluido lo que debería permitir. Se detectó porque los
+4 tests de `test_sdd_gate_hook.py` fallaban en el clon actual (y siguen
+fallando: el working tree ya está convertido). Regla agregada al
+`.gitattributes` del kit y de la plantilla; **el árbol existente necesita
+`git add --renormalize .` a mano**, la regla solo evita la repetición.
+
+**Decisiones:** (a) los umbrales de cobertura son opcionales y se siembran
+comentados, no obligatorios — coherente con SPEC-003; (b) la CI invoca el
+pipeline en vez de duplicar pasos, corrigiendo el modelo de referencia; (c)
+los umbrales del propio kit se fijaron en el **piso medido** (50%) como
+trinquete, no en un ideal.
+
+**Deuda arrastrada:** F-7 — `check_constitution.py`, `gen_skill_adapters.py` y
+`sdd_doctor.py` están en 0% de cobertura (total del kit: 52%); subir el umbral
+exige cubrirlos primero. Sigue abierta la ruta de actualización del kit
+vendorizado (E-2): los proyectos ya instalados no reciben los placeholders
+nuevos automáticamente. Y los 4 tests del hook seguirán en rojo hasta la
+renormalización de fin de línea.
+
+**[SDD-Check] — 2026-08-04**
+- Specs leídas: SPEC-009-coverage-y-ci, SPEC-010-gobernanza-y-docs, SPEC-003
+  (happy path, criterio de omisión con aviso), SPEC-005 (sync docs/templates),
+  SPEC-007, CONSTITUTION.md, docs/IDEAS.md (C-5, E-3, E-5, E-6).
+- Includes/excludes verificados: núcleo sigue agnóstico (los umbrales y los
+  `paths:` de CI salen del config, nada hardcodeado); lo específico de Python
+  quedó en `adapters/python/adapter.py`; naming agnóstico en los
+  identificadores nuevos (`CoverageTarget`, `kit_path_tokens`,
+  `render_ci_workflow`); descartado explícitamente lo específico del dominio
+  del evaluador (`schema_drift_check`, `connection_check`, `e2e_probe`).
+- SSOTs afectados: `.sdd/config.yaml`, `examples/config/config.yaml`,
+  `core/{sdd_config,render,pipeline,sdd_init}.py`,
+  `adapters/python/adapter.py`, `templates/` (8 documentos + wiring),
+  `templates/docs/{SKILLS-MULTITOOL,DEVELOPMENT}.md`, `00-INDEX.md` (kit y
+  plantilla), `README.md`, `.gitattributes`, `docs/IDEAS.md`,
+  `specs/SPECS_REGISTRY.md`, `historial/sdd.md`.
+
+---
+
 ## 2026-08-02 — SPEC-007: README propio y manual de operación SDD en el proyecto derivado (E-1, E-7 de docs/IDEAS.md)
 
 **Scope:** cerrar dos huecos del happy path de instalación: el proyecto

@@ -24,9 +24,14 @@ tengas que adaptarlo).
 - **Un "gate" spec-first**: bloquea editar código si no hay una spec vigente
   declarada y actualizada. Se engancha a Claude Code, pre-commit y opencode.
 - **Skills para tu asistente de IA**: `sdd-init`, `sdd-configure`, `sdd-doctor`,
-  `sdd-spec`, `analyze`, `clarify` — generadas para varios asistentes desde una
-  sola fuente.
-- **Un pipeline local** que corre todos los chequeos y te dice VERDE o ROJO.
+  `sdd-spec`, `analyze`, `clarify` — escritas una vez y generadas para **Claude
+  Code** (`.claude/skills/`) y **opencode** (`.opencode/command/`), más
+  **Codex** y **Antigravity**, que leen la fuente `.agents/skills/` directo.
+  El mecanismo está en `docs/SKILLS-MULTITOOL.md`.
+- **Un pipeline local** que corre todos los chequeos y te dice VERDE o ROJO,
+  con umbrales de cobertura opcionales.
+- **Un workflow de CI** generado desde el mismo config: corre el pipeline, no
+  una lista de pasos duplicada que después diverge.
 
 Todo se parametriza en `.sdd/config.yaml` (nombre, dominio, tokens prohibidos,
 capas, principios, pasos del pipeline). No hay listas escondidas en el código.
@@ -68,7 +73,7 @@ python core/sdd_init.py /ruta/a/tu/proyecto --language=python   # o --language=n
 #    Editá .sdd/config.yaml: dominio, tokens prohibidos, capas, principios.
 
 # 3. Generar los artefactos derivados del config y verificar
-python tools/sdd/core/render.py               # CONSTITUTION.md + SPEC-000
+python tools/sdd/core/render.py               # CONSTITUTION.md + SPEC-000 + CI
 python tools/sdd/core/gen_skill_adapters.py   # skills para cada asistente
 python tools/sdd/core/pipeline.py             # chequeo completo → VERDE / ROJO
 ```
