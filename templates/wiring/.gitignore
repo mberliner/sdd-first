@@ -8,3 +8,14 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
+# Datos del paso `coverage` del pipeline. El patron con sufijo cubre los
+# archivos parciales que coverage deja por proceso (.coverage.<host>.<pid>.<rnd>)
+# cuando la corrida se interrumpe o corre en paralelo.
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Configuracion local del asistente (por-usuario, no se versiona)
+.claude/settings.local.json
