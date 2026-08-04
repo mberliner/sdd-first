@@ -2,5 +2,4 @@
 # El gate spec-first (core/sdd_gate.py) exige que al menos una spec listada aquí
 # exista, esté registrada y haya sido editada DESPUÉS de este archivo.
 # Vacío = ninguna edición de código fuente permitida.
-SPEC-009-coverage-y-ci
-SPEC-010-gobernanza-y-docs
+SPEC-011-operator-bootstrap

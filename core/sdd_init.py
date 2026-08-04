@@ -8,12 +8,14 @@ adaptador de lenguaje bajo `tools/sdd/`, instala el wiring de los gates y siembr
 Uso:
     python core/sdd_init.py [<target_dir>] [--language python|none] [--force]
 
-Después de instalar, corré `python core/render.py` y `sdd-configure` para
-personalizar, y `python tools/sdd/core/pipeline.py` para verificar.
+Al terminar imprime la secuencia para continuar (`_next_steps`), con el path
+real del destino: esos comandos corren desde el proyecto instalado
+(`tools/sdd/core/...`), no desde el clon del kit.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import sys
 from pathlib import Path
@@ -191,6 +193,55 @@ def _install_project_skills(target: Path, force: bool) -> list[str]:
     return out
 
 
+def _next_steps(target: Path) -> str:
+    """Secuencia para continuar, con el path real y sin los pasos ya cumplidos.
+
+    El operador cierra la instalacion mirando esta salida, no el README: si el
+    `cd` al destino no esta a la vista, los comandos `tools/sdd/...` que siguen
+    no resuelven desde el clon del kit (SPEC-011 FR-009). Los pasos de
+    preparacion ya satisfechos se omiten -- sugerir `git init` sobre un repo
+    existente resta credibilidad al resto de la lista (FR-010).
+    """
+    lines = [f"\nListo. sdd-first instalado en {target}", "", "Proximos pasos:", ""]
+
+    prep: list[str] = []
+    if target != Path.cwd():
+        prep.append(f"  cd {target}")
+    if not (target / ".git").exists():
+        prep.append(
+            "  git init                 # el gate en el commit necesita repo git"
+        )
+    if importlib.util.find_spec("pre_commit") is None:
+        prep.append(
+            "  pip install pre-commit   # para que el paso `hooks` cablee los hooks"
+        )
+    if prep:
+        lines.extend(prep)
+        lines.append("")
+
+    lines.extend(
+        [
+            "  1. Edita .sdd/config.yaml (dominio, tokens, capas)",
+            "     o corre la skill sdd-configure, que es un wizard.",
+            "  2. python tools/sdd/core/render.py"
+            "               # CONSTITUTION.md + SPEC-000 + CI",
+            "  3. python tools/sdd/core/gen_skill_adapters.py"
+            "   # skills para tu asistente",
+            "  4. python tools/sdd/core/pipeline.py"
+            "             # verifica -> VERDE / ROJO",
+            "",
+            "Antes de editar codigo, crea la primera spec: el gate spec-first bloquea",
+            "mientras .sdd/current-spec este vacio.",
+            '  python tools/sdd/core/sdd_spec.py "<slug>" --title="<Titulo>"',
+            "  (o pedile a tu asistente la skill sdd-spec)",
+            "",
+            "El andamiaje quedo vendorizado en tools/sdd/: el clon del kit ya es"
+            " descartable.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def main(argv: list[str]) -> int:
     args = [a for a in argv if not a.startswith("--")]
     flags = [a for a in argv if a.startswith("--")]
@@ -223,13 +274,7 @@ def main(argv: list[str]) -> int:
     for line in log:
         print(line)
 
-    print(
-        "\nListo. Próximos pasos:\n"
-        "  1. Editá .sdd/config.yaml (o corré sdd-configure).\n"
-        "  2. python tools/sdd/core/render.py       # genera CONSTITUTION.md y SPEC-000\n"
-        "  3. python tools/sdd/core/gen_skill_adapters.py   # genera skills\n"
-        "  4. python tools/sdd/core/pipeline.py     # verifica"
-    )
+    print(_next_steps(target))
     return 0
 
 
