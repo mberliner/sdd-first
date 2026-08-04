@@ -2,4 +2,3 @@
 # El gate spec-first (core/sdd_gate.py) exige que al menos una spec listada aquí
 # exista, esté registrada y haya sido editada DESPUÉS de este archivo.
 # Vacío = ninguna edición de código fuente permitida.
-SPEC-013-proyecto-derivado-coherente
