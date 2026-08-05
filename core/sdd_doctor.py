@@ -1,8 +1,10 @@
 """Chequeo de salud de la instalación SDD (respaldo de la skill `sdd-doctor`).
 
 Verifica que el andamiaje esté sano: config presente y parseable, artefactos
-clave existentes, gates cableados, sin drift de artefactos generados, y versión
-del kit registrada. Reporta; con --fix ejecuta las regeneraciones seguras.
+clave existentes, gates cableados **de verdad** (el archivo existe y contiene la
+invocación al gate, no solo el nombre correcto), sin drift de artefactos
+generados, y versión del kit registrada. Reporta; con --fix ejecuta las
+regeneraciones seguras.
 
 Uso:
     python core/sdd_doctor.py [--fix]
@@ -18,7 +20,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import find_repo_root, load  # noqa: E402
+from sdd_config import GATE_WIRING, find_repo_root, load, script_hint  # noqa: E402
 
 REQUIRED = [
     "CONSTITUTION.md",
@@ -30,11 +32,61 @@ REQUIRED = [
     ".sdd/current-spec",
 ]
 
-GATE_WIRING = [".claude/settings.json", ".pre-commit-config.yaml"]
-
 
 def _run(cmd: list[str], cwd: Path) -> int:
     return subprocess.call(cmd, cwd=str(cwd))  # nosec B603 - comandos fijos
+
+
+def _drift(script: Path, repo_root: Path) -> list[str] | None:
+    """Corre `<script> --check` y devuelve los artefactos desincronizados.
+
+    `None` = sin drift. Lista (posiblemente vacía) = el check falló; se capturan
+    las líneas `x <archivo>` que ya imprimen `render.py` y
+    `gen_skill_adapters.py` para poder nombrar en el reporte lo que drifteó
+    (FR-US2-003) en vez de una lista fija de artefactos.
+    """
+    result = subprocess.run(  # nosec B603 - script del propio andamiaje
+        [sys.executable, str(script), "--check"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return None
+    salida = f"{result.stdout}\n{result.stderr}"
+    print(salida.rstrip())
+    return [
+        line.strip()[2:].strip()
+        for line in salida.splitlines()
+        if line.strip().startswith("x ")
+    ]
+
+
+def _gate_wiring_problems(repo_root: Path) -> list[str]:
+    """Verifica que el wiring de gate exista Y cablee el gate (FR-US1-002).
+
+    Un archivo con el nombre correcto no prueba nada: el proyecto pudo tener su
+    propio `.pre-commit-config.yaml` (que `sdd-init` conserva por diseno) y
+    entonces no hay ninguna capa de enforcement activa. Reportar "sana" en ese
+    caso es peor que no tener la herramienta.
+    """
+    problems: list[str] = []
+    for rel, invocacion in GATE_WIRING.items():
+        path = repo_root / rel
+        if not path.exists():
+            problems.append(f"Gate no cableado: falta {rel}")
+            continue
+        try:
+            contenido = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            problems.append(f"Gate no verificable: no se pudo leer {rel} ({exc}).")
+            continue
+        if invocacion not in contenido:
+            problems.append(
+                f"Gate no cableado: {rel} existe pero no invoca {invocacion} "
+                "(¿es el wiring propio del proyecto? compara con templates/wiring/)."
+            )
+    return problems
 
 
 def main(argv: list[str]) -> int:
@@ -57,37 +109,34 @@ def main(argv: list[str]) -> int:
         if not (repo_root / rel).exists():
             problems.append(f"Falta artefacto requerido: {rel}")
 
-    # 3. Gates cableados.
-    for rel in GATE_WIRING:
-        if not (repo_root / rel).exists():
-            problems.append(f"Gate no cableado: falta {rel}")
+    # 3. Gates cableados (existen y cablean el gate).
+    problems.extend(_gate_wiring_problems(repo_root))
 
     # 4. Drift de artefactos generados.
     core = repo_root / "tools" / "sdd" / "core"
     if not core.exists():
         core = HERE  # ejecución desde el propio kit
-    render = core / "render.py"
-    gen = core / "gen_skill_adapters.py"
-    if render.exists():
-        rc = _run([sys.executable, str(render), "--check"], repo_root)
-        if rc != 0:
-            if fix:
-                _run([sys.executable, str(render)], repo_root)
-                notes.append("render: regenerado (--fix).")
-            else:
-                problems.append(
-                    "CONSTITUTION.md/SPEC-000 desincronizados del config (render)."
-                )
-    if gen.exists():
-        rc = _run([sys.executable, str(gen), "--check"], repo_root)
-        if rc != 0:
-            if fix:
-                _run([sys.executable, str(gen)], repo_root)
-                notes.append("skills: regeneradas (--fix).")
-            else:
-                problems.append(
-                    "Adaptadores de skills desincronizados (gen_skill_adapters)."
-                )
+    for script_name, etiqueta in (
+        ("render.py", "Artefactos derivados del config"),
+        ("gen_skill_adapters.py", "Adaptadores de skills"),
+    ):
+        script = core / script_name
+        if not script.exists():
+            continue
+        desincronizados = _drift(script, repo_root)
+        if desincronizados is None:
+            continue
+        if fix:
+            _run([sys.executable, str(script)], repo_root)
+            notes.append(f"{script_name}: regenerado (--fix).")
+            continue
+        # El mensaje nombra lo que drifteó, no una lista fija de artefactos
+        # (FR-US2-003), y cita la ruta real del script (FR-US2-002).
+        detalle = ", ".join(desincronizados) if desincronizados else "(ver salida)"
+        problems.append(
+            f"{etiqueta} desincronizados: {detalle} — corré: python "
+            f"{script_hint(script, repo_root)}"
+        )
 
     print("== sdd-doctor ==")
     for n in notes:
