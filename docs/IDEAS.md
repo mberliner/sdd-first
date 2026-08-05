@@ -300,3 +300,8 @@ evaluó y se dejó afuera:
 - `check_naming` también podría chequear nombres de paquetes/directorios, no
   solo identificadores y stems de archivo.
 - Adaptadores `node`/`go` (deuda ya registrada en historial y SPEC-001).
+- `enforcement`/`detail` de un principio admiten un solo token: `render.py` los
+  envuelve en un único code span y `check_constitution._is_path` valida
+  existencia sobre él. Un principio con dos SSOTs de detalle (o con enforcement
+  mixto tool + revisión) no se puede expresar. Aceptar listas sería cambio de
+  núcleo (config + render + check) y necesita spec propia.

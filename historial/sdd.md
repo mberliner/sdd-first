@@ -1,5 +1,43 @@
 # Historial SDD — sdd-first
 
+## 2026-08-05 — Enmienda constitucional: Principio IV "SSOT único por tema"
+
+**Scope:** `.sdd/config.yaml` (`principles`, `constitution`), `CONSTITUTION.md`
+(regenerado), `AGENTS.md`, `examples/config/config.yaml`.
+
+**Qué cambió:** el kit predicaba "no duplicar SSOT" en su `AGENTS.md` y lo
+ofrecía como principio elegible a sus derivados (VI del catálogo), pero no lo
+declaraba en su propia constitución. Pasa a ser el Principio IV de sdd-first.
+Versión de la constitución: 0.2.0 → 0.3.0 (MINOR pre-1.0: agrega un principio).
+
+**Por qué:** es el invariante que más veces se invocó como justificación en las
+specs previas (SPEC-005 desduplicar SSOTs, SPEC-013 la lista vive en un solo
+lugar) sin estar escrito donde manda. Un principio que se usa para decidir y no
+figura en la constitución erosiona el valor del documento.
+
+**Decisiones:**
+- El invariante cubre las dos mitades del problema: entre documentos (una pieza
+  normativa vive en un SSOT, el resto referencia) y **dentro** de un documento
+  (un detalle compartido por varias secciones se declara una vez). La segunda no
+  estaba enunciada en ningún lado y es la que más se viola en la práctica.
+- `Enforcement: AGENTS.md` — es revisión editorial, no una tool. Se le agregó a
+  `AGENTS.md` el paso operativo (consultar el mapa de SSOTs de `00-INDEX.md`
+  antes de escribir una regla nueva) para que el enforcement tenga contenido.
+  `check_constitution` no exige paso de pipeline: `AGENTS.md` no está en
+  `ENFORCEMENT_STEP`.
+- `Detalle: 00-INDEX.md` — ahí vive el mapa de qué documento es SSOT de qué
+  tema. La constitución declara el invariante y apunta; no lista los SSOTs.
+- El catálogo (`examples/config/config.yaml`, principio VI) recibió el mismo
+  invariante, y su `enforcement` pasó de `docs/playbooks/analyze.md` a
+  `AGENTS.md`: el playbook `analyze` es spec-scoped y ninguna de sus cinco
+  categorías detecta duplicación de SSOT, así que apuntaba a un documento que no
+  contenía la regla que decía enforzar.
+
+**Deuda:** `enforcement`/`detail` admiten un solo token (render.py los envuelve
+en un único code span y `check_constitution._is_path` valida existencia sobre
+él). Un principio con dos SSOTs de detalle no se puede expresar hoy; si hace
+falta, es cambio de núcleo y necesita spec propia. Anotado en `docs/IDEAS.md`.
+
 ## 2026-08-04 — SPEC-013: el derivado solo declara lo que eligió y lo que tiene
 
 **Scope:** qué recibe un proyecto recién derivado en su `CONSTITUTION.md` y en

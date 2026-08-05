@@ -1,6 +1,6 @@
 # Constitución del proyecto
 
-**Versión:** 0.2.0 | Ratificada: 2026-08-02 | Última enmienda: 2026-08-04
+**Versión:** 0.3.0 | Ratificada: 2026-08-02 | Última enmienda: 2026-08-05
 
 > Generado por `core/render.py` desde `.sdd/config.yaml`. La forma de cada
 > principio (invariante + Enforcement + Detalle) es lo que valida
@@ -41,6 +41,13 @@ No se edita el nucleo del kit sin una spec vigente declarada.
 
 - **Enforcement:** `sdd_gate.py`
 - **Detalle:** `docs/SDD-ENFORCEMENT.md`
+
+### IV. SSOT unico por tema
+
+Toda pieza de informacion normativa —regla, definicion, cifra, tabla, convencion— vive en exactamente un documento, su SSOT; cualquier otro que la necesite la referencia, nunca la reproduce. El mismo invariante rige dentro de un documento: un detalle compartido por varias secciones se declara una vez y las secciones lo referencian.
+
+- **Enforcement:** `AGENTS.md`
+- **Detalle:** `00-INDEX.md`
 
 ## Governance
 

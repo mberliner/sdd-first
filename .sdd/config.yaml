@@ -30,9 +30,9 @@ naming:
 constitution:
   # Metadatos de CONSTITUTION.md. Bumpear al enmendar un principio y regenerar
   # con render.py (SPEC-010 FR-003); antes estaban hardcodeados en render.py.
-  version: "0.2.0"
+  version: "0.3.0"
   ratified: 2026-08-02
-  amended: 2026-08-04
+  amended: 2026-08-05
 
 principles:
   - id: I
@@ -50,6 +50,16 @@ principles:
     invariant: No se edita el nucleo del kit sin una spec vigente declarada.
     enforcement: sdd_gate.py
     detail: docs/SDD-ENFORCEMENT.md
+  - id: IV
+    title: SSOT unico por tema
+    invariant: >-
+      Toda pieza de informacion normativa —regla, definicion, cifra, tabla,
+      convencion— vive en exactamente un documento, su SSOT; cualquier otro que
+      la necesite la referencia, nunca la reproduce. El mismo invariante rige
+      dentro de un documento: un detalle compartido por varias secciones se
+      declara una vez y las secciones lo referencian.
+    enforcement: AGENTS.md
+    detail: 00-INDEX.md
 
 layers: {}
 

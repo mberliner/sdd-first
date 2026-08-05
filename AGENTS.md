@@ -32,6 +32,10 @@ Dominio: andamiaje SDD universal, agnóstico y personalizable para otros proyect
   `{{project.domain}}`; los docs derivados del config (`CONSTITUTION.md`,
   `SPEC-000`) se generan con `core/render.py`, no se editan a mano.
 - Todo cambio de comportamiento requiere test en `tests/unit/`.
+- Antes de escribir una regla, una cifra o una convención, buscá su SSOT en el
+  mapa de `00-INDEX.md` y referencialo; si el tema todavía no tiene documento
+  autoritativo, elegí uno y agregalo al mapa. Dentro de un mismo documento vale
+  igual: si dos secciones necesitan el mismo detalle, declaralo una vez.
 
 ## Al cerrar una iteración
 

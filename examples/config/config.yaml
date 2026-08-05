@@ -95,8 +95,13 @@ principles:
     detail: docs/ARCHITECTURE.md
   - id: VI
     title: SSOT unico por tema
-    invariant: Toda regla o contrato vive en un unico documento; el resto lo referencia.
-    enforcement: docs/playbooks/analyze.md
+    invariant: >-
+      Toda pieza de informacion normativa —regla, definicion, cifra, tabla,
+      convencion— vive en exactamente un documento, su SSOT; cualquier otro que
+      la necesite la referencia, nunca la reproduce. El mismo invariante rige
+      dentro de un documento: un detalle compartido por varias secciones se
+      declara una vez y las secciones lo referencian.
+    enforcement: AGENTS.md
     detail: 00-INDEX.md
 
 layers:
