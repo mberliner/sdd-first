@@ -3,6 +3,11 @@
 # adapters/. `language: python` (no `system`): pre-commit gestiona su propio
 # intérprete aislado, así los hooks no dependen de que el shell invocador
 # tenga `python` en el PATH (solo `python3`, ver docs/SDD-ENFORCEMENT.md).
+#
+# `sdd-gate` NO lleva `files:` a propósito (SPEC-015 FR-001): un pre-filtro acá
+# sería una segunda copia de `dirs.source_roots` y solo puede equivocarse. Se le
+# pasan todos los archivos staged y `sdd_gate.py` —que sí lee el config— decide
+# cuáles son código fuente.
 repos:
   - repo: local
     hooks:
@@ -12,7 +17,6 @@ repos:
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: true
-        files: '^(core|adapters)/'
       - id: sdd-traceability
         name: sdd traceability
         entry: python core/check_traceability.py specs

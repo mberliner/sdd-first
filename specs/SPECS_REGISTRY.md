@@ -28,3 +28,4 @@
 | SPEC-012 | El pipeline del kit corre verde en Windows y POSIX | active | 2 | hibrido | [SPEC-012-suite-multiplataforma.md](SPEC-012-suite-multiplataforma.md) |
 | SPEC-013 | Proyecto derivado coherente: principios elegidos y referencias disponibles | active | 2 | hibrido | [SPEC-013-proyecto-derivado-coherente.md](SPEC-013-proyecto-derivado-coherente.md) |
 | SPEC-014 | El proyecto derivado dice la verdad sobre sí mismo (wiring, rutas, rama) | active | 3 | hibrido | [SPEC-014-derivado-dice-la-verdad.md](SPEC-014-derivado-dice-la-verdad.md) |
+| SPEC-015 | El wiring del gate apunta al código real del proyecto | active | 3 | hibrido | [SPEC-015-wiring-apunta-al-codigo-real.md](SPEC-015-wiring-apunta-al-codigo-real.md) |

@@ -4,12 +4,13 @@
 // cualquier variante de patch) ANTES de ejecutarse, extrae todas las rutas que
 // tocarian y delega la decision en `tools/sdd/core/sdd_gate.py` (SSOT
 // agnostico de asistente, vendorizado por sdd-init, transporte argv) por cada
-// ruta bajo `src/` (el layout de referencia — ajusta `isUnderSrc` si tu
-// proyecto usa otra carpeta como source_roots en .sdd/config.yaml). Contrato
-// del gate: exit 0 = permitir, exit 2 = bloquear (stderr lleva el motivo).
-// Cualquier otro exit significa que el gate NO llego a correr (interprete
-// ausente/roto): es FAIL-CLOSED, se bloquea. Backstop universal a posteriori
-// (cubre tools no interceptadas aqui): pre-commit + pipeline.
+// ruta bajo las carpetas de codigo del proyecto. Cuales son NO esta
+// hardcodeado (SPEC-015 FR-003): se derivan de `dirs` en .sdd/config.yaml,
+// igual que hace el gate. Contrato del gate: exit 0 = permitir, exit 2 =
+// bloquear (stderr lleva el motivo). Cualquier otro exit significa que el gate
+// NO llego a correr (interprete ausente/roto): es FAIL-CLOSED, se bloquea.
+// Backstop universal a posteriori (cubre tools no interceptadas aqui):
+// pre-commit + pipeline.
 //
 // Sin imports de @opencode-ai/plugin: opencode inyecta el runtime y este
 // archivo se versiona (a diferencia de node_modules/, ver .opencode/.gitignore).
@@ -82,31 +83,94 @@ const collectPaths = (input, output) => {
   return [...paths]
 }
 
-// ¿La ruta absoluta cae dentro de `<root>/src/`?
-const isUnderSrc = (root, abs) => {
-  const rel = path.relative(root, abs)
-  if (rel.startsWith("..") || path.isAbsolute(rel)) return false
-  return rel === "src" || rel.startsWith("src" + path.sep)
+// Carpetas de codigo fuente segun .sdd/config.yaml. Replica la regla de
+// SddConfig.source_roots: `dirs.source_roots` explicito (lista inline o en
+// bloque) si esta; si no, el primer componente de cada valor de `dirs:` salvo
+// los de tests; si no hay nada, `src`. Parseo minimo a proposito: el plugin se
+// versiona sin dependencias (no hay parser YAML disponible) y esto decide *si
+// preguntarle al gate*, no *que politica aplicar*. La paridad con el config la
+// verifica tests/unit/test_prefilter_source_roots.py.
+const unquote = (s) => s.replace(/^["']|["']$/g, "")
+
+export const sourceRoots = (root) => {
+  let text
+  try {
+    text = fs.readFileSync(path.join(root, ".sdd", "config.yaml"), "utf8")
+  } catch {
+    return ["src"]
+  }
+  const explicit = []
+  const implicit = []
+  let inDirs = false
+  let inBlock = false
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.replace(/#.*$/, "")
+    if (line.trim() === "") continue
+    // Una clave sin indentar cierra (o abre) el bloque `dirs:`.
+    if (!/^\s/.test(line)) {
+      inBlock = false
+      inDirs = /^dirs\s*:/.test(line)
+      continue
+    }
+    if (!inDirs) continue
+    const item = line.match(/^\s*-\s*(\S+)/)
+    if (item) {
+      if (inBlock) explicit.push(unquote(item[1]))
+      continue
+    }
+    const kv = line.match(/^\s*([\w-]+)\s*:\s*(.*)$/)
+    if (!kv) continue
+    inBlock = false
+    const key = kv[1]
+    const value = kv[2].trim()
+    if (key === "source_roots") {
+      if (value === "") inBlock = true
+      else
+        for (const v of value.replace(/^\[/, "").replace(/\]$/, "").split(",")) {
+          const t = unquote(v.trim())
+          if (t) explicit.push(t)
+        }
+      continue
+    }
+    if (key === "tests_unit" || key === "tests_integration") continue
+    const top = unquote(value).split("/")[0]
+    if (top && !implicit.includes(top)) implicit.push(top)
+  }
+  const roots = explicit.length ? explicit : implicit
+  return roots.length ? roots : ["src"]
 }
 
-// Resuelve una ruta de tool a su ABSOLUTA bajo `src/`, o null si no toca `src/`.
-// Pre-filtro barato (no la politica spec-first, SSOT de tools/sdd/core/sdd_gate.py)
-// para no depender de Python fuera de `src/`. Devolver la absoluta es necesario:
-// el gate tambien resuelve contra el root, asi que una relativa como
-// `dummy.py` (apply_patch lanzado con cwd dentro de src/) se le escaparia.
+// ¿La ruta absoluta cae dentro de alguno de los `roots` del proyecto?
+const isUnderRoots = (root, roots, abs) => {
+  const rel = path.relative(root, abs)
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return false
+  return roots.some((r) => {
+    const norm = r.split("/").join(path.sep)
+    return rel === norm || rel.startsWith(norm + path.sep)
+  })
+}
+
+// Resuelve una ruta de tool a su ABSOLUTA bajo un source root, o null si no
+// toca ninguno. Pre-filtro barato (no la politica spec-first, SSOT de
+// tools/sdd/core/sdd_gate.py) para no depender de Python fuera del codigo.
+// Devolver la absoluta es necesario: el gate tambien resuelve contra el root,
+// asi que una relativa como `dummy.py` (apply_patch lanzado con cwd dentro del
+// codigo) se le escaparia.
 //
 // Las rutas del patch son relativas al cwd de la tool, que la API de opencode
 // NO expone al hook (`tool.execute.before` solo trae tool/sessionID/callID).
-// Heuristica: si la relativa no cae en src/ contra el root pero SI existe al
-// resolverla bajo src/, asumimos que el cwd estaba dentro de src/. Cubre
+// Heuristica: si la relativa no cae en un root contra la raiz pero SI existe al
+// resolverla bajo alguno, asumimos que el cwd estaba ahi dentro. Cubre
 // edit/move/delete sobre archivos existentes; la *creacion* de un archivo nuevo
-// en src/ con cwd interno a src/ no es determinista aqui y la cubre pre-commit.
-const resolveSrcPath = (root, p) => {
+// con cwd interno al codigo no es determinista aqui y la cubre pre-commit.
+const resolveSourcePath = (root, roots, p) => {
   const direct = path.resolve(root, p)
-  if (isUnderSrc(root, direct)) return direct
+  if (isUnderRoots(root, roots, direct)) return direct
   if (!path.isAbsolute(p)) {
-    const underSrc = path.resolve(root, "src", p)
-    if (isUnderSrc(root, underSrc) && fs.existsSync(underSrc)) return underSrc
+    for (const r of roots) {
+      const under = path.resolve(root, r, p)
+      if (isUnderRoots(root, roots, under) && fs.existsSync(under)) return under
+    }
   }
   return null
 }
@@ -135,7 +199,8 @@ export const SddGate = async ({ directory, $ }) => {
       if (res.exitCode === 2) {
         const reason = res.stderr.toString().trim()
         throw new Error(
-          reason || "sdd-gate: edicion de src/ bloqueada (Principio de gate).",
+          reason ||
+            "sdd-gate: edicion de codigo fuente bloqueada (Principio de gate).",
         )
       }
       // exit != 0 y != 2: el gate no llego a ejecutarse con este interprete.
@@ -143,8 +208,8 @@ export const SddGate = async ({ directory, $ }) => {
     }
     throw new Error(
       "sdd-gate: no se pudo ejecutar tools/sdd/core/sdd_gate.py, edicion de " +
-        "src/ bloqueada por seguridad. Crea el .venv del proyecto o instala " +
-        "Python en el PATH. Detalle: " +
+        "codigo fuente bloqueada por seguridad. Crea el .venv del proyecto o " +
+        "instala Python en el PATH. Detalle: " +
         lastDetail,
     )
   }
@@ -153,12 +218,15 @@ export const SddGate = async ({ directory, $ }) => {
     "tool.execute.before": async (input, output) => {
       if (!isWriteTool(input?.tool)) return
       if (!fs.existsSync(gate)) return
-      const srcPaths = new Set()
+      // Se releen los roots por invocacion: el config puede cambiar durante la
+      // sesion y el costo es una lectura de archivo chica.
+      const roots = sourceRoots(root)
+      const sourcePaths = new Set()
       for (const p of collectPaths(input, output)) {
-        const abs = resolveSrcPath(root, p)
-        if (abs) srcPaths.add(abs)
+        const abs = resolveSourcePath(root, roots, p)
+        if (abs) sourcePaths.add(abs)
       }
-      for (const p of srcPaths) await runGate(p)
+      for (const p of sourcePaths) await runGate(p)
     },
   }
 }
