@@ -17,13 +17,14 @@ from __future__ import annotations
 
 import importlib.util
 import shutil
+import subprocess  # nosec B404 - solo consulta la rama actual del destino
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import VENDOR_PREFIX, write_text_lf  # noqa: E402
+from sdd_config import GATE_WIRING, VENDOR_PREFIX, write_text_lf  # noqa: E402
 
 KIT_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = KIT_ROOT / "templates"
@@ -91,9 +92,11 @@ def _copy_text(src: Path, dst: Path, name: str, domain: str, force: bool) -> str
     if dst.exists() and not force:
         return f"  (existe, se conserva) {dst}"
     dst.parent.mkdir(parents=True, exist_ok=True)
-    text = src.read_text(encoding="utf-8")
-    if src.suffix in {".md", ".json", ".yaml", ".yml", ".js"}:
-        text = _substitute(text, name, domain)
+    # Se sustituye en TODO lo que se copia: son todas plantillas de texto. El
+    # criterio anterior era la extension, y `.sdd/current-spec` -- el primer
+    # archivo que se abre para entender el gate -- no tiene, asi que se instalaba
+    # con `{{sdd.core}}` crudo (SPEC-014 FR-US2-001).
+    text = _substitute(src.read_text(encoding="utf-8"), name, domain)
     write_text_lf(dst, text)
     return f"  instalado {dst}"
 
@@ -126,8 +129,10 @@ def _write_config(
     example = (KIT_ROOT / "examples" / "config" / "config.yaml").read_text(
         encoding="utf-8"
     )
+    example = _seed_header(example, name)
     example = example.replace("name: mi-proyecto", f"name: {name}")
     example = example.replace("language: python", f"language: {language}")
+    example = _seed_default_branch(example, target)
     example = _seed_pipeline_steps(example)
     example = _seed_principles(example)
     layout = _detect_layout(target, language)
@@ -135,6 +140,65 @@ def _write_config(
     dst.parent.mkdir(parents=True, exist_ok=True)
     write_text_lf(dst, example)
     return f"  sembrado {dst}", layout
+
+
+def _seed_header(config_text: str, name: str) -> str:
+    """Cambia la cabecera del catalogo por una del proyecto (FR-US2-004).
+
+    El ejemplo se presenta como catalogo de referencia y manda "copialo a
+    .sdd/config.yaml", instruccion absurda en el archivo que ya *es* ese destino,
+    y nombra al proyecto de referencia del kit. El catalogo conserva la suya: lo
+    que cambia es el sembrado.
+    """
+    cuerpo = config_text.splitlines()
+    inicio = next(
+        (
+            i
+            for i, line in enumerate(cuerpo)
+            if line.strip() and not line.startswith("#")
+        ),
+        0,
+    )
+    cabecera = [
+        f"# .sdd/config.yaml — SSOT de parametrizacion de {name}.",
+        "#",
+        "# Todo el andamiaje SDD lee sus parametros de aca: cambiar este archivo",
+        "# cambia lo que el pipeline verifica y lo que el gate protege. Tras",
+        "# editarlo, regenera los derivados con `render.py` (CONSTITUTION.md,",
+        "# SPEC-000, CI). El catalogo completo de claves esta en el kit, en",
+        "# examples/config/config.yaml.",
+        "",
+    ]
+    return "\n".join([*cabecera, *cuerpo[inicio:]]).rstrip() + "\n"
+
+
+def _git_default_branch(target: Path) -> str | None:
+    """Rama actual del destino segun git, o None si no hay repo ni rama."""
+    result = subprocess.run(  # nosec B603 B607 - comando fijo, sin input de usuario
+        ["git", "-C", str(target), "branch", "--show-current"],
+        capture_output=True,
+        text=True,
+    )
+    rama = result.stdout.strip()
+    return rama or None
+
+
+def _seed_default_branch(config_text: str, target: Path) -> str:
+    """Declara `project.default_branch` con la rama real del destino (FR-US2-005).
+
+    Sin dato no se declara nada: el default del loader es `main`, que es lo que
+    el CI hardcodeaba hasta ahora.
+    """
+    rama = _git_default_branch(target)
+    if rama is None:
+        return config_text
+    out: list[str] = []
+    for line in config_text.splitlines():
+        out.append(line)
+        if line.strip().startswith("name:"):
+            indent = line[: len(line) - len(line.lstrip())]
+            out.append(f"{indent}default_branch: {rama}   # rama de disparo del CI")
+    return "\n".join(out).rstrip() + "\n"
 
 
 # Pasos sembrados por defecto: solo los operativos out-of-the-box (SPEC-003
@@ -370,7 +434,49 @@ def _layout_notice(layout: Layout | None) -> list[str]:
     ]
 
 
-def _next_steps(target: Path, layout: Layout | None = None) -> str:
+def _gate_wiring_conservado(target: Path, force: bool) -> list[str]:
+    """Archivos de wiring del gate que ya existian en el destino (FR-US1-001).
+
+    Hay que consultarlo ANTES de copiar: `sdd-init` es idempotente y no los pisa
+    (por diseno, es del dueno), asi que despues ya no se distingue.
+    """
+    if force:
+        return []
+    return [rel for rel in GATE_WIRING if (target / rel).exists()]
+
+
+def _wiring_notice(conservado: list[str]) -> list[str]:
+    """Aviso destacado cuando el gate puede haber quedado sin cablear.
+
+    La linea `(existe, se conserva)` del log se pierde entre treinta lineas de
+    instalacion. En el proyecto testigo de la campana eso significo CERO capas de
+    enforcement activas, con el doctor reportando "instalacion sana" y un commit
+    que debia bloquearse aceptado (SPEC-014 FR-US1-001).
+    """
+    if not conservado:
+        return []
+    lineas = [
+        "  ATENCION: se conservo el wiring que ya tenias, asi que el gate",
+        "  spec-first puede no estar cableado:",
+    ]
+    lineas += [
+        f"    - {rel} (deberia invocar {GATE_WIRING[rel]})" for rel in conservado
+    ]
+    lineas += [
+        "  Resolvelo de una de estas dos formas:",
+        "    - fusionalo a mano comparando con templates/wiring/ del kit, o",
+        "    - reinstala con --force (pisa tu version; guarda una copia antes).",
+        "  Verificalo con: python tools/sdd/core/sdd_doctor.py",
+        "",
+    ]
+    return lineas
+
+
+def _next_steps(
+    target: Path,
+    layout: Layout | None = None,
+    wiring_conservado: list[str] | None = None,
+) -> str:
     """Secuencia para continuar, con el path real y sin los pasos ya cumplidos.
 
     El operador cierra la instalacion mirando esta salida, no el README: si el
@@ -380,6 +486,7 @@ def _next_steps(target: Path, layout: Layout | None = None) -> str:
     existente resta credibilidad al resto de la lista (FR-010).
     """
     lines = [f"\nListo. sdd-first instalado en {target}", ""]
+    lines.extend(_wiring_notice(wiring_conservado or []))
     lines.extend(_layout_notice(layout))
     lines.extend(["Proximos pasos:", ""])
 
@@ -409,6 +516,9 @@ def _next_steps(target: Path, layout: Layout | None = None) -> str:
             "  4. python tools/sdd/core/pipeline.py"
             "             # verifica -> VERDE / ROJO",
             "",
+            "Para entender que quedo instalado, abri 00-INDEX.md: es el mapa de los",
+            "documentos y de que archivo es el SSOT de cada tema.",
+            "",
             "Antes de editar codigo, crea la primera spec: el gate spec-first bloquea",
             "mientras .sdd/current-spec este vacio.",
             '  python tools/sdd/core/sdd_spec.py "<slug>" --title="<Titulo>"',
@@ -435,6 +545,7 @@ def main(argv: list[str]) -> int:
     domain = "TODO: describir el dominio"
 
     print(f"Instalando sdd-first en {target} (language={language})")
+    wiring_conservado = _gate_wiring_conservado(target, force)
     log: list[str] = []
     for src_rel, dst_rel in STATIC_DOCS:
         log.append(
@@ -454,7 +565,7 @@ def main(argv: list[str]) -> int:
     for line in log:
         print(line)
 
-    print(_next_steps(target, layout))
+    print(_next_steps(target, layout, wiring_conservado))
     return 0
 
 

@@ -72,6 +72,23 @@ def test_ningun_doc_instalado_cita_una_ruta_inexistente(tmp_path, language):
     )
 
 
+def test_ningun_archivo_instalado_queda_con_placeholders(tmp_path):
+    """SPEC-014 FR-US2-001. `.sdd/current-spec` se instalaba con `{{sdd.core}}`
+    crudo porque la sustitucion dependia de la extension y ese archivo no tiene.
+    Es el primer archivo que se abre para entender el gate, y el test de rutas
+    colgadas de arriba tampoco lo veia (no es `.md`).
+    """
+    assert sdd_init.main([str(tmp_path), "--language=python"]) == 0
+    crudos = [
+        p.relative_to(tmp_path).as_posix()
+        for p in sorted(tmp_path.rglob("*"))
+        if p.is_file()
+        and not any(x in p.as_posix() for x in ("tools/sdd", "__pycache__"))
+        and "{{" in p.read_text(encoding="utf-8", errors="ignore")
+    ]
+    assert not crudos, "placeholders sin resolver en: " + "; ".join(crudos)
+
+
 def test_architecture_no_depende_del_adaptador_python(tmp_path):
     # FR-003: el doc de capas se instala con cualquier lenguaje, asi que no
     # puede citar un archivo que solo existe con `--language python`.
