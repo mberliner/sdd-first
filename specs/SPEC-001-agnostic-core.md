@@ -52,7 +52,8 @@ y sale VERDE/ROJO según el resultado agregado.
   tenga Enforcement y Detalle con referencias existentes, y que el enforcement
   mapeado a un paso esté cableado en `pipeline.steps`.
 - **FR-005** MUST: los validadores de código se delegan al adaptador según el
-  contrato `adapters/CONTRACT.md` (`adapter.py <step>`, exit 0/≠0); el
+  contrato `adapters/CONTRACT.md` (`adapter.py <step>`, exit 0 = OK / 3 =
+  omitido / otro = falla); el
   adaptador `python` implementa naming (AST + palabras excluidas del config), layers,
   lint, format, types, security y tests.
 - **FR-006** MUST: `core/gen_skill_adapters.py` genera los adaptadores de
@@ -108,3 +109,7 @@ y sale VERDE/ROJO según el resultado agregado.
 - 2026-07-01: creada (draft, formato casero) durante el bootstrap v0.1.0.
 - 2026-07-02: promovida a hibrido/active con FRs, SC y Coverage mapping
   (SPEC-002 FR-006).
+- 2026-08-05: FR-005 enmendado — el contrato de adaptador pasa de `exit 0/≠0` a
+  tres estados (`0` OK, `3` omitido, otro falla). Lo exige SPEC-003 FR-009: con
+  dos estados, un paso omitido era indistinguible de un paso verificado. El
+  detalle del contrato vive en `adapters/CONTRACT.md` (SSOT).

@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 import bootstrap_hooks
+from sdd_config import EXIT_OMITIDO
 
 
 def _make_repo(tmp_path: Path) -> Path:
@@ -13,11 +14,12 @@ def _make_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_sin_git_es_no_op(tmp_path, monkeypatch, capsys):
+def test_sin_git_se_omite(tmp_path, monkeypatch, capsys):
+    """Sin repo git la capa git no queda cableada: omitido, no OK (SPEC-003 FR-009)."""
     repo = _make_repo(tmp_path)
     monkeypatch.setattr(bootstrap_hooks, "find_repo_root", lambda: repo)
-    assert bootstrap_hooks.main() == 0
-    assert "no-op" in capsys.readouterr().out
+    assert bootstrap_hooks.main() == EXIT_OMITIDO
+    assert "omitido" in capsys.readouterr().out
 
 
 def test_hooks_ya_instalados_no_toca_nada(tmp_path, monkeypatch, capsys):

@@ -8,6 +8,7 @@ silencio sería peor que no tenerlo.
 from __future__ import annotations
 
 import pipeline
+from sdd_config import EXIT_OMITIDO
 
 
 def test_coverage_es_paso_de_codigo():
@@ -33,7 +34,7 @@ def test_coverage_se_omite_con_language_none(tmp_path, monkeypatch):
     monkeypatch.setattr(
         pipeline, "_run", lambda cmd, cwd: pytest_fail("no debía ejecutarse")
     )
-    assert pipeline._run_code_step("coverage", "none", tmp_path) is None
+    assert pipeline._run_code_step("coverage", "none", tmp_path) == EXIT_OMITIDO
 
 
 def pytest_fail(msg):  # pragma: no cover - helper de aserción

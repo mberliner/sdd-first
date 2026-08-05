@@ -165,11 +165,11 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 
 ## P2 — Bugs y asperezas menores de código
 
-- **C-1 · Paso desconocido cuenta como OK.** `pipeline.py`: un step no
-  reconocido (p. ej. `gate`, que la doc de `adapter.py` y del config de
-  ejemplo listan como paso de proceso) hace `continue` sin decrementar
-  `total` → "VERDE 5/5" con un paso que no corrió. Además, alinear la doc:
-  `gate` no es paso de pipeline (decisión ya tomada en el historial).
+- **C-1 · Paso desconocido cuenta como OK.** Resuelto de paso el 2026-08-05 al
+  implementar [[SPEC-003-install-happy-path]] FR-009: el `continue` de un step no
+  reconocido ahora decrementa `total`, igual que una omisión. Queda pendiente
+  solo la parte de doc: `gate` no es paso de pipeline (decisión ya tomada en el
+  historial) y el config de ejemplo y la doc de `adapter.py` lo insinúan.
 - **C-2 · Mojibake en Windows.** `pipeline.py`, `sdd_doctor.py` y
   `sdd_init.py` imprimen `VERDE �` porque no hacen el
   `reconfigure(encoding="utf-8")` que sí hacen los `check_*`. Extraer un
@@ -279,6 +279,67 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   umbrales de F-1: `check_constitution.py`, `gen_skill_adapters.py` y
   `sdd_doctor.py` no tienen ni un test directo (total del kit: 52%). El umbral
   se fijó en el piso actual como trinquete; subirlo requiere cubrirlos.
+
+## P1/P2 — Hallazgos de la campaña de usabilidad del proyecto derivado
+
+Del recorrido completo del README sobre proyectos testigo (2026-08-05): un
+greenfield vacío y un proyecto Python con código previo en `app/`. Evidencia y
+detalle de cada hallazgo en el informe de la campaña, fuera del repo. Lo que ya
+se cerró: **U-1..U-3 → [[SPEC-003-install-happy-path]]** (reabierta).
+
+- **U-1 · El config sembrado heredaba el layout del proyecto de referencia**
+  (`src/domain`, `tests/unit`), así que en cualquier otro layout `naming` y
+  `tests` se omitían y el gate no protegía nada. *(ya con spec)*
+- **U-2 · El README no nombraba `dirs`/`source_roots`** entre lo configurable,
+  que es lo único que hace que el gate y los checks apunten al código. *(ya con
+  spec)*
+- **U-3 · Un paso omitido se contaba como paso OK** (`VERDE 8/8` con 4 pasos que
+  no verificaron nada). *(ya con spec)*
+- **U-4 · `sdd-init` conserva en silencio el wiring propio del proyecto.** Con
+  un `.pre-commit-config.yaml` y un `.claude/settings.json` preexistentes, no
+  queda ninguna capa de gate cableada y nadie avisa: la línea
+  `(existe, se conserva)` se pierde entre 30 líneas de log. Verificado con un
+  commit sobre `src/` que el gate debió bloquear y no bloqueó. P1 → SPEC-014,
+  junto con **G-4**.
+- **U-5 · El mensaje de drift del doctor nombra artefactos fijos.** Dice
+  "CONSTITUTION.md/SPEC-000 desincronizados" aunque lo que drifteó sea
+  `ci.yml`. P2 → SPEC-014.
+- **U-6 · `.sdd/current-spec` se instala con el placeholder `{{sdd.core}}` sin
+  sustituir**: `_copy_text` sustituye por extensión y ese archivo no tiene. Es
+  el primer archivo que se abre para entender el gate, y el test de rutas
+  colgadas de SPEC-013 FR-004 no lo ve por el mismo motivo. P1 → SPEC-013.
+- **U-7 · Los mensajes de drift citan rutas del kit** (`corre: python
+  core/render.py`), inexistentes en un derivado, donde es `tools/sdd/core/`.
+  Misma clase que SPEC-010 FR-007, en superficie de runtime. P2 → SPEC-013.
+- **U-8 · El config sembrado conserva la cabecera del ejemplo**, que dice
+  "copialo a `.sdd/config.yaml`" cuando ya *es* ese archivo, y nombra al
+  proyecto de referencia. P2 → SPEC-013.
+- **U-9 · El CI generado hardcodea `branches: [main]`.** Un proyecto en
+  `master` o `develop` recibe un workflow que nunca dispara, mientras los
+  `paths:` sí derivan del config. P2 → SPEC-009.
+- **U-10 · El gate falla *abierto* si el `cwd` del payload no resuelve a una
+  raíz con marcadores SDD**: `find_repo_root` devuelve ese directorio y la
+  edición se permite en silencio. El wrapper de Claude está diseñado
+  fail-closed; el núcleo detrás, no. P1.
+- **U-11 · La salida de instalación no nombra ningún documento para leer.**
+  `00-INDEX.md` es un buen índice y está instalado, pero nada invita a abrirlo;
+  en un brownfield cuyo README propio se conservó, no hay puerta de entrada. P3.
+
+Ítems ya registrados que la campaña **reprodujo en un proyecto real**, con la
+evidencia que les faltaba:
+
+- **G-1** (pre-filtro `files:` hardcodeado): confirmado con `pkg/x.py`, que no
+  matchea `^(src|app|lib)/` y nunca llega al gate. La rama fail-closed del hook
+  de Claude tiene la misma limitación (su `case` solo cubre `src/`). El núcleo
+  del gate sí lee `source_roots` correctamente.
+- **G-4** (doctor valida existencia, no contenido): confirmado — reporta
+  "Instalación SDD sana" sobre un `.pre-commit-config.yaml` con solo `ruff`.
+- **C-2** (mojibake en Windows): confirmado por bytes; con la salida redirigida
+  `sys.stdout.encoding` es `cp1252` y el texto **no es UTF-8 válido**. Afecta al
+  aviso clave de `sdd_spec.py` ("Editá la spec… ANTES de tocar código").
+- **E-2** (ruta de actualización del kit vendorizado): confirmado que ningún
+  documento del derivado lo explica, aunque `SDD-OPERACION` hable de "después de
+  actualizar el kit".
 
 ## Descartado explícitamente del proyecto de referencia
 

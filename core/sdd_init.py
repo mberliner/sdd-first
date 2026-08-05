@@ -18,6 +18,7 @@ from __future__ import annotations
 import importlib.util
 import shutil
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -115,10 +116,13 @@ def _vendor_kit(target: Path, language: str, force: bool) -> list[str]:
     return out
 
 
-def _write_config(target: Path, name: str, language: str, force: bool) -> str:
+def _write_config(
+    target: Path, name: str, language: str, force: bool
+) -> tuple[str, Layout | None]:
+    """Siembra `.sdd/config.yaml`. Devuelve (linea de log, layout detectado)."""
     dst = target / ".sdd" / "config.yaml"
     if dst.exists() and not force:
-        return f"  (existe, se conserva) {dst}"
+        return f"  (existe, se conserva) {dst}", None
     example = (KIT_ROOT / "examples" / "config" / "config.yaml").read_text(
         encoding="utf-8"
     )
@@ -126,9 +130,11 @@ def _write_config(target: Path, name: str, language: str, force: bool) -> str:
     example = example.replace("language: python", f"language: {language}")
     example = _seed_pipeline_steps(example)
     example = _seed_principles(example)
+    layout = _detect_layout(target, language)
+    example = _seed_dirs(example, layout)
     dst.parent.mkdir(parents=True, exist_ok=True)
     write_text_lf(dst, example)
-    return f"  sembrado {dst}"
+    return f"  sembrado {dst}", layout
 
 
 # Pasos sembrados por defecto: solo los operativos out-of-the-box (SPEC-003
@@ -174,6 +180,105 @@ def _seed_pipeline_steps(config_text: str) -> str:
             in_steps = True
             replaced = True
             continue
+        out.append(line)
+    return "\n".join(out).rstrip() + "\n"
+
+
+# Carpetas candidatas a raiz de codigo, en orden de preferencia. No es una lista
+# de "layouts soportados" (el kit no acopla a ninguno): es el orden en que se
+# busca para adivinar, y lo que se adivina queda escrito en el config, donde el
+# dueno lo puede corregir. Ver SPEC-003 FR-007.
+_SOURCE_CANDIDATES = ("src", "app", "lib", "pkg", "source", "internal")
+_TEST_CANDIDATES = ("tests/unit", "tests", "test")
+
+# Extension de los archivos que delatan codigo del lenguaje, por adaptador.
+_LANGUAGE_GLOBS = {"python": "*.py"}
+
+
+@dataclass(frozen=True)
+class Layout:
+    """Layout detectado en el destino: que carpetas tienen codigo y tests."""
+
+    source_root: str | None
+    tests_unit: str | None
+
+    @property
+    def detected(self) -> bool:
+        return bool(self.source_root or self.tests_unit)
+
+
+def _has_language_files(directory: Path, language: str) -> bool:
+    glob = _LANGUAGE_GLOBS.get(language)
+    if glob is None:
+        return False
+    return any(directory.rglob(glob))
+
+
+def _detect_layout(target: Path, language: str) -> Layout:
+    """Busca la carpeta de codigo y la de tests que el proyecto ya tiene.
+
+    Con `language: none` no se detecta codigo: no hay adaptador que lo valide,
+    asi que declarar un source_root solo serviria para que el gate bloquee
+    ediciones que ningun paso del pipeline mira.
+    """
+    source_root = next(
+        (
+            name
+            for name in _SOURCE_CANDIDATES
+            if (target / name).is_dir() and _has_language_files(target / name, language)
+        ),
+        None,
+    )
+    tests_unit = next(
+        (name for name in _TEST_CANDIDATES if (target / name).is_dir()), None
+    )
+    return Layout(source_root=source_root, tests_unit=tests_unit)
+
+
+def _seed_dirs(config_text: str, layout: Layout) -> str:
+    """Reemplaza el bloque `dirs:` del ejemplo por el del proyecto destino.
+
+    El ejemplo trae las rutas del proyecto de referencia (`src/domain`,
+    `src/dashboard`, `tests/unit`). Heredarlas en un proyecto con otro layout
+    hacia que el gate y los pasos de codigo apuntaran a carpetas inexistentes y
+    que el pipeline reportara VERDE sin haber mirado nada (SPEC-003 FR-007).
+
+    Sin deteccion se siembra un bloque minimo con TODO: `source_roots` cae al
+    default `src` (ver sdd_config.source_roots), que es lo que ya hacia.
+    """
+    if layout.source_root:
+        cuerpo = [
+            "  # Detectado por sdd-init desde la estructura del proyecto.",
+            f"  source_roots: [{layout.source_root}]",
+        ]
+    else:
+        cuerpo = [
+            "  # TODO: declara las carpetas de codigo de tu proyecto. Mientras",
+            "  # `source_roots` no este, el gate y los pasos de codigo asumen `src`.",
+            "  # source_roots: [src]",
+        ]
+    if layout.tests_unit:
+        cuerpo.append(f"  tests_unit: {layout.tests_unit}")
+    else:
+        cuerpo.append("  # tests_unit: tests/unit")
+    cuerpo.append("  # Rutas de cada capa (las pregunta sdd-configure):")
+    cuerpo.append("  # domain: <ruta>")
+
+    lines = config_text.splitlines()
+    out: list[str] = []
+    in_dirs = False
+    for line in lines:
+        if line.strip() == "dirs:":
+            out.append(line)
+            out.extend(cuerpo)
+            in_dirs = True
+            continue
+        if in_dirs:
+            # El bloque termina en la primera linea de nivel superior.
+            if line and not line[0].isspace():
+                in_dirs = False
+            else:
+                continue
         out.append(line)
     return "\n".join(out).rstrip() + "\n"
 
@@ -239,7 +344,33 @@ def _install_project_skills(target: Path, force: bool) -> list[str]:
     return out
 
 
-def _next_steps(target: Path) -> str:
+def _layout_notice(layout: Layout | None) -> list[str]:
+    """Que se detecto del layout, o que falta declarar (SPEC-003 FR-007).
+
+    Va en la salida y no solo en el config: el dueno tiene que poder confirmar o
+    corregir la adivinanza, y para eso primero tiene que saber que se hizo una.
+    """
+    if layout is None:
+        return []
+    if layout.source_root:
+        detectado = f"codigo en {layout.source_root}/"
+        if layout.tests_unit:
+            detectado += f", tests en {layout.tests_unit}/"
+        return [
+            f"  Layout detectado: {detectado}",
+            "  Verificalo en .sdd/config.yaml (dirs.source_roots) antes de seguir:",
+            "  de ahi salen las carpetas que el gate protege y que los checks miran.",
+            "",
+        ]
+    return [
+        "  No se detecto carpeta de codigo: .sdd/config.yaml quedo con `dirs` sin",
+        "  declarar y el gate asume `src`. Si tu codigo va en otra carpeta,",
+        "  declarala en dirs.source_roots (o corre sdd-configure).",
+        "",
+    ]
+
+
+def _next_steps(target: Path, layout: Layout | None = None) -> str:
     """Secuencia para continuar, con el path real y sin los pasos ya cumplidos.
 
     El operador cierra la instalacion mirando esta salida, no el README: si el
@@ -248,7 +379,9 @@ def _next_steps(target: Path) -> str:
     preparacion ya satisfechos se omiten -- sugerir `git init` sobre un repo
     existente resta credibilidad al resto de la lista (FR-010).
     """
-    lines = [f"\nListo. sdd-first instalado en {target}", "", "Proximos pasos:", ""]
+    lines = [f"\nListo. sdd-first instalado en {target}", ""]
+    lines.extend(_layout_notice(layout))
+    lines.extend(["Proximos pasos:", ""])
 
     prep: list[str] = []
     if target != Path.cwd():
@@ -267,8 +400,8 @@ def _next_steps(target: Path) -> str:
 
     lines.extend(
         [
-            "  1. Edita .sdd/config.yaml (dominio, palabras excluidas, capas)",
-            "     o corre la skill sdd-configure, que es un wizard.",
+            "  1. Edita .sdd/config.yaml (dominio, carpetas de codigo y tests,",
+            "     palabras excluidas, capas) o corre la skill sdd-configure.",
             "  2. python tools/sdd/core/render.py"
             "               # CONSTITUTION.md + SPEC-000 + CI",
             "  3. python tools/sdd/core/gen_skill_adapters.py"
@@ -313,14 +446,15 @@ def main(argv: list[str]) -> int:
         )
         if dst_rel in _EXECUTABLE_WIRING:
             (target / dst_rel).chmod(0o755)
-    log.append(_write_config(target, name, language, force))
+    config_line, layout = _write_config(target, name, language, force)
+    log.append(config_line)
     log.extend(_vendor_kit(target, language, force))
     log.extend(_install_project_skills(target, force))
 
     for line in log:
         print(line)
 
-    print(_next_steps(target))
+    print(_next_steps(target, layout))
     return 0
 
 

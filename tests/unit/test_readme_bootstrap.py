@@ -92,3 +92,14 @@ def test_enumera_los_valores_de_language(readme: str):
     assert "--language" in readme
     assert "`python` (default)" in readme
     assert "`none`" in readme
+
+
+def test_nombra_las_carpetas_de_codigo_entre_lo_configurable(readme: str):
+    """SPEC-003 FR-008 (no el FR-008 de SPEC-011, que es el de `--language`).
+
+    El README enumeraba que editar del config y omitia `dirs`/`source_roots`, que
+    es lo unico que hace que el gate y los pasos de codigo apunten al codigo del
+    proyecto. Sin eso, el pipeline puede salir VERDE sin haber verificado nada.
+    """
+    assert "source_roots" in readme
+    assert "dirs" in readme

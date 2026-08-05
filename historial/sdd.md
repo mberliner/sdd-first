@@ -1,5 +1,62 @@
 # Historial SDD — sdd-first
 
+## 2026-08-05 — SPEC-003 (reabierta) + SPEC-001: el pipeline deja de reportar verde sin haber medido
+
+**Scope:** `core/sdd_init.py` (`_detect_layout`, `_seed_dirs`, `_layout_notice`),
+`core/pipeline.py`, `core/sdd_config.py` (`EXIT_OMITIDO`, guarda de `dirs`),
+`core/bootstrap_hooks.py`, `adapters/python/adapter.py`, `adapters/CONTRACT.md`,
+`README.md`, `templates/docs/playbooks/sdd-configure.md` (y su generado),
+`specs/SPEC-003-install-happy-path.md`, `specs/SPEC-001-agnostic-core.md`,
+`docs/IDEAS.md`, `tests/unit/conftest.py` y 5 archivos de test.
+
+**Qué cambió:** tres FR nuevos en SPEC-003 (FR-007 sembrado de `dirs` según el
+layout real, FR-008 el README nombra `dirs`/`source_roots`, FR-009 un paso
+omitido no se cuenta como paso OK) y la enmienda de FR-001/FR-004 y SC-001 de la
+misma spec. El contrato de adaptador pasa de dos estados a tres —`0` OK, `3`
+omitido, otro falla— lo que obligó a enmendar SPEC-001 FR-005.
+
+**Por qué:** una campaña de usabilidad recorrió el README completo sobre
+proyectos testigo, uno vacío y uno con código previo en `app/`. En el segundo, el
+kit reportaba `VERDE 8/8` y "instalación sana" mientras `naming` y `tests` se
+omitían con el aviso "sin carpetas de codigo todavia", dos violaciones de
+SPEC-000 quedaban sin detectar y un commit sobre `app/servicio.py` sin spec
+editada pasaba sin bloqueo. Las dos causas eran decisiones de SPEC-003: el
+sembrado heredaba los `dirs` del proyecto de referencia y la omisión con exit 0
+hacía indistinguible "no medí" de "medí y pasó".
+
+**Decisiones:**
+- Se **reabrió** SPEC-003 en vez de abrir una spec nueva: una spec nueva habría
+  dejado FR-001/FR-004 falsos sin marca, y el registro solo expresa `superseded`
+  a nivel de spec entera. Precedente: SPEC-004 reabierta el 2026-08-01.
+- El estado OMITIDO se transporta por exit code y no por un marcador en stdout:
+  el pipeline usa `subprocess.call` y deja la salida de los checks en streaming;
+  parsearla obligaría a capturarla y reemitirla.
+- La omisión sigue existiendo: una instalación fresca no debe arrancar en ROJO
+  por tooling que todavía no tiene. Lo que cambia es que no se cuenta como
+  verificada. Greenfield pasa de `VERDE 8/8` a `VERDE 4/4 pasos OK` +
+  `Omitidos (4, no verificados)`.
+- `layers` **no** se siembra según el layout: las capas no se infieren de la
+  estructura de carpetas y el principio II las respalda. Lo pregunta
+  `sdd-configure`.
+- El layout detectado se informa en la salida de instalación, no solo en el
+  config: el dueño tiene que poder corregir la adivinanza, y para eso primero
+  tiene que saber que se hizo una.
+- El helper `crear_proyecto_brownfield` vive en `conftest.py` y no como fixture
+  versionado: bajo `tests/`, los `test_*.py` de un fixture los recogería la
+  propia suite (`testpaths = ["tests/unit"]`).
+
+**Verificación:** kit VERDE 10/10, 166 tests + 1 skip. Greenfield reinstalado de
+cero sigue VERDE con los omitidos a la vista (sin regresión de SC-001).
+Brownfield con `app/` sale ROJO por sus 2 violaciones reales sin editar el config
+a mano (SC-005), y el gate bloquea `app/servicio.py` por argv y por el hook de
+Claude (SC-006).
+
+**Deuda:** los 11 hallazgos restantes de la campaña quedaron en `docs/IDEAS.md`
+como U-4..U-11, con SPEC-014 (avisos de wiring conservado y doctor por
+contenido, junto con G-4) y SPEC-013/SPEC-009 como destinos propuestos. La
+campaña además reprodujo con evidencia G-1, G-4, C-2 y E-2, ya registrados, y
+cerró de paso C-1.
+
 ## 2026-08-05 — SPEC-000: "token" pasa a llamarse "palabra excluida"
 
 **Scope:** `core/render.py` (plantilla de `SPEC-000-naming.md`),

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import adapter
 import pytest
-from sdd_config import SddConfig
+from sdd_config import EXIT_OMITIDO, SddConfig
 
 
 def _cfg(tmp_path: Path, raw: dict) -> SddConfig:
@@ -21,27 +21,27 @@ def sin_subprocesos(monkeypatch):
     monkeypatch.setattr(adapter, "_run", _explota)
 
 
-def test_naming_sin_targets_se_omite_con_exit_0(tmp_path):
+def test_naming_sin_targets_se_omite_con_exit_omitido(tmp_path):
     cfg = _cfg(tmp_path, {"dirs": {"domain": "src/domain", "tests_unit": "tests/unit"}})
-    assert adapter.step_naming(tmp_path, cfg) == 0
+    assert adapter.step_naming(tmp_path, cfg) == EXIT_OMITIDO
 
 
-def test_lint_sin_tool_se_omite_con_exit_0(tmp_path, monkeypatch):
+def test_lint_sin_tool_se_omite_con_exit_omitido(tmp_path, monkeypatch):
     monkeypatch.setattr(adapter, "_module_available", lambda m: False)
     (tmp_path / "src").mkdir()
     cfg = _cfg(tmp_path, {"dirs": {"domain": "src/domain"}})
-    assert adapter.step_lint(tmp_path, cfg) == 0
+    assert adapter.step_lint(tmp_path, cfg) == EXIT_OMITIDO
 
 
-def test_tests_sin_carpeta_se_omite_con_exit_0(tmp_path):
+def test_tests_sin_carpeta_se_omite_con_exit_omitido(tmp_path):
     cfg = _cfg(tmp_path, {"dirs": {"tests_unit": "tests/unit"}})
-    assert adapter.step_tests(tmp_path, cfg) == 0
+    assert adapter.step_tests(tmp_path, cfg) == EXIT_OMITIDO
 
 
-def test_layers_sin_lint_imports_se_omite_con_exit_0(tmp_path, monkeypatch):
+def test_layers_sin_lint_imports_se_omite_con_exit_omitido(tmp_path, monkeypatch):
     monkeypatch.setattr(adapter.shutil, "which", lambda name: None)
     cfg = _cfg(tmp_path, {})
-    assert adapter.step_layers(tmp_path, cfg) == 0
+    assert adapter.step_layers(tmp_path, cfg) == EXIT_OMITIDO
 
 
 def test_con_targets_y_tool_si_se_ejecuta(tmp_path, monkeypatch):

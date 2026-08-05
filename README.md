@@ -99,7 +99,12 @@ cd /ruta/a/mi-proyecto
 git init                    # si todavía no es repo (ver nota abajo)
 pip install pre-commit      # para que el paso `hooks` pueda cablear la capa git
 
-# Editá .sdd/config.yaml: dominio, palabras excluidas de la nomenclatura, capas, principios.
+# Editá .sdd/config.yaml: dominio, carpetas de código y tests (`dirs`,
+# `dirs.source_roots`), palabras excluidas de la nomenclatura, capas, principios.
+# (`dirs.source_roots` es lo que hace que el gate proteja tu código y que los
+# pasos de código lo miren: si apunta a una carpeta que no existe, el pipeline
+# sale VERDE sin haber verificado nada. `sdd-init` intenta detectarlo y te dice
+# qué encontró — confirmalo antes de seguir.)
 # (las "palabras excluidas" son fragmentos de identificadores de código —clases,
 # funciones, variables, módulos— vetados por acoplar el núcleo a un proveedor,
 # framework o tecnología concreta; ver specs/SPEC-000-naming.md)

@@ -40,6 +40,13 @@ DEFAULT_SOURCE_ROOT = "src"
 DEFAULT_TESTS_UNIT = "tests/unit"
 DEFAULT_CONSTITUTION_VERSION = "0.1.0"
 
+# Tercer estado del contrato de adaptador (SPEC-003 FR-009, SPEC-001 FR-005):
+# el paso no se pudo verificar (sin targets, sin tool, sin umbrales) y eso NO es
+# ni un pase ni una falla. Vive aca porque lo comparten los dos lados del
+# contrato: `core/pipeline.py` que agrega y `adapters/*/adapter.py` que reporta.
+# Contrato completo en adapters/CONTRACT.md.
+EXIT_OMITIDO = 3
+
 # Marcadores que identifican la raiz de un proyecto con SDD instalado.
 _ROOT_MARKERS = (
     CONFIG_RELPATH,
@@ -160,7 +167,9 @@ class SddConfig:
         Por defecto: la union de las capas declaradas en `dirs` (sin tests) o,
         si se declara explicitamente `dirs.source_roots`, esa lista.
         """
-        explicit = self.raw.get("dirs", {}).get("source_roots")
+        # `or {}`: un `dirs:` presente pero sin claves (todo comentado, como lo
+        # siembra sdd-init sin layout detectado) parsea a None, no a dict.
+        explicit = (self.raw.get("dirs") or {}).get("source_roots")
         if isinstance(explicit, list) and explicit:
             return [str(x) for x in explicit]
         roots: list[str] = []

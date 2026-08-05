@@ -2,7 +2,8 @@
 
 Contrato de adaptador (ver adapters/CONTRACT.md): expone los pasos de validacion
 de codigo que el pipeline delega al lenguaje activo. Cada paso corre una tool del
-ecosistema Python y respeta el contrato exit 0 = OK / exit != 0 = falla.
+ecosistema Python y respeta el contrato de tres estados:
+exit 0 = OK / exit 3 = omitido (no se pudo verificar) / otro = falla.
 
     python adapters/python/adapter.py <step>
 
@@ -12,8 +13,9 @@ El pipeline agnostico (core/pipeline.py) invoca `adapter.py <step>` para cada pa
 de codigo declarado en pipeline.steps. Los pasos de proceso (constitution,
 traceability, skills) los corre el nucleo directamente, no el adaptador.
 
-Omisiones con aviso (exit 0), para que una instalacion fresca no arranque en
-ROJO (SPEC-003 FR-001/FR-004):
+Omisiones con aviso (exit 3 = EXIT_OMITIDO), para que una instalacion fresca no
+arranque en ROJO sin por eso hacer pasar por verificado lo que no se miro
+(SPEC-003 FR-001/FR-004/FR-009):
   - paso sin targets existentes (proyecto todavia sin codigo);
   - paso cuya tool no esta instalada (ruff/mypy/bandit/pytest/import-linter);
   - paso `coverage` sin umbrales declarados en el config (SPEC-009 FR-002):
@@ -30,7 +32,12 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / "core"))
-from sdd_config import DEFAULT_TESTS_UNIT, find_repo_root, load  # noqa: E402
+from sdd_config import (  # noqa: E402
+    DEFAULT_TESTS_UNIT,
+    EXIT_OMITIDO,
+    find_repo_root,
+    load,
+)
 
 
 def _run(cmd: list[str], cwd: Path) -> int:
@@ -44,7 +51,7 @@ def _module_available(module: str) -> bool:
 
 def _skip(reason: str) -> int:
     print(f"    (omitido: {reason})")
-    return 0
+    return EXIT_OMITIDO
 
 
 def _source_and_test_dirs(cfg) -> tuple[list[str], list[str]]:  # type: ignore[no-untyped-def]

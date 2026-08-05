@@ -22,10 +22,21 @@ python adapters/<language>/adapter.py <step>
 ## Contrato
 
 - Entrada: un único argumento (el nombre del paso).
-- Salida: **exit 0 = OK, exit ≠ 0 = falla**. El pipeline agrega el resultado.
+- Salida: tres estados. El pipeline agrega el resultado.
+
+  | Exit | Estado | Significado |
+  |------|--------|-------------|
+  | `0` | OK | el paso verificó y pasó |
+  | `3` | OMITIDO | el paso **no se pudo verificar**: sin targets existentes, sin la tool instalada, sin umbrales declarados, o paso no soportado por el lenguaje |
+  | otro | FALLO | el paso verificó y encontró violaciones |
+
+- El estado OMITIDO existe para que una instalación fresca no arranque en ROJO
+  por tooling que todavía no tiene, **sin** que eso haga pasar por verificado lo
+  que nadie miró: el pipeline no lo cuenta entre los pasos OK y lo informa
+  aparte. La constante es `EXIT_OMITIDO` en `core/sdd_config.py` (SSOT).
+  Ver SPEC-003 FR-009 y SPEC-001 FR-005.
 - Parametrización: el adaptador lee `.sdd/config.yaml` vía `core/sdd_config.py`
   (source_roots, dirs, naming, layers). No hardcodea rutas ni palabras excluidas.
-- Un paso no soportado por el lenguaje puede devolver 0 con un aviso (no-op).
 
 ## Adaptadores
 

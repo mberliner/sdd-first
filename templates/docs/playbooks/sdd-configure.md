@@ -20,7 +20,11 @@ artefactos derivados.
      `language: none`, o porque la tool no está), decílo al ofrecerlo: se
      verificará en code review, no automáticamente.
    - **layers**: nombres de capas y matriz de imports permitidos.
-   - **dirs**: rutas de cada capa y de los tests.
+   - **dirs**: rutas de cada capa y de los tests, y **`dirs.source_roots`**: las
+     carpetas que el gate protege y que los pasos de código verifican. Si
+     `sdd-init` detectó el layout, confirmalo con el usuario en vez de asumirlo;
+     si quedó sin declarar, preguntalo — apuntando a una carpeta inexistente el
+     pipeline sale VERDE sin haber mirado nada.
    - **pipeline.steps**: qué pasos correr.
 3. Guardá el config editado (es el SSOT; queda editable a mano después).
 4. Regenerá artefactos derivados y verificá:

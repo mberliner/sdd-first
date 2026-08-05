@@ -8,7 +8,9 @@ primero si los hooks ya estan instalados y solo instala los que faltan --
 nunca toca los existentes.
 
 Casos borde:
-- Sin repositorio git: no-op con aviso (el gate SDD funciona sin git por diseno).
+- Sin repositorio git: no-op con aviso y exit 3 = omitido (el gate SDD funciona
+  sin git por diseno, pero la capa git no quedo cableada y el pipeline no debe
+  contar el paso como verificado -- SPEC-003 FR-009).
 - `pre_commit` no importable: falla con instruccion accionable (es dependencia
   de desarrollo declarada; sin ella la capa git queda caida en silencio).
 
@@ -25,7 +27,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import find_repo_root  # noqa: E402
+from sdd_config import EXIT_OMITIDO, find_repo_root  # noqa: E402
 
 _HOOK_TYPES = ("pre-commit", "post-commit")
 
@@ -47,8 +49,8 @@ def _hooks_dir(repo_root: Path) -> Path | None:
 def main() -> int:
     repo_root = find_repo_root()
     if not (repo_root / ".git").exists():
-        print("bootstrap-hooks: sin repositorio git — nada que instalar (no-op).")
-        return 0
+        print("bootstrap-hooks: sin repositorio git — nada que instalar (omitido).")
+        return EXIT_OMITIDO
 
     hooks_dir = _hooks_dir(repo_root)
     if hooks_dir is None:

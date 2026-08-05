@@ -13,6 +13,11 @@ Con `language: none`, los pasos de codigo se omiten con aviso (modo doc-solo:
 quedan activos solo los gates de proceso). Contrato: exit 0 si todos los pasos
 pasan; 1 si alguno falla (sigue corriendo salvo --fail-fast).
 
+Un paso puede terminar en tres estados (SPEC-003 FR-009): OK, FALLO u OMITIDO.
+Omitido es "no se pudo verificar" -- sin targets, sin tool, sin umbrales, sin
+repo git -- y no se cuenta entre los pasos OK: contarlo hacia parecer verificado
+lo que nadie miro. El resumen final informa cuantos se omitieron.
+
 Uso:
     python core/pipeline.py [--fail-fast]
 """
@@ -26,7 +31,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 KIT_ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
-from sdd_config import find_repo_root, load  # noqa: E402
+from sdd_config import EXIT_OMITIDO, find_repo_root, load  # noqa: E402
 
 PROCESS_STEPS = {"hooks", "constitution", "traceability", "skills", "render"}
 CODE_STEPS = {
@@ -67,14 +72,14 @@ def _run_process_step(step: str, repo_root: Path) -> int:
     return 0
 
 
-def _run_code_step(step: str, language: str, repo_root: Path) -> int | None:
+def _run_code_step(step: str, language: str, repo_root: Path) -> int:
     if language == "none":
         print(f"    (omitido: language=none, paso de codigo '{step}')")
-        return None
+        return EXIT_OMITIDO
     adapter = KIT_ROOT / "adapters" / language / "adapter.py"
     if not adapter.exists():
-        print(f"    (sin adaptador para language={language}: {adapter})")
-        return None
+        print(f"    (omitido: sin adaptador para language={language}: {adapter})")
+        return EXIT_OMITIDO
     return _run([sys.executable, str(adapter), step], repo_root)
 
 
@@ -86,6 +91,7 @@ def main(argv: list[str]) -> int:
     language = cfg.language
 
     failed: list[str] = []
+    omitidos: list[str] = []
     total = 0
     for step in steps:
         total += 1
@@ -94,14 +100,17 @@ def main(argv: list[str]) -> int:
             code = _run_process_step(step, repo_root)
         elif step in CODE_STEPS:
             code = _run_code_step(step, language, repo_root)
-            if code is None:  # omitido: no cuenta como paso
-                total -= 1
-                continue
         else:
             print(f"    (paso desconocido: {step})")
+            total -= 1
             continue
 
-        if code == 0:
+        if code == EXIT_OMITIDO:
+            # No verificado: no suma a los OK ni al total (SPEC-003 FR-009).
+            total -= 1
+            omitidos.append(step)
+            print(f"[OMITIDO] {step}")
+        elif code == 0:
             print(f"[OK]    {step}")
         else:
             failed.append(step)
@@ -114,11 +123,14 @@ def main(argv: list[str]) -> int:
     ok = total - len(failed)
     if not failed:
         print(f"Pipeline local: VERDE — {ok}/{total} pasos OK")
-        return 0
-    print(f"Pipeline local: ROJO — {ok}/{total} OK, {len(failed)} fallo(s):")
-    for f in failed:
-        print(f"  x {f}")
-    return 1
+    else:
+        print(f"Pipeline local: ROJO — {ok}/{total} OK, {len(failed)} fallo(s):")
+        for f in failed:
+            print(f"  x {f}")
+    if omitidos:
+        # Visible en verde y en rojo: son los pasos que NADIE verifico.
+        print(f"Omitidos ({len(omitidos)}, no verificados): {', '.join(omitidos)}")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
