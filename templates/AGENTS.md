@@ -46,7 +46,7 @@ Cuando trabajes en este proyecto, seguí este protocolo:
 
 ## Qué NO hacer
 
-- No introducir identificadores con tokens prohibidos (ver `SPEC-000-naming.md` y
+- No introducir identificadores con palabras excluidas (ver `SPEC-000-naming.md` y
   la sección `naming` de `.sdd/config.yaml`).
 - No mergear con specs desactualizadas.
 - No agregar dependencias sin justificación.

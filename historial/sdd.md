@@ -1,5 +1,34 @@
 # Historial SDD — sdd-first
 
+## 2026-08-05 — SPEC-000: "token" pasa a llamarse "palabra excluida"
+
+**Scope:** `core/render.py` (plantilla de `SPEC-000-naming.md`),
+`specs/SPEC-000-naming.md` (regenerado), `adapters/python/check_naming.py`,
+`adapters/CONTRACT.md`, `README.md`, `core/sdd_init.py`, `AGENTS.md`,
+`templates/AGENTS.md`, `docs/playbooks/sdd-configure.md` (y su template),
+`.agents/skills/sdd-configure/SKILL.md` (y adaptadores generados),
+`templates/docs/SDD-OPERACION.md`, `.sdd/config.yaml`,
+`examples/config/config.yaml`, `specs/SPEC-001-agnostic-core.md`,
+`specs/SPEC-002-dogfooding-integro.md`.
+
+**Qué cambió:** el kit usaba "token" para referirse a los fragmentos de
+identificadores de código vetados por `naming.prohibited` (SPEC-000). Se
+reemplazó por "palabra excluida" en toda la documentación y los mensajes
+user-facing; la clave interna `naming.prohibited` de `.sdd/config.yaml` no se
+tocó.
+
+**Por qué:** "token" ya tiene un significado establecido y distinto en el
+contexto de LLMs (con el que este kit convive todo el tiempo, al ser
+consumido por asistentes de IA). Reusar la palabra para dos conceptos no
+relacionados generaba ambigüedad al leer la documentación.
+
+**Decisiones:**
+- El cambio es de terminología, no de comportamiento: `naming.prohibited`
+  sigue siendo la clave del config; solo cambia cómo se la nombra en prosa.
+- `specs/SPEC-000-naming.md` es generado por `render.py`; se editó el
+  generador y se regeneró, no se tocó el artefacto a mano en el resultado
+  final.
+
 ## 2026-08-05 — Enmienda constitucional: Principio IV "SSOT único por tema"
 
 **Scope:** `.sdd/config.yaml` (`principles`, `constitution`), `CONSTITUTION.md`

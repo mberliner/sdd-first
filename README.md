@@ -33,8 +33,9 @@ tengas que adaptarlo).
 - **Un workflow de CI** generado desde el mismo config: corre el pipeline, no
   una lista de pasos duplicada que después diverge.
 
-Todo se parametriza en `.sdd/config.yaml` (nombre, dominio, tokens prohibidos,
-capas, principios, pasos del pipeline). No hay listas escondidas en el código.
+Todo se parametriza en `.sdd/config.yaml` (nombre, dominio, palabras excluidas
+de la nomenclatura, capas, principios, pasos del pipeline). No hay listas
+escondidas en el código.
 
 ## Requisitos
 
@@ -98,7 +99,10 @@ cd /ruta/a/mi-proyecto
 git init                    # si todavía no es repo (ver nota abajo)
 pip install pre-commit      # para que el paso `hooks` pueda cablear la capa git
 
-# Editá .sdd/config.yaml: dominio, tokens prohibidos, capas, principios.
+# Editá .sdd/config.yaml: dominio, palabras excluidas de la nomenclatura, capas, principios.
+# (las "palabras excluidas" son fragmentos de identificadores de código —clases,
+# funciones, variables, módulos— vetados por acoplar el núcleo a un proveedor,
+# framework o tecnología concreta; ver specs/SPEC-000-naming.md)
 # (o pedile a tu asistente que corra la skill `sdd-configure`, que es un wizard)
 
 python tools/sdd/core/render.py               # CONSTITUTION.md + SPEC-000 + CI

@@ -39,9 +39,9 @@ falla de forma rara) o después de actualizar el kit.
 ## `sdd-configure` — personalizar los parámetros del proyecto
 
 Wizard interactivo sobre `.sdd/config.yaml` (dominio, lenguaje, principios,
-tokens prohibidos, capas) que regenera `CONSTITUTION.md` y las skills
+palabras excluidas, capas) que regenera `CONSTITUTION.md` y las skills
 derivadas. Usala para configurar SDD la primera vez o para reconfigurarlo si
-cambian las reglas del proyecto (nueva capa, nuevo token prohibido, etc.).
+cambian las reglas del proyecto (nueva capa, nueva palabra excluida, etc.).
 
 ## Verificación completa
 

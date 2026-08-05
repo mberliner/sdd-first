@@ -11,7 +11,7 @@ python adapters/<language>/adapter.py <step>
 
 | Paso | Qué valida |
 |------|------------|
-| `naming` | Nomenclatura agnóstica (tokens de `.sdd/config.yaml`). |
+| `naming` | Nomenclatura agnóstica (palabras excluidas de `.sdd/config.yaml`). |
 | `layers` | Dependencias entre capas (matriz `layers` del config). |
 | `lint` | Estilo/errores estáticos. |
 | `format` | Formato (modo check). |
@@ -24,7 +24,7 @@ python adapters/<language>/adapter.py <step>
 - Entrada: un único argumento (el nombre del paso).
 - Salida: **exit 0 = OK, exit ≠ 0 = falla**. El pipeline agrega el resultado.
 - Parametrización: el adaptador lee `.sdd/config.yaml` vía `core/sdd_config.py`
-  (source_roots, dirs, naming, layers). No hardcodea rutas ni tokens.
+  (source_roots, dirs, naming, layers). No hardcodea rutas ni palabras excluidas.
 - Un paso no soportado por el lenguaje puede devolver 0 con un aviso (no-op).
 
 ## Adaptadores

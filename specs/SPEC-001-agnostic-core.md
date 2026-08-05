@@ -53,7 +53,7 @@ y sale VERDE/ROJO según el resultado agregado.
   mapeado a un paso esté cableado en `pipeline.steps`.
 - **FR-005** MUST: los validadores de código se delegan al adaptador según el
   contrato `adapters/CONTRACT.md` (`adapter.py <step>`, exit 0/≠0); el
-  adaptador `python` implementa naming (AST + tokens del config), layers,
+  adaptador `python` implementa naming (AST + palabras excluidas del config), layers,
   lint, format, types, security y tests.
 - **FR-006** MUST: `core/gen_skill_adapters.py` genera los adaptadores de
   skills de Claude y opencode desde el SSOT `.agents/skills/`, con `--check`

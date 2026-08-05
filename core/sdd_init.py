@@ -267,7 +267,7 @@ def _next_steps(target: Path) -> str:
 
     lines.extend(
         [
-            "  1. Edita .sdd/config.yaml (dominio, tokens, capas)",
+            "  1. Edita .sdd/config.yaml (dominio, palabras excluidas, capas)",
             "     o corre la skill sdd-configure, que es un wizard.",
             "  2. python tools/sdd/core/render.py"
             "               # CONSTITUTION.md + SPEC-000 + CI",

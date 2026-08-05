@@ -20,7 +20,7 @@ dirs:
   # source_roots: [src]         # opcional; por defecto = top-level de las capas
 
 naming:
-  # Tokens prohibidos en identificadores de codigo (ver templates SPEC-000).
+  # Palabras excluidas de identificadores de codigo (ver templates SPEC-000).
   prohibited:
     - watson
     - orchestrate
@@ -46,7 +46,7 @@ naming:
     - apikey
   allowed_identifiers:
     - json                      # contrato de requests.Response.json()
-  relax_in_tests:               # tokens de formato tolerados en tests/
+  relax_in_tests:               # palabras excluidas toleradas en tests/
     - csv
     - json
     - xml

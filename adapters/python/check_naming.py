@@ -1,12 +1,13 @@
 """Adaptador Python: linter de nomenclatura agnostica.
 
 Verifica el principio de nomenclatura agnostica: ningun identificador de Python
-en las carpetas de codigo puede contener tokens prohibidos que referencien
+en las carpetas de codigo puede contener palabras excluidas que referencien
 proveedor, framework UI, formato de almacenamiento o protocolo de auth.
 
-A diferencia del original hardcodeado, la lista de tokens, los identificadores
-permitidos y los tokens relajados en tests se leen de `.sdd/config.yaml`
-(seccion `naming`), de modo que cada proyecto define su propio vocabulario.
+A diferencia del original hardcodeado, la lista de palabras excluidas, los
+identificadores permitidos y las palabras relajadas en tests se leen de
+`.sdd/config.yaml` (seccion `naming`), de modo que cada proyecto define su
+propio vocabulario.
 
 Uso:
     python adapters/python/check_naming.py <root> [<root> ...]
@@ -132,7 +133,9 @@ def main(argv: list[str]) -> int:
     allowed = cfg.naming_allowed
     relax_tokens = cfg.naming_relax_in_tests
     if not prohibited:
-        print("naming: sin tokens prohibidos en .sdd/config.yaml (nada que verificar).")
+        print(
+            "naming: sin palabras excluidas en .sdd/config.yaml (nada que verificar)."
+        )
         return 0
 
     test_dirs = _test_dirs(cfg, repo_root)
@@ -157,7 +160,7 @@ def main(argv: list[str]) -> int:
     for path, lineno, name, token in all_violations:
         loc = f"{path}:{lineno}" if lineno else str(path)
         print(
-            f"  {loc}  identificador '{name}' contiene token prohibido '{token}'",
+            f"  {loc}  identificador '{name}' contiene palabra excluida '{token}'",
             file=sys.stderr,
         )
     print(

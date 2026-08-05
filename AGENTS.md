@@ -47,7 +47,7 @@ Dominio: andamiaje SDD universal, agnóstico y personalizable para otros proyect
 
 ## Qué NO hacer
 
-- No hardcodear listas (tokens, capas, pasos) en `core/` o `adapters/`: van al
+- No hardcodear listas (palabras excluidas, capas, pasos) en `core/` o `adapters/`: van al
   config.
 - No editar a mano `CONSTITUTION.md`, `specs/SPEC-000-naming.md` ni los
   adaptadores generados en `.claude/`/`.opencode/` (los regenera el kit).

@@ -10,7 +10,7 @@ artefactos derivados.
    cada respuesta en el config:
    - **project.name** y **project.domain** (descripción corta del dominio).
    - **project.language** (`python` | `none`).
-   - **naming.prohibited**: tokens prohibidos (proveedores, UI, formatos, auth
+   - **naming.prohibited**: palabras excluidas (proveedores, UI, formatos, auth
      que el proyecto quiere vetar). Confirmá también `allowed_identifiers` y
      `relax_in_tests`.
    - **principles**: partí del núcleo mínimo obligatorio (nomenclatura, capas,
@@ -31,5 +31,5 @@ artefactos derivados.
    python tools/sdd/core/check_constitution.py CONSTITUTION.md
    ```
 
-5. Mostrá un resumen de lo que cambió. No inventes principios ni tokens: si el
+5. Mostrá un resumen de lo que cambió. No inventes principios ni palabras excluidas: si el
    usuario no sabe, ofrecé los defaults del kit.

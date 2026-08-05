@@ -13,7 +13,7 @@ dirs:
   source_roots: [core, adapters]
 
 naming:
-  # El kit maneja formatos (yaml/json) por diseno: no se prohiben esos tokens.
+  # El kit maneja formatos (yaml/json) por diseno: no se prohiben esas palabras.
   # Se veta acoplamiento a proveedores/UI concretos en la propia herramienta.
   prohibited:
     - watson

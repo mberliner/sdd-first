@@ -48,7 +48,7 @@ spec-first) está declarado pero sin enforcement.
   declarar→editar spec→editar código funciona sobre `core/` y `adapters/`.
 - **FR-003** MUST: existe `tests/unit/` con tests de la lógica de decisión del
   núcleo: `sdd_gate.decide`, `check_traceability` (estructura, consistencia,
-  coverage), `check_naming` (tokens, allowed, relax) y `sdd_config`
+  coverage), `check_naming` (palabras excluidas, allowed, relax) y `sdd_config`
   (defaults, source_roots).
 - **FR-004** MUST: `pipeline.steps` del kit incluye `lint`, `format` y
   `tests`, y el pipeline completo corre VERDE.
