@@ -225,6 +225,22 @@ def test_ci_no_duplica_patrones(tmp_path):
     assert text.count('- "core/**"') == 2  # una vez por evento (push, PR)
 
 
+def test_ci_dispara_en_la_rama_declarada(tmp_path):
+    """SPEC-014 FR-US2-005: `branches: [main]` fijo le daba a un proyecto en
+    `develop` un workflow que nunca dispara."""
+    raw = {"project": {"name": "demo", "default_branch": "develop"}}
+    text = render.render_ci_workflow(_cfg(tmp_path, raw))
+
+    assert "branches: [develop]" in text
+
+
+def test_ci_sin_rama_declarada_asume_main(tmp_path):
+    raw = {"project": {"name": "demo"}}
+    text = render.render_ci_workflow(_cfg(tmp_path, raw))
+
+    assert "branches: [main]" in text
+
+
 def test_ci_de_proyecto_sin_lenguaje_no_instala_tooling(tmp_path):
     raw = {"project": {"name": "docs-only", "language": "none"}}
     text = render.render_ci_workflow(_cfg(tmp_path, raw))

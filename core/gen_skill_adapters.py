@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sdd_config import find_repo_root, write_text_lf  # noqa: E402
+from sdd_config import find_repo_root, script_hint, write_text_lf  # noqa: E402
 
 PLAYBOOK_TEMPLATE = "docs/playbooks/{name}.md"
 
@@ -200,9 +200,8 @@ def main(argv: list[str]) -> int:
 
     if check_mode:
         if drift:
-            print(
-                "Adaptadores desincronizados (corre: python core/gen_skill_adapters.py):"
-            )
+            hint = script_hint(__file__, repo_root)
+            print(f"Adaptadores desincronizados (corre: python {hint}):")
             for d in drift:
                 print(f"  x {d}")
             return 1

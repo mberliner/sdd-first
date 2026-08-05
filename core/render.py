@@ -29,7 +29,13 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import SddConfig, find_repo_root, load, write_text_lf  # noqa: E402
+from sdd_config import (  # noqa: E402
+    SddConfig,
+    find_repo_root,
+    load,
+    script_hint,
+    write_text_lf,
+)
 
 _TODAY = _dt.date.today().isoformat()
 
@@ -167,6 +173,11 @@ def render_ci_workflow(cfg: SddConfig) -> str:
 
     Los `paths:` de disparo derivan de `dirs.source_roots` + carpetas de tests:
     un cambio que solo toca `docs/` o `specs/` no gasta una corrida de CI.
+
+    La rama de disparo sale de `project.default_branch` (SPEC-014 FR-US2-005):
+    hardcodear `main` le daba a un proyecto en `master`/`develop` un workflow que
+    nunca dispara. Sale del config y no de git para que el artefacto generado
+    dependa solo del SSOT y `--check` siga siendo determinista.
     """
     core = cfg.kit_paths["{{sdd.core}}"]
     watched = list(cfg.source_roots)
@@ -184,7 +195,8 @@ def render_ci_workflow(cfg: SddConfig) -> str:
     patterns += [".sdd/config.yaml", ".github/workflows/ci.yml"]
 
     trigger = []
-    for event, extra in (("push", ["    branches: [main]"]), ("pull_request", [])):
+    rama = cfg.default_branch
+    for event, extra in (("push", [f"    branches: [{rama}]"]), ("pull_request", [])):
         trigger.append(f"  {event}:")
         trigger.extend(extra)
         trigger.append("    paths:")
@@ -292,9 +304,8 @@ def main(argv: list[str]) -> int:
 
     if check:
         if drift:
-            print(
-                "Artefactos derivados desincronizados (corre: python core/render.py):"
-            )
+            hint = script_hint(__file__, repo_root)
+            print(f"Artefactos derivados desincronizados (corre: python {hint}):")
             for d in drift:
                 print(f"  x {d}")
             return 1

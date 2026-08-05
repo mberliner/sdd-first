@@ -9,6 +9,7 @@ project:
   domain: descripcion corta del dominio del proyecto
   language: python              # python | none (node/go: roadmap)
   kit_version: "0.1.0"          # version del sdd-first usada (lo lee sdd-doctor)
+  # default_branch: main        # rama de disparo del CI; sdd-init la detecta
 
 dirs:
   domain: src/domain

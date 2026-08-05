@@ -1,5 +1,86 @@
 # Historial SDD — sdd-first
 
+## 2026-08-05 — SPEC-014: el proyecto derivado deja de afirmar cosas que no son ciertas de sí mismo
+
+**Scope:** `core/sdd_config.py` (`find_sdd_root`, `GATE_WIRING`, `script_hint`,
+`default_branch`), `core/sdd_gate.py`, `core/sdd_doctor.py`, `core/sdd_init.py`,
+`core/render.py`, `core/gen_skill_adapters.py`,
+`templates/docs/SDD-ENFORCEMENT.md`, `examples/config/config.yaml`,
+`specs/SPEC-014-derivado-dice-la-verdad.md`, `docs/IDEAS.md`, y 5 archivos de
+test (4 nuevos).
+
+**Qué cambió:** la segunda mitad de los hallazgos de la campaña de usabilidad
+(U-4..U-11 y G-4 de `docs/IDEAS.md`), tomados en bloque en una spec nueva con
+**dos historias de usuario** — la primera del kit que usa el formato `FR-USk-NNN`
+que `docs/SPEC-FORMAT.md` ya contemplaba.
+
+HU-1, enforcement: `sdd-init` avisa cuando conservó wiring de gate preexistente y
+dice cómo resolverlo (FR-US1-001); `sdd-doctor` verifica el **contenido** del
+wiring y no solo su existencia (FR-US1-002, el viejo G-4); el gate **falla
+cerrado** cuando no puede ubicar una raíz con marcadores SDD (FR-US1-003); la
+instalación nombra `00-INDEX.md` como puerta de entrada (FR-US1-004).
+
+HU-2, claridad: todo archivo instalado queda sin placeholders crudos
+(FR-US2-001); los mensajes de drift citan la ruta real del script y los
+artefactos que efectivamente driftearon (FR-US2-002/FR-US2-003); el config
+sembrado lleva cabecera del proyecto destino (FR-US2-004); el CI dispara en la
+rama real (FR-US2-005).
+
+**Por qué:** el testigo con wiring propio preexistente terminaba con **cero**
+capas de enforcement activas y `sdd-doctor` respondiendo "Instalación SDD sana".
+Un falso positivo de seguridad es peor que no tener la herramienta: sustituye la
+verificación por una creencia. Lo demás es la misma clase de daño en menor
+escala: un `{{sdd.core}}` sin sustituir en `.sdd/current-spec` —el primer archivo
+que se abre para entender el gate—, un "corre: python core/render.py" inexistente
+en un derivado, un CI que nunca dispara porque la rama es `master`.
+
+**Decisiones:**
+- **Dos HU en una spec** en vez de dos specs: comparten el invariante de fondo
+  (el derivado no afirma nada que no sea cierto de sí mismo) y el contexto de la
+  campaña, pero tienen prioridad y criterio de aceptación distintos, así que
+  cada una conserva su *Independent Test*.
+- **`GATE_WIRING` como mapa `archivo → invocación esperada` en `sdd_config.py`.**
+  La lista de archivos ya vivía en `sdd_doctor.py` y el aviso nuevo de
+  `sdd_init.py` habría sido una segunda copia; el mapa es el SSOT de qué cablea
+  el gate y de cómo se reconoce que está puesto (principio VI).
+- **`find_sdd_root` nueva, `find_repo_root` intacta.** Solo el gate necesita la
+  resolución estricta; `pipeline`, `render` y `doctor` corren dentro del proyecto
+  y su peor caso es reportar artefactos faltantes. Partir la función en dos evita
+  que el endurecimiento del gate se filtre a scripts donde sería ruido.
+- **El gate resuelve la raíz por el `cwd` y, si falla, por la ruta del archivo.**
+  FR-US1-003 se implementó primero como "sin raíz resoluble, denegar", y eso
+  bloqueó en vivo la edición de un `.md` de otra carpeta y del propio kit (el
+  `cwd` del asistente había quedado fuera del repo). Lo que decide si hay
+  protocolo que aplicar no es desde dónde se invoca al gate sino de qué proyecto
+  es el archivo. Con el criterio corregido el fail-open queda igual de cerrado
+  —verificado: `cwd` inútil + archivo del testigo ⇒ exit 2— sin el falso
+  positivo. La spec quedó enmendada el mismo día, con el hallazgo en sus
+  Clarifications.
+- **La rama del CI sale del config, no de git en cada render.** Detectarla al
+  renderizar haría que el artefacto generado dependiera del estado del repo y
+  `--check` dejaría de ser determinista. `sdd-init` la siembra; el default
+  sigue siendo `main`.
+- **`sdd-init` no sobrescribe el wiring propio**: avisa. La idempotencia es
+  deliberada; lo que faltaba era hacer visible la consecuencia.
+- La sustitución de placeholders pasa a aplicarse a **todo** lo que se copia. El
+  criterio por extensión era la causa raíz de U-6 y volvería a fallar con
+  cualquier archivo nuevo sin sufijo.
+
+**Verificación:** pipeline del kit VERDE 10/10, 192 passed + 1 skip (26 tests
+nuevos). En el testigo `brownfield-wiring` (proyecto con `app/`, rama `master` y
+wiring propio), donde antes salía "Instalación SDD sana": la instalación avisa y
+nombra los dos archivos conservados, `sdd-doctor` sale 1 con "existe pero no
+invoca sdd_gate.py", el pipeline sale ROJO por las violaciones reales de naming,
+`.sdd/current-spec` cita `tools/sdd/core/sdd_gate.py` resuelto y el `ci.yml`
+dispara en `master`. El fail-closed del gate verificado con un payload cuyo `cwd`
+no resuelve: exit 2.
+
+**Deuda:** G-1 (el pre-filtro `files:` de pre-commit sigue siendo
+`^(src|app|lib)/` fijo, así que un proyecto con código en `pkg/` no llega al
+gate en el commit), C-2 (mojibake con stdout redirigido en Windows) y E-2 (ruta
+de actualización del kit vendorizado) siguen abiertos en `docs/IDEAS.md`.
+
+
 ## 2026-08-05 — SPEC-003 (reabierta) + SPEC-001: el pipeline deja de reportar verde sin haber medido
 
 **Scope:** `core/sdd_init.py` (`_detect_layout`, `_seed_dirs`, `_layout_notice`),
