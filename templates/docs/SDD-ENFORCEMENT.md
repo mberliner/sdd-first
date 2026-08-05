@@ -15,6 +15,17 @@
    Contrato: exit 0 permite, exit 2 bloquea. Las carpetas consideradas "código
    fuente" se leen de `dirs.source_roots` en `.sdd/config.yaml`.
 
+   **Ninguna capa hardcodea `src/`.** El hook de `pre-commit` no lleva
+   pre-filtro `files:`: le pasa todos los archivos staged al gate, que decide.
+   Las dos capas que sí pre-filtran —la rama fail-closed de
+   `.claude/sdd_gate_hook.sh` (cuando no hay ningún intérprete Python capaz de
+   correr el gate) y el plugin de opencode (que decide si vale la pena invocar
+   a Python)— derivan las carpetas del mismo `.sdd/config.yaml` con un parseo
+   mínimo propio, porque no pueden consultar al gate. Ese pre-filtro decide *si
+   preguntar*, no *qué política aplicar*: el SSOT de la política sigue siendo
+   `sdd_gate.decide`, y un test de paridad verifica que las tres derivaciones
+   coincidan. Si cambiás `dirs`, las tres capas se enteran solas.
+
    La raíz del proyecto se busca por marcadores (`.sdd/config.yaml`,
    `CONSTITUTION.md`, `specs/SPECS_REGISTRY.md`) subiendo desde el `cwd` y, si
    ahí no aparece ninguno, desde la ruta del archivo que se va a editar. Lo que
@@ -62,6 +73,19 @@ del shell que dispara el commit — el mismo problema que resolvió
 `language: python`, pre-commit gestiona su propio entorno aislado con un
 intérprete que él mismo resuelve, así el hook corre igual en un sistema donde
 solo existe `python3` (sin `python` en el PATH).
+
+## Límite conocido: escritura por `Bash`
+
+El hook `PreToolUse` de Claude Code cubre las tools de edición estructurada
+(`Edit`, `Write`, `MultiEdit`, `NotebookEdit`), que son las que declaran qué
+archivo tocan. **No cubre `Bash`**: un `echo ... > pkg/x.py` no declara
+`file_path` en su payload y no dispara el gate. Interceptarlo exigiría parsear
+la línea de comando, con falsos positivos garantizados.
+
+No es un agujero abierto, es un corrimiento de capa: ese archivo igual queda
+bajo el gate de `pre-commit` al commitear y bajo el pipeline al cerrar la
+iteración. Lo que se pierde es la advertencia *en el momento*, no el
+enforcement.
 
 ## Límite: presencia, no adecuación
 

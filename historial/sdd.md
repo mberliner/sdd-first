@@ -1,5 +1,68 @@
 # Historial SDD — sdd-first
 
+## 2026-08-05 — SPEC-015: el wiring del gate apunta al código real del proyecto
+
+**Scope:** `.pre-commit-config.yaml` y `templates/wiring/.pre-commit-config.yaml`,
+`.claude/settings.json` y `templates/wiring/claude-settings.json`,
+`.claude/sdd_gate_hook.sh` y `templates/wiring/sdd_gate_hook.sh`,
+`templates/wiring/opencode-sdd-gate.js`, `templates/docs/SDD-ENFORCEMENT.md`
+(+ su copia sincronizada), `specs/SPEC-015-...`, `docs/IDEAS.md`, y 3 archivos
+de test (2 nuevos). Ni `core/` ni `adapters/` cambiaron: el gate ya leía bien el
+config — el problema estaba entero en las capas que lo invocan.
+
+**Qué cambió:** G-1 y G-3 de `docs/IDEAS.md`. El gate spec-first leía
+`dirs.source_roots` desde SPEC-001, pero **ninguna** de las tres capas de wiring
+lo hacía: todas pre-filtraban por `src/` (o `^(src|app|lib)/`) hardcodeado, así
+que un proyecto con el código en `pkg/` tenía las tres muertas. Ahora:
+- **pre-commit** no pre-filtra: sin `files:`, todos los staged van al gate y el
+  gate decide (`_is_source_path` ya devolvía "permitir" fuera del código).
+- **`sdd_gate_hook.sh`** (rama fail-closed) y el **plugin de opencode** derivan
+  los roots de `.sdd/config.yaml` con un parseo mínimo propio — no pueden
+  consultar al gate, que es justo lo que no está disponible cuando corren.
+- El matcher de Claude Code cubre `Edit|Write|MultiEdit|NotebookEdit`.
+
+**Por qué:** la campaña de usabilidad ya lo había reproducido (`pkg/x.py` no
+matchea `^(src|app|lib)/` y nunca llega al gate). Es el mismo falso positivo que
+cerró SPEC-014 en la última superficie que quedaba: un derivado que reporta el
+gate cableado y sano mientras deja pasar todos los commits sobre su código.
+
+**Decisiones:**
+- **Eliminar el pre-filtro de pre-commit en vez de generarlo desde el config.**
+  Renderizar la regex habría sincronizado una copia; quitarla elimina la copia.
+  Además el `.pre-commit-config.yaml` instalado recibe hooks del adaptador de
+  lenguaje, y volverlo generado obligaría a pisarlos.
+- **Parsear el config en las capas sin Python, no inyectar la lista al
+  instalar.** Un placeholder sustituido por `sdd_init` habría driftado en cuanto
+  el usuario cambiara `dirs`. Se descartó también el fail-closed total (deja un
+  checkout sin Python inutilizable para editar).
+- **La duplicación se acepta pero se ata.** Tres derivaciones de la misma regla
+  (Python autoritativo, sh, JS) con un test de paridad sobre siete configs
+  representativos. El pre-filtro decide *si preguntar*, no *qué política
+  aplicar*: puede ser conservador, nunca laxo.
+- **`Bash` queda fuera del hook de Claude**, documentado como límite conocido:
+  su payload no declara `file_path`. No es un agujero, es un corrimiento de
+  capa — pre-commit lo agarra al commitear.
+
+**Bug encontrado al testear:** un `.sdd/config.yaml` con CRLF (lo normal si lo
+escribió una herramienta de Windows) dejaba el `\r` pegado al último root, y
+ningún patrón matcheaba: el fail-closed permitía todo, en silencio. Resuelto con
+`${_l%[[:cntrl:]]}` —clase POSIX en vez de un CR literal invisible o un
+subshell— y `config_con_crlf` es uno de los siete casos de paridad.
+
+**Deuda registrada:** `R-4` (el wiring del kit es copia manual de
+`templates/wiring/`; esta spec tuvo que editar tres pares a mano) y `C-7`
+(`sdd_init.py` ignora en silencio los flags desconocidos y toma el target
+posicional: `--target=X` instala en el cwd — reproducido en vivo sobre el propio
+kit durante esta iteración).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-000-naming, SPEC-001-agnostic-core, SPEC-004-enforcement-hardening, SPEC-014-derivado-dice-la-verdad, SPEC-015-wiring-apunta-al-codigo-real
+- Includes/excludes verificados: wiring (kit + plantilla) + docs de enforcement + tests; core/ y adapters/ sin cambios; sincronizar el wiring del kit desde templates queda fuera (R-4)
+- SSOTs afectados: templates/docs/SDD-ENFORCEMENT.md (pre-filtro y límite de Bash), docs/IDEAS.md (G-1, G-3, R-4, C-7), specs/SPECS_REGISTRY.md
+- Verificación: python core/pipeline.py → VERDE (10/10); python core/sdd_doctor.py → exit 0; 232 tests + 1 skip; testigo real con código en pkg/: commit sin spec BLOQUEADO, commit fuera del código permitido
+```
+
 ## 2026-08-05 — SPEC-014: el proyecto derivado deja de afirmar cosas que no son ciertas de sí mismo
 
 **Scope:** `core/sdd_config.py` (`find_sdd_root`, `GATE_WIRING`, `script_hint`,

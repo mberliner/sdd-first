@@ -84,11 +84,15 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 
 ## P1 — Huecos de enforcement del gate y la trazabilidad
 
-- **G-1 · Pre-commit hardcodea `files: '^(src|app|lib)/'`.** El gate lee
-  `dirs.source_roots` del config pero el wiring de pre-commit no: un proyecto
-  con código en `core/` (como el propio kit) tiene ese gate muerto. Viola el
-  principio "no hardcodear listas". Fix: generar la regex desde el config
-  (render del wiring) o quitar `files:` y dejar que `sdd_gate` decida.
+- **G-1 · Pre-commit hardcodea `files: '^(src|app|lib)/'`.**
+  **(ya con spec) → [[SPEC-015-wiring-apunta-al-codigo-real]]** — implementado
+  el 2026-08-05. Resultó más ancho de lo registrado: eran **tres** capas
+  pre-filtrando por `src/`, no una (el `files:` de pre-commit, la rama
+  fail-closed de `sdd_gate_hook.sh` y `isUnderSrc`/`resolveSrcPath` del plugin
+  de opencode). En pre-commit el pre-filtro se eliminó (el gate ya decide); en
+  las otras dos —que corren cuando Python no está disponible y no pueden
+  consultar al gate— se derivan los roots de `.sdd/config.yaml` con un parseo
+  mínimo por capa, atado a un test de paridad contra `SddConfig.source_roots`.
 - **G-2 · El gate no verifica el estado de la spec.**
   **(ya con spec) → [[SPEC-006-gate-verifica-estado-spec]]** — implementado
   el 2026-08-01. `_spec_is_valid` hacía substring match de `spec_id` sobre el
@@ -97,9 +101,10 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   parsea la fila (reusa `check_traceability._parse_registry`) y exige estado
   `draft`/`active`.
 - **G-3 · Matcher del hook de Claude solo cubre `Edit|Write`.**
-  `MultiEdit`, `NotebookEdit` y `Bash` (`echo > src/x.py`) lo evitan. Ampliar
-  el matcher y documentar el bypass por Bash como límite conocido en
-  `docs/SDD-ENFORCEMENT.md`.
+  **(ya con spec) → [[SPEC-015-wiring-apunta-al-codigo-real]]** — implementado
+  el 2026-08-05: matcher `Edit|Write|MultiEdit|NotebookEdit` y el bypass por
+  `Bash` documentado como límite conocido (corrimiento de capa: lo agarra
+  pre-commit al commitear).
 - **G-4 · `sdd-doctor` valida existencia, no contenido, del wiring.** Un
   `.claude/settings.json` cualquiera cuenta como "gate cableado". Fix: buscar
   la invocación de `sdd_gate.py` dentro del archivo.
@@ -164,6 +169,30 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 - **R-3 · Defaults dispersos.** `"tests/unit"` repetido en `adapter.py`;
   `["src"]` como default en `sdd_config.py` y `sdd_gate.py`. Centralizar en
   `sdd_config`.
+
+## P2 — Hallazgos de la implementación de SPEC-015 (2026-08-05)
+
+- **R-4 · El wiring del kit es una copia manual de `templates/wiring/`.**
+  `.pre-commit-config.yaml`, `.claude/settings.json` y `.claude/sdd_gate_hook.sh`
+  del propio kit son copias de sus plantillas que difieren *solo* en el prefijo
+  de rutas (`core/` vs `tools/sdd/core/`), pero nada las mantiene sincronizadas:
+  cada arreglo del wiring hay que aplicarlo dos veces y el drift no lo detecta
+  nadie. Es R-1 en otra superficie, y ya se pagó en SPEC-004 (FR-004 tuvo que
+  tocar el par) y en SPEC-015 (tres pares). Fix: convertir las rutas literales
+  de `templates/wiring/` en `{{sdd.core}}` y sumar los destinos a
+  `_SYNCED_FROM_TEMPLATES` de `render.py`, que ya resuelve el placeholder para
+  el kit y para el derivado. Lo caro es que `render.py` hoy sincroniza solo
+  `.md`; habría que aceptar `.sh`/`.json`/`.yaml` respetando LF.
+- **C-7 · `sdd_init.py` ignora en silencio los flags que no conoce, y el target
+  es posicional.** `python core/sdd_init.py --target=/otro/lado --language=python`
+  no instala en `/otro/lado`: instala en el **cwd**, porque `main` descarta todo
+  lo que empieza con `--` y toma el target del primer argumento posicional.
+  Reproducido en vivo durante SPEC-015: la corrida se instaló sobre el propio
+  kit y hubo que limpiar a mano los artefactos que sembró (`tools/`,
+  `.opencode/plugin/`, cinco `docs/*.md`). Misma clase que C-3 (`--language`
+  frágil) pero con consecuencia peor: escribe archivos en el directorio
+  equivocado sin una sola advertencia. Fix: validar los flags contra los
+  conocidos y fallar con mensaje de uso ante cualquier otro.
 
 ## P2 — Bugs y asperezas menores de código
 
