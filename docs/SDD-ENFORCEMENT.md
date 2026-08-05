@@ -15,6 +15,14 @@
    Contrato: exit 0 permite, exit 2 bloquea. Las carpetas consideradas "código
    fuente" se leen de `dirs.source_roots` en `.sdd/config.yaml`.
 
+   La raíz del proyecto se busca por marcadores (`.sdd/config.yaml`,
+   `CONSTITUTION.md`, `specs/SPECS_REGISTRY.md`) subiendo desde el `cwd` y, si
+   ahí no aparece ninguno, desde la ruta del archivo que se va a editar. Lo que
+   determina si hay protocolo que aplicar es **de qué proyecto es el archivo**:
+   una edición dentro de un proyecto SDD queda gobernada por ese proyecto aunque
+   el `cwd` del asistente apunte a otra parte, y una edición que no cae en ningún
+   proyecto SDD se permite.
+
 2. **Backstop determinista** — `core/check_traceability.py` en el pipeline.
    Verifica *estructura* (secciones obligatorias), *consistencia* disco↔registro
    y *cobertura* FR→test en specs `active`. No juzga adecuación.

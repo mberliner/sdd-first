@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_traceability import _parse_registry  # noqa: E402
-from sdd_config import DEFAULT_SOURCE_ROOT, find_repo_root, load  # noqa: E402
+from sdd_config import DEFAULT_SOURCE_ROOT, find_sdd_root, load  # noqa: E402
 
 # Estados de SPECS_REGISTRY.md que dejan pasar el gate (SPEC-006 FR-002).
 _VALID_ESTADOS = frozenset({"draft", "active"})
@@ -113,12 +113,16 @@ def _any_spec_touched_after_declaration(declared: list[str], repo_root: Path) ->
     return False
 
 
-def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:
-    """Devuelve (permitir, motivo). Motivo solo es relevante cuando se bloquea."""
+def _declared_file_path(payload: dict[str, object]) -> str:
+    """Ruta que el payload declara editar ("" si no declara ninguna)."""
     tool_input = payload.get("tool_input")
     tinput = tool_input if isinstance(tool_input, dict) else {}
-    raw_path = tinput.get("file_path") or tinput.get("path") or ""
-    file_path = str(raw_path)
+    return str(tinput.get("file_path") or tinput.get("path") or "")
+
+
+def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:
+    """Devuelve (permitir, motivo). Motivo solo es relevante cuando se bloquea."""
+    file_path = _declared_file_path(payload)
     if not file_path or not _is_source_path(file_path, repo_root):
         return True, ""
 
@@ -165,10 +169,23 @@ def _payloads_from_stdin() -> list[dict[str, object]]:
     return [payload] if isinstance(payload, dict) else [{}]
 
 
-def _repo_root_for(payload: dict[str, object]) -> Path:
-    cwd = payload.get("cwd")
-    start = Path(str(cwd)) if isinstance(cwd, str) and cwd else None
-    return find_repo_root(start)
+def _repo_root_for(payload: dict[str, object]) -> Path | None:
+    """Raiz SDD que gobierna este payload, o None si la edicion no cae en ninguna.
+
+    Se prueba el `cwd` y despues la ruta del archivo. Antes se usaba solo el
+    `cwd` via `find_repo_root`, que ante la falta de marcadores devolvia ese
+    mismo directorio: `_is_source_path` no reconocia nada como codigo y la
+    edicion pasaba en silencio (SPEC-014 FR-US1-003). Lo que decide si hay
+    protocolo que aplicar no es desde donde se invoca al gate sino **de que
+    proyecto es el archivo**; el `cwd` es solo la pista mas barata.
+    """
+    for candidato in (payload.get("cwd"), _declared_file_path(payload)):
+        if not isinstance(candidato, str) or not candidato:
+            continue
+        root = find_sdd_root(Path(candidato))
+        if root is not None:
+            return root
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -187,7 +204,12 @@ def main(argv: list[str] | None = None) -> int:
 
     reasons: list[str] = []
     for payload in payloads:
-        allow, reason = decide(payload, _repo_root_for(payload))
+        repo_root = _repo_root_for(payload)
+        if repo_root is None:
+            # La edicion no pertenece a ningun proyecto SDD: no hay spec que
+            # exigir ni config que consultar (SPEC-014 FR-US1-003).
+            continue
+        allow, reason = decide(payload, repo_root)
         if not allow and reason:
             reasons.append(reason)
     if reasons:
