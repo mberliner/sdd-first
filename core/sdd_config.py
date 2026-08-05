@@ -7,7 +7,7 @@ cualquier proyecto cambiando solo el config.
 
 Esquema (ver examples/config/config.yaml para un ejemplo completo):
 
-    project:   name, domain, language
+    project:   name, domain, language, default_branch
     dirs:      domain, application, adapters, ui, tests_unit, source_roots
     naming:    prohibited[], allowed_identifiers[], relax_in_tests[]
     principles: [{id, title, invariant, enforcement, detail}]
@@ -39,6 +39,7 @@ CONFIG_RELPATH = Path(".sdd") / "config.yaml"
 DEFAULT_SOURCE_ROOT = "src"
 DEFAULT_TESTS_UNIT = "tests/unit"
 DEFAULT_CONSTITUTION_VERSION = "0.1.0"
+DEFAULT_BRANCH = "main"
 
 # Tercer estado del contrato de adaptador (SPEC-003 FR-009, SPEC-001 FR-005):
 # el paso no se pudo verificar (sin targets, sin tool, sin umbrales) y eso NO es
@@ -55,13 +56,56 @@ _ROOT_MARKERS = (
 )
 
 
-def find_repo_root(start: Path | None = None) -> Path:
-    """Sube desde `start` hasta encontrar un proyecto con SDD instalado."""
+def find_sdd_root(start: Path | None = None) -> Path | None:
+    """Raiz del proyecto SDD que contiene a `start`, o None si no hay ninguna.
+
+    Resolucion estricta: quien pregunta decide que hacer con el None. La usa el
+    gate, que ante una raiz irresoluble debe fallar CERRADO (SPEC-014 FR-US1-003)
+    en vez de operar sobre un directorio cualquiera.
+    """
     origin = (start or Path.cwd()).resolve()
     for directory in (origin, *origin.parents):
         if any((directory / marker).exists() for marker in _ROOT_MARKERS):
             return directory
-    return origin
+    return None
+
+
+def find_repo_root(start: Path | None = None) -> Path:
+    """Sube desde `start` hasta encontrar un proyecto con SDD instalado.
+
+    Variante tolerante: sin marcadores devuelve el propio punto de partida. Es
+    lo que necesitan `pipeline`, `render` y `doctor` (corren *dentro* del
+    proyecto y su peor caso es reportar que faltan artefactos), no el gate.
+    """
+    return find_sdd_root(start) or (start or Path.cwd()).resolve()
+
+
+# Wiring que cablea el gate, y la invocacion que delata que esta puesto de
+# verdad (SPEC-014 FR-US1-002). SSOT unico: `sdd_doctor` lo verifica y
+# `sdd_init` avisa cuando conserva alguno preexistente del proyecto. Un archivo
+# con el nombre correcto no prueba nada -- el testigo de la campana traia un
+# `.pre-commit-config.yaml` propio con solo `ruff` y el doctor lo daba por bueno.
+GATE_WIRING = {
+    ".claude/settings.json": "sdd_gate_hook.sh",
+    ".pre-commit-config.yaml": "sdd_gate.py",
+}
+
+
+def script_hint(module_file: str | Path, repo_root: Path) -> str:
+    """Ruta invocable de un script del andamiaje, relativa a la raiz del repo.
+
+    Los mensajes de runtime que dicen "corre: python core/render.py" son falsos
+    en un derivado, donde el andamiaje vive en `tools/sdd/core/`. Sale de la
+    ubicacion real del modulo en vez del config: es exacta por construccion
+    (SPEC-014 FR-US2-002).
+    """
+    path = Path(module_file).resolve()
+    try:
+        return path.relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        # El andamiaje corre desde fuera del repo (kit clonado aparte): el
+        # nombre del script solo es lo mejor que se puede afirmar con certeza.
+        return path.name
 
 
 # Prefijo bajo el que `sdd-init` vendoriza el andamiaje en un proyecto derivado.
@@ -144,6 +188,11 @@ class SddConfig:
     @property
     def language(self) -> str:
         return str(self._project.get("language", "none")).lower()
+
+    @property
+    def default_branch(self) -> str:
+        """Rama en la que dispara el CI generado (SPEC-014 FR-US2-005)."""
+        return str(self._project.get("default_branch") or DEFAULT_BRANCH)
 
     @property
     def _project(self) -> dict[str, Any]:

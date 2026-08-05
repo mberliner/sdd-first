@@ -178,13 +178,11 @@ distingue los pasos que verificaron algo de los que se omitieron.
 - Skills `sdd-*` en el proyecto instalado (E-1) → SPEC-006.
 - Sembrar `layers` según el layout detectado: las capas no se infieren de la
   estructura de carpetas (ver Clarifications de la reapertura).
-- Avisar cuando `sdd-init` conserva wiring propio del proyecto, y que
-  `sdd-doctor` verifique el contenido del wiring y no solo su existencia →
-  U-4/U-5 y G-4 de `docs/IDEAS.md`.
+- Que la instalación diga la verdad sobre lo que dejó cableado y hable en
+  términos del derivado → U-4..U-11 y G-4 de `docs/IDEAS.md`, reservados en
+  bloque para SPEC-014.
 - Derivar el pre-filtro `files:` de `.pre-commit-config.yaml` desde
   `source_roots` (hoy es `^(src|app|lib)/` fijo) → G-1 de `docs/IDEAS.md`.
-- El fail-open del gate cuando el `cwd` del payload no resuelve a una raíz con
-  marcadores SDD → U-10 de `docs/IDEAS.md`.
 
 ## Historial
 

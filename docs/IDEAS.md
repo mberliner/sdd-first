@@ -103,6 +103,8 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 - **G-4 · `sdd-doctor` valida existencia, no contenido, del wiring.** Un
   `.claude/settings.json` cualquiera cuenta como "gate cableado". Fix: buscar
   la invocación de `sdd_gate.py` dentro del archivo.
+  **(ya con spec) → [[SPEC-014-derivado-dice-la-verdad]]** FR-US1-002, con
+  U-4..U-11.
 - **G-5 · Criterio mtime del gate sin documentar ni escape hatch.**
   `git checkout`/`clone` renuevan mtimes y pueden des/bloquear espuriamente.
   Documentarlo como heurística en SDD-ENFORCEMENT y considerar una alternativa
@@ -285,7 +287,11 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 Del recorrido completo del README sobre proyectos testigo (2026-08-05): un
 greenfield vacío y un proyecto Python con código previo en `app/`. Evidencia y
 detalle de cada hallazgo en el informe de la campaña, fuera del repo. Lo que ya
-se cerró: **U-1..U-3 → [[SPEC-003-install-happy-path]]** (reabierta).
+se cerró: **U-1..U-3 → [[SPEC-003-install-happy-path]]** (reabierta) y
+**U-4..U-11 + G-4 → [[SPEC-014-derivado-dice-la-verdad]]** (la otra mitad del
+mismo problema: un derivado que reporta salud sin haberla medido, y que habla en
+términos del kit en vez de los propios). Se tomaron en bloque en una sola spec
+porque repartirlos entre specs viejas fragmentaba el invariante.
 
 - **U-1 · El config sembrado heredaba el layout del proyecto de referencia**
   (`src/domain`, `tests/unit`), así que en cualquier otro layout `naming` y
@@ -299,31 +305,30 @@ se cerró: **U-1..U-3 → [[SPEC-003-install-happy-path]]** (reabierta).
   un `.pre-commit-config.yaml` y un `.claude/settings.json` preexistentes, no
   queda ninguna capa de gate cableada y nadie avisa: la línea
   `(existe, se conserva)` se pierde entre 30 líneas de log. Verificado con un
-  commit sobre `src/` que el gate debió bloquear y no bloqueó. P1 → SPEC-014,
-  junto con **G-4**.
+  commit sobre `src/` que el gate debió bloquear y no bloqueó. *(ya con spec)*
 - **U-5 · El mensaje de drift del doctor nombra artefactos fijos.** Dice
   "CONSTITUTION.md/SPEC-000 desincronizados" aunque lo que drifteó sea
-  `ci.yml`. P2 → SPEC-014.
+  `ci.yml`. *(ya con spec)*
 - **U-6 · `.sdd/current-spec` se instala con el placeholder `{{sdd.core}}` sin
   sustituir**: `_copy_text` sustituye por extensión y ese archivo no tiene. Es
   el primer archivo que se abre para entender el gate, y el test de rutas
-  colgadas de SPEC-013 FR-004 no lo ve por el mismo motivo. P1 → SPEC-013.
+  colgadas de SPEC-013 FR-004 no lo veía por el mismo motivo. *(ya con spec)*
 - **U-7 · Los mensajes de drift citan rutas del kit** (`corre: python
   core/render.py`), inexistentes en un derivado, donde es `tools/sdd/core/`.
-  Misma clase que SPEC-010 FR-007, en superficie de runtime. P2 → SPEC-013.
+  Misma clase que SPEC-010 FR-007, en superficie de runtime. *(ya con spec)*
 - **U-8 · El config sembrado conserva la cabecera del ejemplo**, que dice
   "copialo a `.sdd/config.yaml`" cuando ya *es* ese archivo, y nombra al
-  proyecto de referencia. P2 → SPEC-013.
+  proyecto de referencia. *(ya con spec)*
 - **U-9 · El CI generado hardcodea `branches: [main]`.** Un proyecto en
   `master` o `develop` recibe un workflow que nunca dispara, mientras los
-  `paths:` sí derivan del config. P2 → SPEC-009.
+  `paths:` sí derivan del config. *(ya con spec)*
 - **U-10 · El gate falla *abierto* si el `cwd` del payload no resuelve a una
   raíz con marcadores SDD**: `find_repo_root` devuelve ese directorio y la
   edición se permite en silencio. El wrapper de Claude está diseñado
-  fail-closed; el núcleo detrás, no. P1.
+  fail-closed; el núcleo detrás, no. *(ya con spec)*
 - **U-11 · La salida de instalación no nombra ningún documento para leer.**
   `00-INDEX.md` es un buen índice y está instalado, pero nada invita a abrirlo;
-  en un brownfield cuyo README propio se conservó, no hay puerta de entrada. P3.
+  en un brownfield cuyo README propio se conservó, no había puerta de entrada. *(ya con spec)*
 
 Ítems ya registrados que la campaña **reprodujo en un proyecto real**, con la
 evidencia que les faltaba:
@@ -333,7 +338,7 @@ evidencia que les faltaba:
   de Claude tiene la misma limitación (su `case` solo cubre `src/`). El núcleo
   del gate sí lee `source_roots` correctamente.
 - **G-4** (doctor valida existencia, no contenido): confirmado — reporta
-  "Instalación SDD sana" sobre un `.pre-commit-config.yaml` con solo `ruff`.
+  "Instalación SDD sana" sobre un `.pre-commit-config.yaml` con solo `ruff`. *(ya con spec)*
 - **C-2** (mojibake en Windows): confirmado por bytes; con la salida redirigida
   `sys.stdout.encoding` es `cp1252` y el texto **no es UTF-8 válido**. Afecta al
   aviso clave de `sdd_spec.py` ("Editá la spec… ANTES de tocar código").
