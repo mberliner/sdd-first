@@ -156,27 +156,47 @@ def _check(path: Path, content: str) -> bool:
     return path.read_text(encoding="utf-8") == content
 
 
-def main(argv: list[str]) -> int:
-    check_mode = "--check" in argv
-    repo_root = find_repo_root()
+@dataclass(frozen=True)
+class Result:
+    """Resultado de una corrida del generador sobre una raiz concreta.
+
+    `written` son las rutas relativas escritas (vacia en modo `--check`);
+    `drift`, las que no coinciden con lo generado; `problems`, los errores de
+    validacion de las fuentes. Devolverlo en vez de imprimir permite que
+    `sdd_init` siembre los adaptadores del destino y reporte en su propio log
+    (SPEC-016 FR-001).
+    """
+
+    written: list[str]
+    drift: list[str]
+    problems: list[str]
+    skills: int
+
+
+def generate(repo_root: Path, check: bool = False) -> Result:
+    """Genera (o verifica) los adaptadores de skills bajo `repo_root`.
+
+    La raiz es explicita: `main()` la resuelve desde el `cwd`, pero `sdd_init`
+    corre desde el clon del kit y necesita apuntar al proyecto destino.
+    """
     source_dir = repo_root / ".agents" / "skills"
     claude_dir = repo_root / ".claude" / "skills"
     opencode_dir = repo_root / ".opencode" / "command"
 
     if not source_dir.is_dir():
-        print(f"No existe {source_dir.relative_to(repo_root)}; nada que generar.")
-        return 0
+        return Result(written=[], drift=[], problems=[], skills=0)
 
     sources = sorted(source_dir.glob("*/SKILL.md"))
-    if not sources:
-        print(f"Sin skills en {source_dir.relative_to(repo_root)}.")
-        return 0
-
+    written: list[str] = []
     drift: list[str] = []
     problems: list[str] = []
 
     for source in sources:
-        skill = parse_skill(source)
+        try:
+            skill = parse_skill(source)
+        except ValueError as exc:
+            problems.append(str(exc))
+            continue
         problems.extend(_validate(skill, repo_root))
 
         targets = {
@@ -184,31 +204,51 @@ def main(argv: list[str]) -> int:
             opencode_dir / f"{skill.name}.md": render_opencode(skill),
         }
         for target, content in targets.items():
-            rel = target.relative_to(repo_root)
-            if check_mode:
+            rel = target.relative_to(repo_root).as_posix()
+            if check:
                 if not _check(target, content):
-                    drift.append(str(rel))
+                    drift.append(rel)
             else:
                 _write(target, content)
-                print(f"  generado  {rel}")
+                written.append(rel)
 
-    if problems:
+    return Result(written=written, drift=drift, problems=problems, skills=len(sources))
+
+
+def main(argv: list[str]) -> int:
+    check_mode = "--check" in argv
+    repo_root = find_repo_root()
+    source_dir = repo_root / ".agents" / "skills"
+
+    if not source_dir.is_dir():
+        print(f"No existe {source_dir.relative_to(repo_root)}; nada que generar.")
+        return 0
+
+    result = generate(repo_root, check=check_mode)
+    if result.skills == 0:
+        print(f"Sin skills en {source_dir.relative_to(repo_root)}.")
+        return 0
+
+    for rel in result.written:
+        print(f"  generado  {rel}")
+
+    if result.problems:
         print("\nProblemas de validacion:")
-        for p in problems:
+        for p in result.problems:
             print(f"  x {p}")
         return 1
 
     if check_mode:
-        if drift:
+        if result.drift:
             hint = script_hint(__file__, repo_root)
             print(f"Adaptadores desincronizados (corre: python {hint}):")
-            for d in drift:
+            for d in result.drift:
                 print(f"  x {d}")
             return 1
-        print(f"Adaptadores de skills: sincronizados ({len(sources)} skill(s)).")
+        print(f"Adaptadores de skills: sincronizados ({result.skills} skill(s)).")
         return 0
 
-    print(f"Adaptadores generados para {len(sources)} skill(s).")
+    print(f"Adaptadores generados para {result.skills} skill(s).")
     return 0
 
 

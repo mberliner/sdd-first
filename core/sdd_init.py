@@ -24,6 +24,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import gen_skill_adapters  # noqa: E402
 from sdd_config import GATE_WIRING, VENDOR_PREFIX, write_text_lf  # noqa: E402
 
 KIT_ROOT = Path(__file__).resolve().parents[1]
@@ -408,6 +409,40 @@ def _install_project_skills(target: Path, force: bool) -> list[str]:
     return out
 
 
+def _generate_skill_adapters(target: Path) -> list[str]:
+    """Siembra los adaptadores que hacen descubribles las skills (FR-002).
+
+    Sin esto, un destino recien instalado tiene `.agents/skills/` (que leen Codex
+    y Antigravity) pero ni `.claude/skills/` ni `.opencode/command/`: Claude Code
+    y opencode no ven ninguna skill SDD. Y el paso siguiente que el propio
+    instalador recomienda —"corre la skill sdd-configure"— es imposible de seguir.
+
+    Se escriben siempre, con o sin `--force`: son artefactos generados, con
+    cabecera `NO EDITAR A MANO`, que el paso `skills` del pipeline verifica con
+    `--check` (FR-003). La fuente `.agents/skills/` sigue siendo idempotente.
+
+    Un fallo aca no aborta la instalacion (FR-004): el andamiaje ya esta copiado
+    y dejarlo a medias es peor que un derivado sin adaptadores, que se resuelve
+    con un comando.
+    """
+    try:
+        result = gen_skill_adapters.generate(target)
+    except OSError as exc:  # pragma: no cover - E/S del destino
+        return _skill_adapters_fallo([str(exc)])
+    if result.problems:
+        return _skill_adapters_fallo(result.problems)
+    return [f"  generado {target / Path(rel)}" for rel in result.written]
+
+
+def _skill_adapters_fallo(problemas: list[str]) -> list[str]:
+    return [
+        "  ATENCION: no se pudieron generar los adaptadores de skills; tu",
+        "  asistente puede no ver las skills SDD. Motivo:",
+        *(f"    - {p}" for p in problemas),
+        f"  Reintenta con: python {VENDOR_PREFIX}/core/gen_skill_adapters.py",
+    ]
+
+
 def _layout_notice(layout: Layout | None) -> list[str]:
     """Que se detecto del layout, o que falta declarar (SPEC-003 FR-007).
 
@@ -507,14 +542,17 @@ def _next_steps(
 
     lines.extend(
         [
-            "  1. Edita .sdd/config.yaml (dominio, carpetas de codigo y tests,",
-            "     palabras excluidas, capas) o corre la skill sdd-configure.",
+            "  1. Pedile a tu asistente la skill sdd-configure (wizard sobre",
+            "     .sdd/config.yaml), o edita el archivo a mano: dominio, carpetas",
+            "     de codigo y tests, palabras excluidas, capas.",
             "  2. python tools/sdd/core/render.py"
             "               # CONSTITUTION.md + SPEC-000 + CI",
-            "  3. python tools/sdd/core/gen_skill_adapters.py"
-            "   # skills para tu asistente",
-            "  4. python tools/sdd/core/pipeline.py"
+            "  3. python tools/sdd/core/pipeline.py"
             "             # verifica -> VERDE / ROJO",
+            "",
+            "Tu asistente ya tiene las skills SDD instaladas y listas para usar:",
+            f"  {', '.join(PROJECT_SKILLS)}",
+            "Que hace cada una y cuando usarla: docs/SDD-OPERACION.md.",
             "",
             "Para entender que quedo instalado, abri 00-INDEX.md: es el mapa de los",
             "documentos y de que archivo es el SSOT de cada tema.",
@@ -561,6 +599,7 @@ def main(argv: list[str]) -> int:
     log.append(config_line)
     log.extend(_vendor_kit(target, language, force))
     log.extend(_install_project_skills(target, force))
+    log.extend(_generate_skill_adapters(target))
 
     for line in log:
         print(line)

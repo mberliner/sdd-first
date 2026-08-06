@@ -22,11 +22,38 @@ def test_incluye_el_cd_con_el_path_real_antes_de_los_comandos(tmp_path):
     )
 
 
-def test_incluye_los_cuatro_pasos_de_configuracion(tmp_path):
+def test_incluye_los_pasos_de_configuracion(tmp_path):
     salida = sdd_init._next_steps(tmp_path)
-    for comando in ("render.py", "gen_skill_adapters.py", "pipeline.py"):
+    for comando in ("render.py", "pipeline.py"):
         assert f"python tools/sdd/core/{comando}" in salida
     assert ".sdd/config.yaml" in salida
+
+
+def test_no_pide_generar_los_adaptadores_de_skills(tmp_path):
+    """SPEC-016 FR-005: el instalador ya los siembra.
+
+    Listarlo como pendiente ademas contradecia al paso anterior, que ofrece
+    `sdd-configure` -- una skill que, sin adaptadores, el asistente no ve.
+    """
+    assert "gen_skill_adapters.py" not in sdd_init._next_steps(tmp_path)
+
+
+def test_nombra_las_skills_disponibles_y_su_catalogo(tmp_path):
+    # FR-005: quien recibe el proyecto no tiene por que adivinar que se instalo.
+    salida = sdd_init._next_steps(tmp_path)
+    for skill in sdd_init.PROJECT_SKILLS:
+        assert skill in salida, f"la salida no nombra la skill {skill}"
+    assert "docs/SDD-OPERACION.md" in salida
+
+
+def test_ofrece_sdd_configure_como_via_recomendada(tmp_path):
+    # FR-006: el wizard es el camino corto; editar el YAML, la alternativa.
+    salida = sdd_init._next_steps(tmp_path)
+    posicion_skill = salida.find("sdd-configure")
+    posicion_manual = salida.find("a mano")
+    assert posicion_skill != -1, "la secuencia no ofrece sdd-configure"
+    assert posicion_manual != -1, "no queda la alternativa manual"
+    assert posicion_skill < posicion_manual
 
 
 def test_avisa_del_gate_y_de_la_primera_spec(tmp_path):
