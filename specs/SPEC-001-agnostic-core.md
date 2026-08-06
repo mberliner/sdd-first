@@ -30,9 +30,9 @@ y sale VERDE/ROJO según el resultado agregado.
 - **Given** un config con `pipeline.steps` mixtos, **When** corre el pipeline,
   **Then** los pasos de proceso los ejecuta el núcleo y los de código se
   delegan a `adapters/<language>/adapter.py <step>`.
-- **Given** `.sdd/current-spec` vacío, **When** un hook invoca
-  `core/sdd_gate.py` sobre un archivo bajo `dirs.source_roots`, **Then**
-  bloquea con exit 2 y un motivo accionable.
+- **Given** un hook de cualquiera de los tres transportes, **When** invoca
+  `core/sdd_gate.py`, **Then** obtiene la misma decisión y el contrato 0/2
+  (escenarios de la política: [[SPEC-017-gate-decision-spec-first]]).
 - **Given** una spec `hibrido`+`active` con un FR sin fila en el Coverage
   mapping, **When** corre `check_traceability`, **Then** reporta la violación.
 
@@ -41,10 +41,11 @@ y sale VERDE/ROJO según el resultado agregado.
 - **FR-001** MUST: toda parametrización (naming, dirs, capas, principios,
   pasos) se lee de `.sdd/config.yaml` vía `core/sdd_config.py`, con defaults
   tolerantes para configs parciales; nada de listas hardcodeadas en `core/`.
-- **FR-002** MUST: `core/sdd_gate.py` bloquea (exit 2) la edición de archivos
-  bajo `dirs.source_roots` cuando no hay spec declarada en
-  `.sdd/current-spec`, la spec declarada no existe/no está registrada, o no
-  fue editada después de declararla; permite (exit 0) en caso contrario.
+- **FR-002** MUST: `core/sdd_gate.py` decide sobre las ediciones de archivos
+  bajo `dirs.source_roots` con el contrato exit 0 permite / exit 2 bloquea,
+  agnóstico del asistente que lo invoque. La política —qué hace falta para
+  autorizar una edición— es la de
+  [[SPEC-017-gate-decision-spec-first]], su SSOT.
 - **FR-003** MUST: `core/check_traceability.py` valida estructura de specs
   híbridas (User Story+prioridad, FR-NNN, SC-NNN, Coverage mapping),
   consistencia disco↔registro y cobertura FR→test en specs `active`.
@@ -73,8 +74,9 @@ y sale VERDE/ROJO según el resultado agregado.
 
 - **SC-001** El mismo `core/` corre sin modificación en el kit y en un
   proyecto instalado (vendorizado bajo `tools/sdd/`), cambiando solo el config.
-- **SC-002** El gate distingue los cuatro estados (sin declaración, spec
-  inválida, spec sin editar, flujo correcto) con motivo específico en stderr.
+- **SC-002** El gate corre con el mismo `core/` en el kit y en un derivado, y
+  cada bloqueo llega a stderr con un motivo específico (los casos concretos los
+  fija [[SPEC-017-gate-decision-spec-first]]).
 - **SC-003** `check_traceability` reporta específicamente: sección faltante,
   FR sin cobertura, test inexistente, spec no registrada, entrada colgante y
   estado inválido.

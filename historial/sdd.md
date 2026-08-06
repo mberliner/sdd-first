@@ -1,5 +1,61 @@
 # Historial SDD — sdd-first
 
+## 2026-08-06 — SPEC-017: el gate valida contenido de la spec, no marcas de tiempo
+
+**Scope:** `core/sdd_gate.py`, `core/sdd_spec.py`, `templates/wiring/current-spec`,
+`templates/docs/SDD-ENFORCEMENT.md` (+ copia sincronizada), `specs/SPEC-017-...`,
+enmiendas a SPEC-001/SPEC-002, SPEC-006 a `superseded`, `docs/IDEAS.md`,
+`tests/unit/test_gate_evidencia_contenido.py` (nuevo) y `test_sdd_gate.py`.
+
+**Qué cambió:** el gate dejó de comparar la mtime de la spec contra la de
+`.sdd/current-spec`. Ahora exige, a **cada** spec declarada, que exista, esté
+registrada con estado vigente y **tenga requisitos escritos** (al menos un FR con
+texto propio además del keyword; los placeholders de la plantilla no cuentan). Se
+agregó el escape hatch `SDD_GATE_BYPASS`, que permite pero imprime el bloqueo que
+se saltea junto con el motivo.
+
+**Por qué:** G-5, disparado al cerrar SPEC-016. El ciclo stash/restore del propio
+`pre-commit` renueva la mtime de los archivos no staged, así que `.sdd/current-spec`
+quedaba más nuevo que la spec y el gate afirmaba que la spec "no fue editada
+después de declararla" en pleno commit legítimo. El diagnóstico mostró que el
+criterio fallaba en las dos direcciones: bloqueaba el flujo legítimo (varios
+commits por spec, checkout, clone) y no detenía a nadie, porque un `touch` lo
+satisfacía. Fricción alta, garantía nula.
+
+**Decisiones:**
+- **Eliminar el criterio en vez de documentarlo como heurística** (que era lo que
+  proponía G-5). La mtime es un proxy de "el contenido cambió"; ninguna tolerancia
+  arregla que se mida la señal equivocada.
+- **Contenido y no git.** Se evaluó usar `HEAD`/índice como evidencia: resuelve el
+  falso positivo pero agrega subproceso, requisito de repositorio y comportamiento
+  distinto en worktrees, sin garantía extra (una spec vacía commiteada pasaría).
+- **Hash de la spec en `.sdd/current-spec` descartado.** Reproduce el mismo defecto
+  en el flujo de varios commits por spec: la spec ya está escrita, el hash no
+  cambia, el gate bloquea.
+- **Endurecimiento multi-spec.** El criterio viejo se conformaba con que *alguna*
+  spec declarada estuviera tocada; ahora se exige a todas.
+- **Spec nueva como SSOT de la política, no enmienda.** La política estaba repartida
+  entre SPEC-001 FR-002, SPEC-002 FR-002 y SPEC-006 entera. SPEC-017 las absorbe:
+  SPEC-001/SPEC-002 delegan sin describir el criterio y SPEC-006 pasa a `superseded`.
+
+**Deuda:** correlacionar el archivo editado con la spec que lo cubre (declarar una
+spec completa habilita cualquier archivo bajo `source_roots`) y G-6 (el keyword de
+los FR no se verifica en trazabilidad), ambos anotados en la spec.
+
+**SSOTs afectados:** `docs/SDD-ENFORCEMENT.md` (política del gate, vía
+`templates/`), `specs/SPEC-017-gate-decision-spec-first.md` (decisión del gate),
+`specs/SPECS_REGISTRY.md`, `docs/IDEAS.md`.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-017-gate-decision-spec-first, SPEC-001-agnostic-core,
+  SPEC-002-dogfooding-integro, SPEC-006-gate-verifica-estado-spec
+- Includes/excludes verificados: pipeline VERDE 10/10; 262 tests OK; los tres
+  escenarios (spec simple, misma spec en varios commits, dos specs con commit al
+  final) verificados con commits reales en el kit y en un derivado instalado
+- SSOTs afectados: docs/SDD-ENFORCEMENT.md, SPEC-017, SPECS_REGISTRY.md, IDEAS.md
+```
+
 ## 2026-08-06 — SPEC-016: las skills quedan usables apenas termina sdd-init
 
 **Scope:** `core/gen_skill_adapters.py`, `core/sdd_init.py`, `README.md`,

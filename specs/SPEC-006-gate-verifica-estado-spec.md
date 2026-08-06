@@ -1,5 +1,11 @@
 # SPEC-006-gate-verifica-estado-spec: El gate verifica el estado (draft/active) de la spec declarada
 
+> **`superseded` por [[SPEC-017-gate-decision-spec-first]] (2026-08-06).** La
+> política de decisión del gate tiene un solo SSOT y es esa spec, que absorbe
+> esta entera (US2). Lo de acá se conserva como registro de por qué existió el
+> requisito, no como fuente autoritativa: no leas este documento para saber qué
+> decide el gate hoy.
+>
 > Origen: `docs/IDEAS.md` P1 "Huecos de enforcement del gate y la
 > trazabilidad", ítem G-2, detectado en la revisión crítica del 2026-07-02.
 

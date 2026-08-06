@@ -114,6 +114,13 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   `git checkout`/`clone` renuevan mtimes y pueden des/bloquear espuriamente.
   Documentarlo como heurística en SDD-ENFORCEMENT y considerar una alternativa
   (hash de la spec registrado en `.sdd/current-spec`).
+  **(resuelto) → [[SPEC-017-gate-decision-spec-first]]**, que va más lejos que lo
+  planteado acá: el disparador fue el ciclo stash/restore del propio `pre-commit`
+  (no solo `checkout`/`clone`), y el diagnóstico mostró que la mtime tampoco
+  aportaba garantía —un `touch` la satisfacía—. Se eliminó el criterio en vez de
+  documentarlo: el gate exige que la spec declarada tenga FR escritos. El hash en
+  `.sdd/current-spec` se evaluó y descartó (mismo defecto en el flujo de varios
+  commits por spec). Escape hatch: `SDD_GATE_BYPASS`.
 - **G-6 · `check_traceability` no exige keyword en los FR.** SPEC-FORMAT
   declara obligatorio `MUST:/SHOULD:/MAY:` pero nada lo verifica. Chequeo de
   una línea; alinear doc y check en cualquier dirección.

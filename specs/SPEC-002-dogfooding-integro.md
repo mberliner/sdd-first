@@ -44,8 +44,9 @@ spec-first) está declarado pero sin enforcement.
 - **FR-001** MUST: el gate spec-first queda cableado en el propio kit vía
   `.claude/settings.json` (PreToolUse → `core/sdd_gate.py`) y
   `.pre-commit-config.yaml` (rutas `core/` y `adapters/`).
-- **FR-002** MUST: existe `.sdd/current-spec` en el kit y el flujo
-  declarar→editar spec→editar código funciona sobre `core/` y `adapters/`.
+- **FR-002** MUST: existe `.sdd/current-spec` en el kit y el gate gobierna de
+  hecho las ediciones de `core/` y `adapters/` — el kit se somete a su propio
+  protocolo, con la política de [[SPEC-017-gate-decision-spec-first]].
 - **FR-003** MUST: existe `tests/unit/` con tests de la lógica de decisión del
   núcleo: `sdd_gate.decide`, `check_traceability` (estructura, consistencia,
   coverage), `check_naming` (palabras excluidas, allowed, relax) y `sdd_config`
@@ -73,8 +74,8 @@ spec-first) está declarado pero sin enforcement.
 - **SC-001** `python core/sdd_doctor.py` → exit 0.
 - **SC-002** `python core/pipeline.py` → VERDE con ≥7 pasos (constitution,
   traceability, naming, lint, format, skills, tests).
-- **SC-003** Con `.sdd/current-spec` vacío, `sdd_gate.py core/x.py` → exit 2;
-  con SPEC-002 declarada y editada → exit 0 (cubierto por test).
+- **SC-003** `sdd_gate.py core/x.py` responde según la política vigente también
+  cuando el proyecto gobernado es el propio kit (cubierto por test).
 - **SC-004** SPEC-001 figura `active`/`hibrido` en el registro y pasa
   `check_traceability` (estructura + coverage).
 
