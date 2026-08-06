@@ -7,7 +7,8 @@
 
 1. **Gate de autoría (preventivo)** — `{{sdd.core}}/sdd_gate.py`. Se dispara *antes* de
    editar código fuente. Bloquea la edición si no hay una spec vigente declarada
-   en `.sdd/current-spec` y editada *después* de declararla. Multi-transporte:
+   en `.sdd/current-spec` con requisitos escritos (criterio abajo).
+   Multi-transporte:
    - `PreToolUse` de Claude Code (stdin JSON) — `.claude/settings.json`.
    - `pre-commit` (argv) — `.pre-commit-config.yaml`.
    - plugin opencode (argv) — `.opencode/plugin/sdd-gate.js`.
@@ -46,8 +47,29 @@
 ## `.sdd/current-spec`
 
 Archivo de una línea por spec vigente (SPEC-NNN-slug). El gate lo usa como
-declaración de intención: comparás la mtime de la spec contra la de este archivo
-para forzar el flujo **declarar → editar la spec → editar el código**.
+declaración de intención y exige, a **cada** spec listada:
+
+1. que exista como `specs/<ID>.md`,
+2. que figure como fila de `SPECS_REGISTRY.md` con estado `draft` o `active`,
+3. que tenga **requisitos escritos**: al menos un `**FR-NNN**` con texto propio
+   además del keyword. Los placeholders de `specs/SPEC-TEMPLATE.md` no cuentan,
+   así que una spec recién creada no desbloquea nada hasta escribir los FR.
+
+El criterio es de **contenido, no de marcas de tiempo**. El original comparaba la
+mtime de la spec contra la de este archivo, y fallaba en las dos direcciones:
+bloqueaba el flujo legítimo —trabajar una spec en varios commits, `git checkout`,
+`clone`, y el propio ciclo stash/restore de `pre-commit`, que renueva mtimes— y no
+detenía a nadie, porque un `touch` lo satisfacía. Consecuencia práctica: **para el
+segundo commit de una misma spec alcanza con redeclararla**, sin volver a tocarla.
+
+Que los requisitos sean *adecuados* al cambio en curso sigue siendo juicio de
+`analyze`/`clarify` (ver "Límite: presencia, no adecuación").
+
+**Escape hatch** (`SDD_GATE_BYPASS`): con un valor no vacío, el gate imprime el
+bloqueo que correspondería, agrega el motivo del bypass y devuelve exit 0. Es la
+alternativa acotada a `--no-verify`, que apaga *todo* el `pre-commit` —gate,
+trazabilidad y reset— y deja al repositorio sin enforcement en vez de saltear un
+caso puntual.
 
 **Reset post-commit** (`{{sdd.core}}/sdd_reset.py`, hook `sdd-reset` en
 `.pre-commit-config.yaml`, `stages: [post-commit]`): tras cada commit exitoso

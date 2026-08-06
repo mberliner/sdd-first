@@ -117,8 +117,9 @@ def main(argv: list[str]) -> int:
     _declare_current_spec(current, spec_id)
     print(f"Declarada en {current}")
     print(
-        "\nEditá la spec (agregá los FR) ANTES de tocar código: el gate exige que la "
-        "spec sea modificada después de declararla."
+        "\nEscribí los FR de la spec ANTES de tocar código: el gate exige que la "
+        "spec declarada tenga requisitos escritos (los placeholders de la "
+        "plantilla no cuentan)."
     )
     return 0
 
