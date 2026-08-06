@@ -19,5 +19,10 @@ TODO: cómo correr la suite de tests del proyecto.
 
 ## Desarrollo
 
-Este proyecto sigue el protocolo SDD — ver `AGENTS.md` y
-`docs/SDD-OPERACION.md`.
+Este proyecto sigue el protocolo SDD: ninguna capacidad nueva se codea sin una
+spec vigente. El protocolo está en `AGENTS.md`.
+
+Tu asistente de IA tiene instaladas las skills SDD para operar ese flujo
+(configurar el proyecto, crear specs, diagnosticar la instalación). El catálogo
+—qué hace cada una y cuándo usarla— está en **`docs/SDD-OPERACION.md`**. Si es tu
+primera vez en este proyecto, empezá por ahí.

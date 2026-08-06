@@ -1,5 +1,63 @@
 # Historial SDD — sdd-first
 
+## 2026-08-06 — SPEC-016: las skills quedan usables apenas termina sdd-init
+
+**Scope:** `core/gen_skill_adapters.py`, `core/sdd_init.py`, `README.md`,
+`templates/README.md`, `templates/docs/SKILLS-MULTITOOL.md` (+ su copia
+sincronizada), `specs/SPEC-016-...`, y 5 archivos de test (2 nuevos).
+
+**Qué cambió:** un derivado recién instalado tenía `.agents/skills/` —que leen
+Codex y Antigravity— pero ni `.claude/skills/` ni `.opencode/command/`: para
+Claude Code y opencode **no existía ninguna skill SDD**. Los adaptadores se
+generaban recién en el paso 3 del onboarding, dos pasos después de que el propio
+instalador recomendara *"corré la skill `sdd-configure`"*. Ahora `sdd-init` los
+siembra: al terminar la instalación las cinco skills están disponibles en los
+cuatro formatos, sin ningún paso manual.
+
+En el README pasaba lo mismo en superficie de documentación: `sdd-configure`
+aparecía sólo como comentario `#` dentro del bloque bash, mientras los comandos
+visibles instruían editar el YAML a mano. Ahora tiene sección propia (paso 3) con
+la tabla de las cinco skills instaladas y para qué sirve cada una, y el README que
+recibe el derivado apunta a `docs/SDD-OPERACION.md` como catálogo.
+
+**Por qué:** el primer consejo que el kit le daba a un usuario nuevo era, en
+sentido literal, imposible de seguir. Misma clase que U-4/U-11 de SPEC-014 —el
+derivado afirmando algo que no es cierto sobre sí mismo— en la superficie del
+onboarding.
+
+**Decisiones:**
+- **Generar en `sdd-init` en vez de sólo documentar mejor el paso 3.** El paso no
+  aportaba ninguna decisión del usuario: siempre se corre igual, con los mismos
+  insumos. Un paso manual necesario para que funcione lo que el paso anterior
+  recomienda no es documentación faltante, es un orden imposible.
+- **Los adaptadores se escriben siempre, aun sin `--force`.** Son artefactos
+  generados (cabecera `NO EDITAR A MANO`) y el paso `skills` los verifica con
+  `--check`; conservar una versión ajena dejaría la instalación fresca en ROJO.
+  La idempotencia sigue valiendo para la fuente `.agents/skills/`.
+- **`generate(repo_root, check)` devuelve un `Result` en vez de imprimir.** Es lo
+  que permite reusar el generador desde `sdd_init` —que corre en el clon del kit
+  apuntando a otro directorio— sin subproceso ni `chdir`, y que cada llamador
+  reporte a su manera. `main()` quedó como envoltura fina.
+- **Un fallo del generador no aborta la instalación.** El andamiaje ya está
+  copiado; dejarlo a medias es peor que un derivado sin adaptadores, que se
+  resuelve con un comando (que el aviso incluye).
+
+**Deuda:** E-5 de `docs/IDEAS.md` sigue abierto (adaptadores para Cursor, Aider,
+Gemini CLI). `sdd-configure` sigue siendo un playbook para un agente, sin modo CLI
+no interactivo.
+
+**SSOTs afectados:** `README.md` (onboarding del operador),
+`templates/docs/SKILLS-MULTITOOL.md` (mecanismo de skills), `docs/SDD-OPERACION.md`
+(catálogo, sin cambios: se lo referencia desde dos lugares más).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-016-skills-listas-tras-init, SPEC-007-derived-project-onboarding, SPEC-011-operator-bootstrap
+- Includes/excludes verificados: core/ + README + templates/; fuera de alcance E-5, C-7, sdd-init como skill del derivado
+- SSOTs afectados: README.md, templates/README.md, templates/docs/SKILLS-MULTITOOL.md
+- Verificación: python core/pipeline.py → VERDE (10/10), 251 tests; instalación limpia → 15 archivos de skill, `gen_skill_adapters.py --check` exit 0, sdd-doctor sano, pipeline del derivado VERDE
+```
+
 ## 2026-08-05 — SPEC-015: el wiring del gate apunta al código real del proyecto
 
 **Scope:** `.pre-commit-config.yaml` y `templates/wiring/.pre-commit-config.yaml`,

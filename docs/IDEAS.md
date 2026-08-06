@@ -232,6 +232,13 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   Instalar también `sdd-spec`, `sdd-doctor` y `sdd-configure` (con sus
   playbooks) en el destino, o reescribir la doc para que el flujo instalado
   sea vía CLI vendorizada.
+  **(ya con spec) → [[SPEC-007-derived-project-onboarding]]** para las fuentes y
+  **[[SPEC-016-skills-listas-tras-init]]** para lo que faltaba: copiar
+  `.agents/skills/` no alcanzaba: sin los adaptadores generados
+  (`.claude/skills/`, `.opencode/command/`), Claude Code y opencode seguían sin
+  ver ninguna skill hasta que alguien corriera `gen_skill_adapters.py` a mano —
+  el paso 3 del onboarding, dos pasos *después* de que el instalador recomendara
+  usar `sdd-configure`. Resuelto sembrándolos desde `sdd-init`.
 - **E-2 · Ruta de actualización del kit vendorizado.** `sdd-doctor` lee
   `kit_version` pero no la compara contra nada; actualizar `tools/sdd/` es
   `--force` manual sin diff. Diseñar `sdd-update` (comparar versión, mostrar

@@ -63,6 +63,12 @@ Los campos `opencode-*` alimentan únicamente al generador: nunca se filtran al
 
 ## Generador
 
+Los adaptadores de las skills SDD **ya vienen sembrados**: `sdd-init` corre el
+generador sobre el proyecto al instalarlo, así que las skills están disponibles
+en tu asistente desde el primer minuto, sin ningún paso manual.
+
+El comando hace falta sólo cuando **agregás o editás** una skill:
+
 ```bash
 python core/gen_skill_adapters.py            # regenera los adaptadores
 python core/gen_skill_adapters.py --check    # falla si hay drift

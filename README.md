@@ -86,10 +86,39 @@ validar código). El directorio destino se crea si no existe, y la instalación 
 idempotente: no pisa archivos tuyos salvo que pases `--force`.
 
 En tu proyecto quedaron `CONSTITUTION.md`, `AGENTS.md`, `specs/`, `docs/`, los
-gates cableados y el kit **vendorizado** en `tools/sdd/`. A partir de acá el clon
-del kit es descartable: tu proyecto ya tiene su propia copia del andamiaje.
+gates cableados, el kit **vendorizado** en `tools/sdd/` y —ya generadas para cada
+asistente— las skills del paso siguiente. A partir de acá el clon del kit es
+descartable: tu proyecto ya tiene su propia copia del andamiaje.
 
-### 3. Configurar y verificar — desde tu proyecto
+### 3. Configurar el proyecto con la skill `sdd-configure`
+
+`sdd-init` deja instaladas cinco skills, disponibles en tu asistente apenas
+termina la instalación — no hay ningún paso extra para habilitarlas:
+
+| Skill | Para qué |
+|---|---|
+| **`sdd-configure`** | Wizard sobre `.sdd/config.yaml`: dominio, lenguaje, principios, palabras excluidas, capas y carpetas de código. **Es el primer paso.** |
+| `sdd-spec` | Crea la spec, la registra y la declara vigente. Antes de codear cualquier capacidad nueva. |
+| `clarify` | Cierra ambigüedades de una spec con hasta 5 preguntas dirigidas. |
+| `analyze` | Valida (read-only) que la spec sea sólida contra tests, registro y constitución. |
+| `sdd-doctor` | Diagnostica la salud de la instalación; autorepara con `--fix`. |
+
+Abrí tu asistente en el proyecto y pedile **`sdd-configure`**. El wizard pregunta
+y escribe el config por vos, y regenera los artefactos derivados. El catálogo
+completo queda instalado en `docs/SDD-OPERACION.md`.
+
+Si preferís hacerlo a mano, editá `.sdd/config.yaml` directamente. Dos claves
+merecen atención especial:
+
+- **`dirs.source_roots`** es lo que hace que el gate proteja tu código y que los
+  pasos de código lo miren. Si apunta a una carpeta que no existe, el pipeline
+  sale VERDE sin haber verificado nada. `sdd-init` intenta detectarlo y te dice
+  qué encontró — confirmalo antes de seguir.
+- **`naming.prohibited`** son fragmentos de identificadores de código (clases,
+  funciones, variables, módulos) vetados por acoplar el núcleo a un proveedor,
+  framework o tecnología concreta; ver `specs/SPEC-000-naming.md`.
+
+### 4. Verificar — desde tu proyecto
 
 Los comandos que siguen corren en el **proyecto destino**, no en el clon del kit;
 por eso la ruta es `tools/sdd/core/…`:
@@ -99,21 +128,12 @@ cd /ruta/a/mi-proyecto
 git init                    # si todavía no es repo (ver nota abajo)
 pip install pre-commit      # para que el paso `hooks` pueda cablear la capa git
 
-# Editá .sdd/config.yaml: dominio, carpetas de código y tests (`dirs`,
-# `dirs.source_roots`), palabras excluidas de la nomenclatura, capas, principios.
-# (`dirs.source_roots` es lo que hace que el gate proteja tu código y que los
-# pasos de código lo miren: si apunta a una carpeta que no existe, el pipeline
-# sale VERDE sin haber verificado nada. `sdd-init` intenta detectarlo y te dice
-# qué encontró — confirmalo antes de seguir.)
-# (las "palabras excluidas" son fragmentos de identificadores de código —clases,
-# funciones, variables, módulos— vetados por acoplar el núcleo a un proveedor,
-# framework o tecnología concreta; ver specs/SPEC-000-naming.md)
-# (o pedile a tu asistente que corra la skill `sdd-configure`, que es un wizard)
-
-python tools/sdd/core/render.py               # CONSTITUTION.md + SPEC-000 + CI
-python tools/sdd/core/gen_skill_adapters.py   # skills para cada asistente
-python tools/sdd/core/pipeline.py             # chequeo completo → VERDE / ROJO
+python tools/sdd/core/render.py     # CONSTITUTION.md + SPEC-000 + CI
+python tools/sdd/core/pipeline.py   # chequeo completo → VERDE / ROJO
 ```
+
+(`sdd-configure` ya corre `render.py` por vos; el comando queda a mano para
+cuando edites el config directamente.)
 
 > **Sobre la capa git:** el paso `hooks` del pipeline instala los hooks de
 > `pre-commit` (gate en el commit, reset post-commit), pero necesita que el
@@ -121,7 +141,7 @@ python tools/sdd/core/pipeline.py             # chequeo completo → VERDE / ROJ
 > las dos, el paso avisa y sigue: el gate spec-first del asistente funciona igual
 > —sin git— por diseño, pero el bloqueo en el commit queda inactivo.
 
-### 4. Primera spec, y recién ahí, código
+### 5. Primera spec, y recién ahí, código
 
 El gate spec-first bloquea las ediciones de código mientras `.sdd/current-spec`
 esté vacío. Antes de codear, pedile a tu asistente la skill `sdd-spec` (o corré
@@ -130,8 +150,11 @@ la registra y la declara vigente. Lo mismo vale para cada capacidad nueva.
 
 > **Nota sobre las skills:** `sdd-init` es bootstrap de una sola vez y **no** se
 > instala en el proyecto derivado — se corre desde el clon del kit, como en el
-> paso 2. Las que sí quedan instaladas y usás en el día a día son `sdd-configure`,
-> `sdd-doctor`, `sdd-spec`, `analyze` y `clarify`.
+> paso 2. Las cinco del paso 3 sí quedan instaladas, en los cuatro formatos
+> (`.agents/skills/` para Codex y Antigravity, `.claude/skills/` para Claude Code,
+> `.opencode/command/` para opencode). Sólo si agregás o editás una skill hace
+> falta regenerar los adaptadores con
+> `python tools/sdd/core/gen_skill_adapters.py` — ver `docs/SKILLS-MULTITOOL.md`.
 
 ## Cómo está armado
 

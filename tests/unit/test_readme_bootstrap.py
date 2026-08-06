@@ -94,6 +94,43 @@ def test_enumera_los_valores_de_language(readme: str):
     assert "`none`" in readme
 
 
+def test_ofrece_sdd_configure_fuera_de_los_comentarios(readme: str):
+    """SPEC-016 FR-007 / SC-003.
+
+    `sdd-configure` aparecia unicamente como comentario `#` dentro del bloque
+    bash del paso 3, mientras los comandos visibles instruian editar el YAML a
+    mano: la unica skill que existe para ese paso quedaba invisible.
+    """
+    lineas = [
+        line
+        for line in readme.splitlines()
+        if "sdd-configure" in line and not line.lstrip().startswith("#")
+    ]
+    assert lineas, "sdd-configure solo aparece dentro de comentarios"
+
+
+def test_enumera_las_skills_que_quedan_instaladas(readme: str):
+    # FR-007: el operador tiene que saber con que cuenta al terminar el paso 2.
+    for skill in ("sdd-configure", "sdd-spec", "sdd-doctor", "analyze", "clarify"):
+        assert skill in readme, f"el README no nombra la skill {skill}"
+
+
+def test_no_pide_generar_los_adaptadores_como_paso_del_onboarding(readme: str):
+    """FR-007: `sdd-init` ya los siembra (FR-002).
+
+    El comando sigue documentado para cuando se agrega o edita una skill, pero
+    no como bloque ejecutable del recorrido de instalacion.
+    """
+    ejecutables = [
+        line
+        for line in readme.splitlines()
+        if line.startswith("python ") and "gen_skill_adapters.py" in line
+    ]
+    assert not ejecutables, (
+        "el README todavia lista gen_skill_adapters.py como paso del onboarding"
+    )
+
+
 def test_nombra_las_carpetas_de_codigo_entre_lo_configurable(readme: str):
     """SPEC-003 FR-008 (no el FR-008 de SPEC-011, que es el de `--language`).
 

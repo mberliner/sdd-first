@@ -89,6 +89,27 @@ def test_ningun_archivo_instalado_queda_con_placeholders(tmp_path):
     assert not crudos, "placeholders sin resolver en: " + "; ".join(crudos)
 
 
+def test_el_readme_del_derivado_apunta_al_catalogo_de_skills(tmp_path):
+    """SPEC-016 FR-008.
+
+    El README es la puerta de entrada del proyecto y no decia que el asistente
+    tuviera skills instaladas. La lista no se repite aca: su SSOT es
+    `docs/SDD-OPERACION.md`.
+    """
+    assert sdd_init.main([str(tmp_path), "--language=none"]) == 0
+    texto = (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert "docs/SDD-OPERACION.md" in texto
+    assert "skills" in texto.lower()
+
+
+def test_skills_multitool_aclara_que_los_adaptadores_ya_estan(tmp_path):
+    # FR-009: el comando queda para agregar o editar una skill, no para arrancar.
+    assert sdd_init.main([str(tmp_path), "--language=none"]) == 0
+    texto = (tmp_path / "docs" / "SKILLS-MULTITOOL.md").read_text(encoding="utf-8")
+    assert "sdd-init" in texto
+    assert "gen_skill_adapters.py" in texto
+
+
 def test_architecture_no_depende_del_adaptador_python(tmp_path):
     # FR-003: el doc de capas se instala con cualquier lenguaje, asi que no
     # puede citar un archivo que solo existe con `--language python`.
