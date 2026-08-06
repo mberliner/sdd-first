@@ -1,9 +1,9 @@
 """Interlock de autoria spec-first (nucleo minimo del kit, Principio de gate).
 
 Gate de enforcement *anterior* a que el codigo exista: bloquea la edicion/commit
-de codigo fuente si no hay una spec vigente declarada en `.sdd/current-spec` (y
-editada despues de declararla). La logica de decision (`decide`) es agnostica de
-asistente; el modulo acepta tres transportes de entrada:
+de codigo fuente si no hay una spec vigente declarada en `.sdd/current-spec` con
+requisitos escritos (SPEC-017, SSOT de la politica). La logica de decision
+(`decide`) es agnostica de asistente; el modulo acepta tres transportes:
 
 1. **argv**: `python core/sdd_gate.py src/a.py` — usado por pre-commit y hooks
    que pasan rutas como argumentos.
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -28,8 +29,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_traceability import _parse_registry  # noqa: E402
 from sdd_config import DEFAULT_SOURCE_ROOT, find_sdd_root, load  # noqa: E402
 
-# Estados de SPECS_REGISTRY.md que dejan pasar el gate (SPEC-006 FR-002).
+# Estados de SPECS_REGISTRY.md que dejan pasar el gate (SPEC-017 FR-US2-002).
 _VALID_ESTADOS = frozenset({"draft", "active"})
+
+# Declaracion de un FR y lo que sigue en su linea. Mismo marcador que usa
+# check_traceability (`**FR-NNN**`), para no tener dos ideas de que es un FR.
+_FR_DECL_LINE = re.compile(r"\*\*FR-[A-Za-z0-9-]+\*\*(.*)")
+_FR_KEYWORD = re.compile(r"(?i)^\s*(MUST|SHOULD|MAY)\s*:?")
+# Un FR de la plantilla es `**FR-001** MUST: ...`: sin el keyword no queda texto.
+# El umbral separa eso de un requisito escrito, sin pretender juzgar su calidad.
+_MIN_FR_CHARS = 10
+
+# Escape hatch acotado al gate (SPEC-017 FR-US3-004). La alternativa historica
+# era `--no-verify`, que ademas apaga trazabilidad y reset post-commit.
+_BYPASS_ENV = "SDD_GATE_BYPASS"
 
 
 def _source_roots(repo_root: Path) -> list[str]:
@@ -85,9 +98,9 @@ def _registry_row(spec_id: str, repo_root: Path):  # type: ignore[no-untyped-def
 def _spec_invalid_reason(spec_id: str, repo_root: Path) -> str | None:
     """None si `spec_id` esta vigente (draft/active); si no, el motivo del rechazo.
 
-    SPEC-006: reemplaza el viejo substring-match sobre el texto crudo del
-    registro (bypasseable con specs archived/superseded mencionadas en
-    prosa) por un parseo real de la fila y su estado.
+    SPEC-017 FR-US2-001: parseo real de la fila y su estado, no substring-match
+    sobre el texto crudo del registro (bypasseable con specs archived o
+    superseded mencionadas en prosa).
     """
     spec_file = repo_root / "specs" / f"{spec_id}.md"
     if not spec_file.exists():
@@ -100,17 +113,40 @@ def _spec_invalid_reason(spec_id: str, repo_root: Path) -> str | None:
     return None
 
 
-def _any_spec_touched_after_declaration(declared: list[str], repo_root: Path) -> bool:
-    """True si al menos una spec declarada fue editada despues de .sdd/current-spec."""
-    decl_path = repo_root / ".sdd" / "current-spec"
-    if not decl_path.exists():
+def _has_written_requirements(spec_file: Path) -> bool:
+    """True si la spec declara al menos un FR con texto propio.
+
+    Evidencia de que la spec precede al codigo (SPEC-017 FR-US3-001). Sustituye
+    al criterio anterior, que comparaba la mtime de la spec contra la de
+    `.sdd/current-spec`: la mtime es un proxy del contenido que renuevan
+    checkout, clone y el ciclo stash/restore de pre-commit —bloqueando el flujo
+    legitimo de varios commits por spec— y que un `touch` satisface —no
+    deteniendo a quien quiera saltearlo—. El contenido es determinista, no
+    necesita git y da la misma respuesta en cualquier maquina.
+    """
+    try:
+        text = spec_file.read_text(encoding="utf-8")
+    except OSError:
         return False
-    decl_mtime = decl_path.stat().st_mtime
-    for spec_id in declared:
-        spec_file = repo_root / "specs" / f"{spec_id}.md"
-        if spec_file.exists() and spec_file.stat().st_mtime > decl_mtime:
+    for match in _FR_DECL_LINE.finditer(text):
+        cuerpo = _FR_KEYWORD.sub("", match.group(1))
+        if sum(c.isalnum() for c in cuerpo) >= _MIN_FR_CHARS:
             return True
     return False
+
+
+def _specs_sin_requisitos(declared: list[str], repo_root: Path) -> list[str]:
+    """Specs declaradas que todavia no tienen requisitos escritos.
+
+    Se evalua cada una (FR-US3-002): el criterio anterior se conformaba con que
+    *alguna* estuviera tocada, asi que declarar dos specs y escribir una
+    habilitaba las dos.
+    """
+    return [
+        spec_id
+        for spec_id in declared
+        if not _has_written_requirements(repo_root / "specs" / f"{spec_id}.md")
+    ]
 
 
 def _declared_file_path(payload: dict[str, object]) -> str:
@@ -146,12 +182,13 @@ def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:
             f"declarada(s) invalida(s) — {detalle}. Deben existir en specs/ y "
             "estar registradas en SPECS_REGISTRY.md con estado draft o active."
         )
-    if not _any_spec_touched_after_declaration(declared, repo_root):
+    sin_requisitos = _specs_sin_requisitos(declared, repo_root)
+    if sin_requisitos:
         return False, (
             "Edicion de codigo fuente bloqueada (gate spec-first): la(s) spec(s) "
-            f"declarada(s) ({', '.join(declared)}) no fueron editadas despues de "
-            "declararlas en .sdd/current-spec. Edita la spec primero (agrega/actualiza "
-            "el FR) y luego edita el codigo."
+            f"declarada(s) ({', '.join(sin_requisitos)}) no tiene(n) requisitos "
+            "escritos. Escribi los FR (**FR-NNN** MUST: ...) antes de tocar codigo. "
+            "Ver docs/SDD-ENFORCEMENT.md."
         )
     return True, ""
 
@@ -212,10 +249,20 @@ def main(argv: list[str] | None = None) -> int:
         allow, reason = decide(payload, repo_root)
         if not allow and reason:
             reasons.append(reason)
-    if reasons:
-        print("\n".join(reasons), file=sys.stderr)
-        return 2
-    return 0
+    if not reasons:
+        return 0
+
+    # Se imprime siempre lo que se estaria bloqueando: un bypass silencioso es
+    # indistinguible de un gate que no corre (SPEC-017 FR-US3-004).
+    print("\n".join(reasons), file=sys.stderr)
+    bypass = os.environ.get(_BYPASS_ENV, "").strip()
+    if bypass:
+        print(
+            f"{_BYPASS_ENV} activo - se permite igual. Motivo: {bypass}",
+            file=sys.stderr,
+        )
+        return 0
+    return 2
 
 
 if __name__ == "__main__":

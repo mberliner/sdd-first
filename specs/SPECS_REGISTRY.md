@@ -19,7 +19,7 @@
 | SPEC-003 | Happy path de instalación | active | 1 | hibrido | [SPEC-003-install-happy-path.md](SPEC-003-install-happy-path.md) |
 | SPEC-004 | Enforcement hardening (bootstrap hooks, reset post-commit, pre-commit robusto) | active | 1 | hibrido | [SPEC-004-enforcement-hardening.md](SPEC-004-enforcement-hardening.md) |
 | SPEC-005 | Desduplicar SSOTs del kit (docs/templates, defaults) | active | 1 | hibrido | [SPEC-005-desduplicar-ssot.md](SPEC-005-desduplicar-ssot.md) |
-| SPEC-006 | El gate verifica el estado (draft/active) de la spec declarada | active | 1 | hibrido | [SPEC-006-gate-verifica-estado-spec.md](SPEC-006-gate-verifica-estado-spec.md) |
+| SPEC-006 | El gate verifica el estado (draft/active) de la spec declarada | superseded | 1 | hibrido | [SPEC-006-gate-verifica-estado-spec.md](SPEC-006-gate-verifica-estado-spec.md) |
 | SPEC-007 | README propio y manual de operación SDD en el proyecto derivado | active | 1 | hibrido | [SPEC-007-derived-project-onboarding.md](SPEC-007-derived-project-onboarding.md) |
 | SPEC-008 | Renombrar mensajes internos sdd-kit a sdd-first | draft | - | hibrido | [SPEC-008-rename-sdd-first.md](SPEC-008-rename-sdd-first.md) |
 | SPEC-009 | Paso `coverage` con umbrales opcionales y plantilla de CI derivada del config | active | 2 | hibrido | [SPEC-009-coverage-y-ci.md](SPEC-009-coverage-y-ci.md) |
@@ -30,3 +30,4 @@
 | SPEC-014 | El proyecto derivado dice la verdad sobre sí mismo (wiring, rutas, rama) | active | 3 | hibrido | [SPEC-014-derivado-dice-la-verdad.md](SPEC-014-derivado-dice-la-verdad.md) |
 | SPEC-015 | El wiring del gate apunta al código real del proyecto | active | 3 | hibrido | [SPEC-015-wiring-apunta-al-codigo-real.md](SPEC-015-wiring-apunta-al-codigo-real.md) |
 | SPEC-016 | Las skills quedan usables apenas termina sdd-init | active | 3 | hibrido | [SPEC-016-skills-listas-tras-init.md](SPEC-016-skills-listas-tras-init.md) |
+| SPEC-017 | Gate spec-first: qué decide bloquear una edición de código | active | 3 | hibrido | [SPEC-017-gate-decision-spec-first.md](SPEC-017-gate-decision-spec-first.md) |
