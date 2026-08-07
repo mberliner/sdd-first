@@ -13,7 +13,9 @@
 > decide*): el wiring de las tres capas y su pre-filtro
 > ([[SPEC-015-wiring-apunta-al-codigo-real]]), la resolución de la raíz del
 > proyecto ([[SPEC-014-derivado-dice-la-verdad]] FR-US1-003), y el bootstrap de
-> hooks + reset post-commit ([[SPEC-004-enforcement-hardening]]).
+> hooks + reset post-commit ([[SPEC-004-enforcement-hardening]]). Sí es de acá,
+> en cambio, que el aviso del gate **llegue** a quien commitea: es la garantía
+> del escape hatch, no la configuración de a qué archivos se aplica.
 
 ## User Story 1 (Priority P1) — ninguna edición de código sin spec declarada
 
@@ -97,6 +99,26 @@ solo tiene los placeholders de la plantilla bloquea.
   tener enforcement en vez de saltearse un caso. G-5 pide explícitamente el
   escape hatch además de la documentación.
 
+### Session 2026-08-07
+
+- Q: FR-US3-004 exige el aviso en stderr y los tests unitarios lo verifican, pero
+  al commitear no aparece. ¿Dónde se pierde? → A: en el transporte. En el flujo
+  real el gate corre como hook de `pre-commit`, que **descarta la salida de los
+  hooks que pasan** y muestra solo `Passed`. Con el bypass el gate sale exit 0,
+  o sea que pre-commit se traga justo el caso que el requisito quería hacer
+  visible: un bypass queda indistinguible de un commit normal. La garantía existía
+  a nivel unitario y se evaporaba de punta a punta (**V-2** de `docs/IDEAS.md`,
+  hallada al escribir los escenarios de [[SPEC-018-verificacion-e2e]]).
+- Q: ¿`verbose: true` en el hook no llena de ruido cada commit? → A: no. El gate
+  imprime **solo** cuando hay algo que bloquear (`sdd_gate.main` retorna 0 sin
+  escribir nada si no hay motivos), así que el único caso en que un hook que pasa
+  tiene salida es exactamente el bypass. `verbose` no agrega texto al camino
+  feliz: destapa el que ya se estaba escribiendo.
+- Q: ¿Y la alternativa de que el gate deje el rastro en un archivo? → A:
+  descartada. Agrega un artefacto y un ciclo de vida (quién lo limpia, si se
+  commitea) para que el operador se entere **después** de que el commit ya se
+  hizo. El aviso sirve en el momento de decidir, no en la auditoría posterior.
+
 ## Acceptance Scenarios
 
 ### US1 — bloqueo sin declaración
@@ -135,6 +157,9 @@ solo tiene los placeholders de la plantilla bloquea.
 - **Given** una decisión de bloqueo, **When** el entorno trae
   `SDD_GATE_BYPASS=<motivo>`, **Then** permite y deja el motivo en stderr; con la
   variable vacía o ausente, bloquea igual.
+- **Given** un repositorio con los hooks del kit instalados, **When** se commitea
+  código con `SDD_GATE_BYPASS=<motivo>`, **Then** la salida del commit muestra el
+  motivo y el bloqueo salteado, y no solo `Passed`.
 
 ## Functional Requirements
 
@@ -178,6 +203,9 @@ solo tiene los placeholders de la plantilla bloquea.
 - **FR-US3-006** MUST: `docs/SDD-ENFORCEMENT.md` (SSOT del enforcement) describe
   el criterio vigente, el endurecimiento multi-spec y el escape hatch, y ningún
   otro documento del kit repite la política.
+- **FR-US3-007** MUST: el wiring de `pre-commit` que el kit instala entrega al
+  operador la salida del hook del gate **aunque el hook pase**, para que el aviso
+  de FR-US3-004 sobreviva al transporte. El wiring del propio kit cumple lo mismo.
 
 ## Key Entities
 
@@ -227,6 +255,7 @@ solo tiene los placeholders de la plantilla bloquea.
 | FR-US3-004 | tests/unit/test_gate_evidencia_contenido.py |
 | FR-US3-005 | tests/unit/test_gate_evidencia_contenido.py |
 | FR-US3-006 | tests/unit/test_derived_references.py |
+| FR-US3-007 | tests/unit/test_wiring_precommit_verbose.py, tests/e2e/escenarios/test_ciclo_spec_first.py |
 
 ## Fuera de alcance
 
@@ -243,3 +272,6 @@ solo tiene los placeholders de la plantilla bloquea.
 
 - 2026-08-06: creada (draft) y promovida a `active` en la iteración 3. Absorbe
   SPEC-006 y el criterio que enumeraba SPEC-001 FR-002; cierra G-5.
+- 2026-08-07 (iteración 4): FR-US3-007. La suite e2e mostró que el aviso del
+  escape hatch no sobrevivía al transporte de `pre-commit` (V-2); el requisito
+  extiende la garantía de FR-US3-004 hasta el operador.

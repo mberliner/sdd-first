@@ -123,10 +123,11 @@ def test_escenario_3_dos_specs_con_commit_al_final(derivado_con_hooks: Path) -> 
 def test_el_escape_hatch_permite_y_deja_rastro(derivado_con_hooks: Path) -> None:
     """`SDD_GATE_BYPASS` es la salida acotada; `--no-verify` apagaria todo.
 
-    El rastro se verifica sobre el gate y no sobre la salida del commit: cuando
-    el hook sale 0, `pre-commit` reporta "Passed" y **se traga su salida**, asi
-    que en el flujo real el aviso del bypass no le llega al operador. Es un
-    hueco anotado en `docs/IDEAS.md`; asertarlo aca lo dejaria congelado.
+    El rastro se exige en los dos planos: sobre el gate (FR-US3-004) y sobre la
+    salida del commit (FR-US3-007). El segundo es el que fallaba: `pre-commit`
+    descarta la salida de los hooks que pasan, y el gate pasa —imprimiendo el
+    aviso— justo cuando el bypass saltea un bloqueo, asi que el operador veia un
+    `Passed` mudo. Lo destapa `verbose: true` en el wiring (V-2 de IDEAS).
     """
     destino = derivado_con_hooks
     _declarar(destino)
@@ -145,9 +146,8 @@ def test_el_escape_hatch_permite_y_deja_rastro(derivado_con_hooks: Path) -> None
         f"un bypass vacio no habilita nada{sin_motivo.detalle()}"
     )
 
-    espera_exit(
-        entorno.commitear(
-            destino, "fix: sin spec", env={"SDD_GATE_BYPASS": "hotfix de produccion"}
-        ),
-        porque="con motivo, el commit sin spec declarada pasa",
+    commit = entorno.commitear(
+        destino, "fix: sin spec", env={"SDD_GATE_BYPASS": "hotfix de produccion"}
     )
+    espera_exit(commit, porque="con motivo, el commit sin spec declarada pasa")
+    dice(commit, "SDD_GATE_BYPASS activo", "hotfix de produccion")

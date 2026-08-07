@@ -8,6 +8,12 @@
 # sería una segunda copia de `dirs.source_roots` y solo puede equivocarse. Se le
 # pasan todos los archivos staged y `sdd_gate.py` —que sí lee el config— decide
 # cuáles son código fuente.
+#
+# `verbose: true` en `sdd-gate` (SPEC-017 FR-US3-007): pre-commit descarta la
+# salida de los hooks que pasan, y el gate pasa —imprimiendo el aviso— justo
+# cuando `SDD_GATE_BYPASS` saltea un bloqueo. Sin esto el bypass queda tan
+# silencioso como un commit normal. No agrega ruido al camino feliz: el gate no
+# escribe nada cuando no hay nada que bloquear.
 repos:
   - repo: local
     hooks:
@@ -17,6 +23,7 @@ repos:
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: true
+        verbose: true
       - id: sdd-traceability
         name: sdd traceability
         entry: python tools/sdd/core/check_traceability.py specs
