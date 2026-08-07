@@ -1,5 +1,81 @@
 # Historial SDD — sdd-first
 
+## 2026-08-07 — SPEC-019 + enmiendas a SPEC-014/017: cerrar lo que encontró la suite e2e
+
+**Scope:** `specs/SPEC-019-...` (nueva), `specs/SPEC-014-...` (FR-US2-006, SC-007),
+`specs/SPEC-017-...` (FR-US3-007), `adapters/CONTRACT.md`,
+`adapters/python/adapter.py`, `core/pipeline.py`, `core/sdd_config.py`,
+`core/sdd_doctor.py`, `core/sdd_init.py`, `core/render.py`, `AGENTS.md` y
+`templates/` (AGENTS, README, wiring), `.pre-commit-config.yaml`,
+`examples/config/config.yaml`, tests unitarios y e2e, `docs/IDEAS.md`.
+
+**Qué cambió:** los tres hallazgos de la primera corrida de la suite e2e (V-1..V-3)
+quedaron cerrados en la iteración siguiente a la que los encontró.
+
+- **V-1 → SPEC-019.** Paso `integration` en el adaptador, que ejecuta
+  `dirs.tests_integration` y nada más; `sdd-doctor` reporta toda carpeta de tests
+  declarada que ningún paso de `pipeline.steps` corre; `sdd-init` detecta la
+  carpeta, la siembra y siembra el paso.
+- **V-2 → SPEC-017 FR-US3-007.** `verbose: true` en el hook `sdd-gate` de las dos
+  copias del wiring: el aviso del escape hatch ahora llega a quien commitea.
+- **V-3 → SPEC-014 FR-US2-006.** El dominio lo declara `CONSTITUTION.md`, que se
+  regenera; `AGENTS.md` y el README de plantilla remiten en vez de copiarlo.
+
+**Por qué:** los tres eran promesas que se cumplían por partes y se rompían en el
+producto instalado — un requisito verificado en unitarios cuyo aviso el transporte
+descartaba, una clave del config que nadie ejecutaba, un dato del proyecto
+congelado en el momento de la instalación. Es la clase de defecto que motivó
+SPEC-018, y la primera vez que el kit los encuentra sin campaña manual.
+
+**Decisiones:**
+- **Un paso `integration` propio y no `tests` corriendo todo.** Era la opción de
+  una línea, y se descartó: `adapters/CONTRACT.md` define `tests` como suite
+  unitaria, así que `step_tests` no se había olvidado de la clave. Reescribir esa
+  definición le impondría a todos los derivados el ciclo único que SPEC-018 acababa
+  de rechazar para el kit. El paso opcional conserva la distinción rápido/lento y
+  **amplía** el contrato en vez de redefinirlo.
+- **El paso opcional exige el aviso.** Dejar el paso a criterio del proyecto
+  reintroduce el agujero silencioso que la spec corrige, salvo que alguien lo mire:
+  por eso US2 y el mapa `TEST_DIR_STEP` como SSOT de qué paso corre qué carpeta.
+- **El dominio se elimina, no se sincroniza.** Regenerar `AGENTS.md` en el derivado
+  exigiría vendorizar plantillas a cada proyecto: más superficie instalada para
+  sostener una copia que conviene no tener. El artefacto que ya se regenera es
+  `CONSTITUTION.md`, y el protocolo ya manda leerlo antes de cualquier cambio.
+- **El kit no declara `tests_integration`.** No tiene esa carpeta y sus e2e siguen
+  fuera del pipeline (SPEC-018). El dogfooding del paso nuevo se hace donde
+  corresponde: un escenario e2e sobre un derivado que sí separa sus dos suites.
+- **Enmendar SPEC-014/017 en vez de abrir specs nuevas.** V-2 es la garantía de
+  FR-US3-004 perdida en el transporte y V-3 es literalmente el invariante de la
+  HU-2 de SPEC-014 (*el derivado no afirma nada que no sea cierto de sí mismo*).
+  Specs nuevas habrían duplicado el SSOT de dos políticas vigentes.
+
+**Hallazgos:** al agregar el paso, el pipeline lo reportó *"paso desconocido"* y lo
+descontó del total sin ruido: `pipeline.CODE_STEPS` y el dispatcher del adaptador
+enumeran los pasos por separado y nada los ata (**C-8**, familia de C-1). Queda un
+test que cruza las dos listas; la duplicación sigue anotada.
+
+**Deuda:** C-8. La precisión sobre V-1 quedó registrada: el síntoma no era "esos
+tests no corren" sino que corrían dentro de `coverage` —y su fallo se reportaba
+como cobertura— cuando había umbrales declarados, y en ningún lado cuando no.
+
+**Verificación:** pipeline VERDE 10/10 (los mismos pasos que antes), 310 passed +
+1 skip en `tests/unit`, 17 en `tests/e2e`, `render --check` sincronizado,
+`sdd-doctor` sano.
+
+**SSOTs afectados:** `adapters/CONTRACT.md` (contrato de pasos),
+`core/sdd_config.py` (`TEST_DIR_STEP`), `CONSTITUTION.md` (dominio del proyecto),
+`specs/SPEC-017` (política del gate), `specs/SPEC-014` (verdad del derivado),
+`specs/SPEC-019` (contrato de los pasos de test).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-014, SPEC-017, SPEC-018, SPEC-019, SPEC-003, SPEC-009
+- Includes/excludes verificados: el kit no declara dirs.tests_integration y no
+  gana el paso `integration`; tests/e2e sigue fuera de testpaths y del pipeline
+- SSOTs afectados: adapters/CONTRACT.md, core/sdd_config.py (TEST_DIR_STEP),
+  CONSTITUTION.md (dominio), SPEC-014, SPEC-017, SPEC-019
+```
+
 ## 2026-08-07 — SPEC-018: el kit se verifica instalado, no solo por partes
 
 **Scope:** `tests/e2e/` (harness + 5 escenarios + README), `tests/conftest.py` y

@@ -206,33 +206,37 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 Los tres salieron de escribir los escenarios de [[SPEC-018-verificacion-e2e]]:
 ninguno lo veía la suite unitaria.
 
-- **V-1 · `tests_integration` está cableada a medias.** Es clave de primera clase
-  del config (`sdd_config.py`, `render.py:184`, los dos prefiltros de wiring) y
-  figura en `examples/config/config.yaml`, pero: `sdd-init` nunca la siembra
-  (`_seed_dirs` solo escribe `tests_unit`), **`step_tests` no la corre**
-  (`adapters/python/adapter.py:132-135` usa solo `tests_unit`) y ninguna plantilla
-  le dice al adoptante dónde poner esos tests. Efecto neto: un proyecto que la
-  declara ve sus tests de integración linteados y medidos por `coverage`
-  —`_source_and_test_dirs` sí la incluye— pero **nunca ejecutados** por el paso
-  que dice ejecutarlos. Fix: decidir el contrato (¿un paso propio? ¿`step_tests`
-  corre ambas?) y hacerlo coherente en adaptador + `sdd-init` + plantillas. Es
-  cambio de producto sobre `core/` y `adapters/`: spec propia. Declarado fuera de
-  alcance en SPEC-018.
-- **V-2 · El aviso de `SDD_GATE_BYPASS` no le llega al operador.** El gate imprime
-  en stderr el motivo del bypass y el bloqueo que se saltea (SPEC-017 FR-US3-004),
-  pero en el flujo real el gate corre como hook de `pre-commit`, que **se traga la
-  salida de los hooks que pasan** y solo muestra `Passed`. La garantía existe a
-  nivel unitario y se evapora de punta a punta: un bypass queda tan silencioso
-  como un commit normal. Fix candidato: `verbose: true` en el hook `sdd-gate` de
-  `templates/wiring/.pre-commit-config.yaml`, o que el gate escriba el rastro en
-  un archivo que el commit incluya.
-- **V-3 · Cambiar `project.domain` después de instalar no propaga a ningún lado.**
-  `AGENTS.md` recibe el dominio por sustitución de `{{project.domain}}` **en la
-  instalación**; `render.py` no lo regenera (en el derivado no hay `templates/`) y
-  ningún artefacto derivado lo refleja. El proyecto que corre `sdd-configure` o
-  edita el config a mano queda con un `AGENTS.md` que afirma el dominio viejo, sin
-  que `render --check` ni `sdd-doctor` lo noten. Es la misma clase que U-4..U-11
-  ("el derivado dice cosas falsas sobre sí mismo").
+Los tres quedaron **resueltos el 2026-08-07**, en la misma iteración que los
+encontró.
+
+- **V-1 · `tests_integration` estaba cableada a medias.** Resuelto por
+  [[SPEC-019-tests-integracion-ejecutados]]. Era clave de primera clase del config
+  (`sdd_config.py`, `render.py:184`, los dos prefiltros de wiring) y figuraba en
+  `examples/config/config.yaml`, pero `sdd-init` nunca la sembraba y **ningún paso
+  la ejecutaba**: `step_tests` usaba solo `tests_unit`. El síntoma no era "esos
+  tests no corren" sino que corrían **en el paso equivocado o en ninguno**, según
+  una clave sin relación con ellos: con `pipeline.coverage` declarado,
+  `step_coverage` los arrastraba —pasa todas las carpetas de test a pytest—, así
+  que un test de integración roto pintaba `coverage` en rojo y se ejecutaba una
+  vez por umbral; sin umbrales, no se ejecutaba nunca. Se cerró con un paso
+  `integration` propio (el contrato define `tests` como suite unitaria, y fundirlos
+  habría impuesto un ciclo único a todos los derivados) más el aviso de
+  `sdd-doctor` cuando una carpeta declarada no la corre ningún paso.
+- **V-2 · El aviso de `SDD_GATE_BYPASS` no le llegaba al operador.** Resuelto por
+  [[SPEC-017-gate-decision-spec-first]] FR-US3-007. El gate imprime en stderr el
+  motivo del bypass y el bloqueo que se saltea (FR-US3-004), pero en el flujo real
+  corre como hook de `pre-commit`, que **descarta la salida de los hooks que
+  pasan** y solo muestra `Passed` — justo el caso del bypass, donde el gate sale 0.
+  La garantía existía a nivel unitario y se evaporaba de punta a punta. Se cerró
+  con `verbose: true` en el hook `sdd-gate` de las dos copias del wiring, que no
+  agrega ruido porque el gate no escribe nada cuando no hay nada que bloquear.
+- **V-3 · Cambiar `project.domain` después de instalar no propagaba a ningún
+  lado.** Resuelto por [[SPEC-014-derivado-dice-la-verdad]] FR-US2-006. `AGENTS.md`
+  recibía el dominio por sustitución de `{{project.domain}}` **en la instalación**;
+  `render.py` no lo regenera (en el derivado no hay `templates/`) y ningún
+  artefacto derivado lo reflejaba. Se cerró eliminando la copia en vez de
+  sincronizarla: el dominio lo declara `CONSTITUTION.md`, que sí es generado y sí
+  lo vigila `render --check`; `AGENTS.md` y el `README.md` de plantilla remiten.
 
 ## P2 — Bugs y asperezas menores de código
 
@@ -259,6 +263,15 @@ ninguno lo veía la suite unitaria.
   (`gen_import_linter.py`); `_ = src` en `sdd_init._install_project_skills`;
   estado `notas` en `VALID_ESTADOS` sin convención documentada (¿vestigio del
   proyecto de referencia? decidir: documentar o eliminar).
+- **C-8 · Los pasos de código están declarados dos veces.** `pipeline.CODE_STEPS`
+  y el dispatcher `STEPS` del adaptador enumeran lo mismo por separado, y no hay
+  nada que los ate: al agregar `integration` (SPEC-019) el paso quedó implementado
+  y el pipeline lo reportó "paso desconocido", descontándolo del total sin ruido
+  —la familia de C-1—. Lo tapa `tests/unit/test_adapter_integration.py`, que cruza
+  las dos listas, pero la duplicación sigue. Fix: que el pipeline pregunte al
+  adaptador qué pasos soporta, o que la lista salga de un SSOT en `sdd_config.py`.
+  Ojo con el agnosticismo: `PROCESS_STEPS` es del núcleo y `CODE_STEPS` del
+  lenguaje, así que no es un simple merge.
 
 ## P2/P3 — Producto y distribución
 
