@@ -1,5 +1,32 @@
 # Historial SDD — sdd-first
 
+## 2026-08-07 — SPEC-013 (FR-007): forzar la lectura del playbook en Codex/Antigravity
+
+**Scope:** `specs/SPEC-013-proyecto-derivado-coherente.md` (iteración 4),
+`.agents/skills/sdd-configure/SKILL.md` (SSOT del wrapper), adaptadores
+regenerados (`.claude/skills/sdd-configure/SKILL.md`,
+`.opencode/command/sdd-configure.md`), `specs/SPECS_REGISTRY.md`.
+
+**Qué cambió:** el wrapper que leen Codex y Antigravity directo (sin pasar por
+`gen_skill_adapters.py`) pasó de mencionar el playbook de forma pasiva ("Leé y
+seguí el playbook...") a exigir explícitamente abrirlo y leerlo completo antes
+de preguntar nada, sin resumir de memoria.
+
+**Por qué:** probado en la práctica con Claude Code y Antigravity corriendo el
+mismo `sdd-configure` (FR-006, iteración anterior): Claude Code mostró el
+preámbulo explicativo nuevo, Antigravity no — pese a que ambos leen exactamente
+el mismo `docs/playbooks/sdd-configure.md`, sin drift. La causa no era el
+contenido sino el comportamiento del asistente: Claude Code fuerza la carga
+del archivo referenciado por su mecanismo nativo de skills; Antigravity no
+tiene garantía equivalente y puede correr la skill sin abrir el playbook. Es
+lo único accionable desde el contenido del kit — no hay forma de replicar
+desde acá el mecanismo de carga forzada de Claude Code.
+
+**Decisiones:** se reforzó el wrapper en vez de duplicar el contenido del
+playbook ahí (rompería el SSOT). No hay garantía de que todo asistente
+obedezca una instrucción más imperativa, pero es la palanca disponible.
+Pipeline VERDE 10/10, 310 tests + 1 skip.
+
 ## 2026-08-07 — SPEC-013 (FR-006): preámbulo explicativo en el wizard de sdd-configure
 
 **Scope:** `specs/SPEC-013-proyecto-derivado-coherente.md` (reabierta, iteración 3),

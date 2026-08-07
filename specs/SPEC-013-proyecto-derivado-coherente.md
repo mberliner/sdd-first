@@ -66,6 +66,21 @@ instalados apunta a un archivo ausente.
   sincronizado a `docs/playbooks/sdd-configure.md` vía `render.py`). No hay
   lógica nueva: es la instrucción que el asistente sigue al conversar con el
   dueño del proyecto.
+- Q: probado en la práctica con Claude Code y con Antigravity, ¿el preámbulo
+  llegó a los dos? → A: no. Claude Code lo mostró; Antigravity no. Los dos
+  leen el mismo `docs/playbooks/sdd-configure.md` (verificado, sin drift), así
+  que no es un problema del contenido: Antigravity corrió el wizard sin abrir
+  el playbook referenciado desde `.agents/skills/sdd-configure/SKILL.md`, algo
+  que Claude Code sí hace porque su mecanismo de skills fuerza la carga del
+  archivo referenciado antes de proceder.
+- Q: ¿cómo se mitiga si no se puede forzar la lectura desde el kit? → A: se
+  refuerza el wrapper (`.agents/skills/sdd-configure/SKILL.md`, que Codex y
+  Antigravity leen directo, ver `docs/SKILLS-MULTITOOL.md`) con una
+  instrucción imperativa ("abrí y leé completo el playbook, no resumas de
+  memoria") en vez de la mención pasiva anterior. No garantiza que todo
+  asistente la respete, pero es lo único accionable desde el contenido del
+  kit — el mecanismo de carga forzada de Claude Code no es replicable desde
+  acá.
 
 ## Acceptance Scenarios
 
@@ -85,6 +100,10 @@ instalados apunta a un archivo ausente.
   pipeline), **Then** el playbook le da, antes de preguntar, una explicación
   en lenguaje simple de qué es ese campo, para qué sirve y qué efecto
   concreto tiene responderlo.
+- **Given** un asistente que lee `.agents/skills/sdd-configure/SKILL.md`
+  directo (Codex, Antigravity), **When** invoca la skill, **Then** el wrapper
+  le exige explícitamente abrir y leer completo el playbook antes de
+  preguntar nada, en vez de mencionarlo de forma pasiva.
 
 ## Functional Requirements
 
@@ -113,6 +132,11 @@ instalados apunta a un archivo ausente.
   el vocabulario de SDD. `docs/playbooks/sdd-configure.md` (del propio kit)
   refleja el mismo texto vía `render.py` (`_SYNCED_FROM_TEMPLATES`), no una
   copia editada a mano.
+- **FR-007** MUST: `.agents/skills/sdd-configure/SKILL.md` (el wrapper que
+  leen Codex y Antigravity directo, sin pasar por `gen_skill_adapters.py`)
+  instruye de forma imperativa abrir y leer completo el playbook antes de
+  preguntar nada — no una mención pasiva que un asistente pueda saltear
+  confiando en lo que "cree" recordar del nombre de la skill.
 
 ## Key Entities
 
@@ -124,6 +148,8 @@ instalados apunta a un archivo ausente.
   (nuevo).
 - `templates/docs/playbooks/sdd-configure.md` — aviso de enforcement no
   disponible; preámbulo explicativo por pregunta (FR-006).
+- `.agents/skills/sdd-configure/SKILL.md` — wrapper leído directo por Codex y
+  Antigravity; instrucción imperativa de lectura del playbook (FR-007).
 
 ## Success Criteria
 
@@ -138,6 +164,11 @@ instalados apunta a un archivo ausente.
   `templates/docs/playbooks/sdd-configure.md` (y su reflejo sincronizado en
   `docs/playbooks/sdd-configure.md`) tiene una explicación previa en lenguaje
   simple (antes: preguntaba directo, sin contexto).
+- **SC-006** `.agents/skills/sdd-configure/SKILL.md` instruye explícitamente
+  leer el playbook completo antes de preguntar (antes: "leé y seguí el
+  playbook" sin marcar que es obligatorio hacerlo antes de proceder;
+  Antigravity, probado en la práctica, corrió el wizard sin el preámbulo
+  nuevo).
 
 ## Assumptions
 
@@ -159,6 +190,7 @@ instalados apunta a un archivo ausente.
 | FR-004 | tests/unit/test_derived_references.py |
 | FR-005 | verificación manual (playbook) |
 | FR-006 | verificación manual (playbook); tests/unit/test_render.py (sync sin drift) |
+| FR-007 | verificación manual (probado con Antigravity); tests/unit/test_gen_skill_adapters.py (sync sin drift) |
 
 ## Fuera de alcance
 
@@ -180,3 +212,9 @@ instalados apunta a un archivo ausente.
   wizard de `sdd-configure`, para quien lo corre sin conocer el vocabulario de
   SDD). Editado `templates/docs/playbooks/sdd-configure.md`; sincronizado a
   `docs/playbooks/sdd-configure.md` vía `render.py`.
+- 2026-08-07: FR-007. Probado en la práctica con Claude Code y Antigravity:
+  el preámbulo llegó a Claude Code pero no a Antigravity, aunque ambos leen el
+  mismo playbook sin drift — Antigravity no abrió el archivo referenciado
+  antes de correr el wizard. Reforzado `.agents/skills/sdd-configure/SKILL.md`
+  con una instrucción imperativa de lectura; regenerados los adaptadores.
+  Pipeline VERDE 10/10, 310 tests + 1 skip.
