@@ -1,5 +1,76 @@
 # Historial SDD — sdd-first
 
+## 2026-08-07 — SPEC-018: el kit se verifica instalado, no solo por partes
+
+**Scope:** `tests/e2e/` (harness + 5 escenarios + README), `tests/conftest.py` y
+`tests/fixtures_proyecto.py` (nuevos), `tests/unit/conftest.py`,
+`tests/unit/test_e2e_entorno.py` y `test_e2e_aislamiento.py` (nuevos),
+`.github/workflows/e2e.yml` (escrito a mano), `specs/SPEC-018-...`, `00-INDEX.md`,
+`docs/IDEAS.md`.
+
+**Qué cambió:** la campaña manual de usabilidad del derivado —que vivía en una
+carpeta sin versionar, sin CI y sin aserciones— pasó a ser una suite e2e
+versionada. Cada escenario instala el kit de verdad (`core/sdd_init.py` como
+subproceso sobre un repositorio git nuevo) en un workspace efímero fuera del
+árbol del kit, y afirma **contenido**, no solo códigos de salida. `pytest
+tests/e2e -q`: 12 tests, ~35 s.
+
+**Por qué:** los tres defectos que más costaron en las iteraciones 2 y 3 —falso
+verde del pipeline, skills que el instalador recomendaba y no existían, gate que
+bloqueaba el segundo commit de una misma spec— no los detectó ningún test
+unitario. Ninguna función mentía: mentía el conjunto instalado.
+
+**Decisiones:**
+- **Spec propia y no "unos tests más".** `tests/` está fuera de `source_roots`, así
+  que el gate no lo exigía, pero SPEC-012 ya es precedente de una spec sobre la
+  suite, y lo que se agrega es un nivel de verificación con contrato de entorno y
+  CI propios. SPEC-018 automatiza además el SC-004 de SPEC-017, que hasta ahora
+  pedía una corrida manual.
+- **No declarar `tests/e2e` como `dirs.tests_integration`.** Era la idea inicial,
+  para que el `ci.yml` generado la vigilara. Se descartó al verificarlo en código:
+  `_source_and_test_dirs` incluye esa clave y `step_coverage` le pasa las carpetas
+  a pytest, así que `core/pipeline.py` habría corrido toda la suite e2e dentro del
+  paso `coverage`; y el beneficio no existía, porque ese workflow invoca al
+  pipeline, que no corre e2e. Fijado con `tests/unit/test_e2e_aislamiento.py` para
+  que nadie lo reintroduzca sin enterarse.
+- **Un solo mecanismo de selección.** Se descartó registrar una marca `e2e`:
+  `testpaths = ["tests/unit"]` ya los excluye y dos filtros para lo mismo violan el
+  Principio IV.
+- **Degradado explícito en vez de dependencia dura.** Sin `pre-commit` utilizable
+  los escenarios de commits reales se omiten **nombrando qué faltó**; con
+  `SDD_E2E_STRICT` (que CI setea) la misma condición es fallo.
+- **Workflow e2e escrito a mano.** `render_ci_workflow` produce el job universal
+  que reciben los derivados; un job específico del kit no puede salir de ahí.
+- **El informe de la campaña manual no se importa.** Su continuidad son los
+  escenarios, que citan en sus docstrings los defectos que lo originaron.
+
+**Hallazgos de la primera corrida** (anotados como V-1..V-3 en `docs/IDEAS.md`):
+`tests_integration` está cableada a medias y el paso `tests` nunca la ejecuta; el
+aviso de `SDD_GATE_BYPASS` no le llega al operador porque `pre-commit` se traga la
+salida de los hooks que pasan; y cambiar `project.domain` después de instalar no
+propaga a ningún artefacto del derivado.
+
+**Deuda:** V-1 necesita spec propia (es cambio de producto sobre `core/` y
+`adapters/`) y quedó fuera del alcance de SPEC-018. Los escenarios de otros
+lenguajes esperan a que existan los adaptadores.
+
+**SSOTs afectados:** `tests/e2e/README.md` (estrategia de verificación e2e, fila
+nueva en `00-INDEX.md`), `specs/SPEC-018-verificacion-e2e.md`,
+`specs/SPECS_REGISTRY.md`, `docs/IDEAS.md`.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-018-verificacion-e2e, SPEC-017-gate-decision-spec-first,
+  SPEC-016-skills-listas-tras-init, SPEC-015-wiring-apunta-al-codigo-real,
+  SPEC-014-derivado-dice-la-verdad, SPEC-012-suite-multiplataforma
+- Includes/excludes verificados: pipeline VERDE 10/10; 286 tests unitarios + 1
+  skip; `pytest tests/e2e` 12/12 en dos corridas consecutivas sin limpieza manual,
+  la segunda con SDD_E2E_STRICT=1; `git status` sin residuos tras correrla;
+  `render.py --check` sin drift; `sdd-doctor` exit 0
+- SSOTs afectados: tests/e2e/README.md, SPEC-018, SPECS_REGISTRY.md, 00-INDEX.md,
+  IDEAS.md
+```
+
 ## 2026-08-06 — SPEC-017: el gate valida contenido de la spec, no marcas de tiempo
 
 **Scope:** `core/sdd_gate.py`, `core/sdd_spec.py`, `templates/wiring/current-spec`,

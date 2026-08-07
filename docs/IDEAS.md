@@ -201,6 +201,39 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   equivocado sin una sola advertencia. Fix: validar los flags contra los
   conocidos y fallar con mensaje de uso ante cualquier otro.
 
+## P1 — Hallazgos de la primera corrida de la suite e2e (2026-08-07)
+
+Los tres salieron de escribir los escenarios de [[SPEC-018-verificacion-e2e]]:
+ninguno lo veía la suite unitaria.
+
+- **V-1 · `tests_integration` está cableada a medias.** Es clave de primera clase
+  del config (`sdd_config.py`, `render.py:184`, los dos prefiltros de wiring) y
+  figura en `examples/config/config.yaml`, pero: `sdd-init` nunca la siembra
+  (`_seed_dirs` solo escribe `tests_unit`), **`step_tests` no la corre**
+  (`adapters/python/adapter.py:132-135` usa solo `tests_unit`) y ninguna plantilla
+  le dice al adoptante dónde poner esos tests. Efecto neto: un proyecto que la
+  declara ve sus tests de integración linteados y medidos por `coverage`
+  —`_source_and_test_dirs` sí la incluye— pero **nunca ejecutados** por el paso
+  que dice ejecutarlos. Fix: decidir el contrato (¿un paso propio? ¿`step_tests`
+  corre ambas?) y hacerlo coherente en adaptador + `sdd-init` + plantillas. Es
+  cambio de producto sobre `core/` y `adapters/`: spec propia. Declarado fuera de
+  alcance en SPEC-018.
+- **V-2 · El aviso de `SDD_GATE_BYPASS` no le llega al operador.** El gate imprime
+  en stderr el motivo del bypass y el bloqueo que se saltea (SPEC-017 FR-US3-004),
+  pero en el flujo real el gate corre como hook de `pre-commit`, que **se traga la
+  salida de los hooks que pasan** y solo muestra `Passed`. La garantía existe a
+  nivel unitario y se evapora de punta a punta: un bypass queda tan silencioso
+  como un commit normal. Fix candidato: `verbose: true` en el hook `sdd-gate` de
+  `templates/wiring/.pre-commit-config.yaml`, o que el gate escriba el rastro en
+  un archivo que el commit incluya.
+- **V-3 · Cambiar `project.domain` después de instalar no propaga a ningún lado.**
+  `AGENTS.md` recibe el dominio por sustitución de `{{project.domain}}` **en la
+  instalación**; `render.py` no lo regenera (en el derivado no hay `templates/`) y
+  ningún artefacto derivado lo refleja. El proyecto que corre `sdd-configure` o
+  edita el config a mano queda con un `AGENTS.md` que afirma el dominio viejo, sin
+  que `render --check` ni `sdd-doctor` lo noten. Es la misma clase que U-4..U-11
+  ("el derivado dice cosas falsas sobre sí mismo").
+
 ## P2 — Bugs y asperezas menores de código
 
 - **C-1 · Paso desconocido cuenta como OK.** Resuelto de paso el 2026-08-05 al

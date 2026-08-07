@@ -29,6 +29,7 @@
 | Enforcement | `docs/SDD-ENFORCEMENT.md` |
 | Contrato de adaptadores | `adapters/CONTRACT.md` |
 | Mecanismo de skills multi-asistente | `docs/SKILLS-MULTITOOL.md` |
+| Verificación e2e del kit instalado | `tests/e2e/README.md` (requisitos: `specs/SPEC-018-verificacion-e2e.md`) |
 | Workflow de CI | `.github/workflows/ci.yml` (← `.sdd/config.yaml`, generado) |
 | Fuente de skills | `.agents/skills/` (genera `.claude/` y `.opencode/`) |
 | Playbooks de skills | `docs/playbooks/` |

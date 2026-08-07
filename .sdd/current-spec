@@ -2,4 +2,3 @@
 # El gate spec-first (core/sdd_gate.py) exige que cada spec listada aquí
 # exista, esté registrada con estado vigente y tenga sus requisitos (FR) escritos.
 # Vacío = ninguna edición de código fuente permitida.
-SPEC-018-verificacion-e2e
