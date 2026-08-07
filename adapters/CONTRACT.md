@@ -17,7 +17,8 @@ python adapters/<language>/adapter.py <step>
 | `format` | Formato (modo check). |
 | `types` | Tipos (si el lenguaje lo soporta). |
 | `security` | Análisis de seguridad estático. |
-| `tests` | Suite de tests unitarios. |
+| `tests` | Suite de tests unitarios (`dirs.tests_unit`). |
+| `integration` | Suite de tests de integración (`dirs.tests_integration`). |
 
 ## Contrato
 
@@ -37,6 +38,11 @@ python adapters/<language>/adapter.py <step>
   Ver SPEC-003 FR-009 y SPEC-001 FR-005.
 - Parametrización: el adaptador lee `.sdd/config.yaml` vía `core/sdd_config.py`
   (source_roots, dirs, naming, layers). No hardcodea rutas ni palabras excluidas.
+- Cada carpeta de tests declarada en `dirs` tiene **su** paso: `tests` corre la
+  unitaria y `integration` la de integración, cada uno sin adivinar la carpeta del
+  otro. Qué pasos corren de verdad lo decide `pipeline.steps` del proyecto; que
+  una carpeta declarada quede sin ejecutor es un problema que reporta `sdd-doctor`
+  (SPEC-019), no algo que el adaptador resuelva por su cuenta.
 
 ## Adaptadores
 

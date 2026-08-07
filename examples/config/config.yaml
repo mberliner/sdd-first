@@ -16,8 +16,8 @@ dirs:
   application: src/application
   adapters: src/adapters
   ui: src/dashboard
-  tests_unit: tests/unit
-  tests_integration: tests/integration
+  tests_unit: tests/unit            # la corre el paso `tests`
+  tests_integration: tests/integration  # la corre el paso `integration`
   # source_roots: [src]         # opcional; por defecto = top-level de las capas
 
 naming:
@@ -128,6 +128,7 @@ pipeline:
     - security
     - skills
     - tests
+    - integration    # corre dirs.tests_integration; sin esa clave, se omite
     - coverage
 
   # Umbrales de cobertura (OPCIONAL). Cada entrada mide sus `paths` juntas

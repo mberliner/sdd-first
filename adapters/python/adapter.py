@@ -7,7 +7,8 @@ exit 0 = OK / exit 3 = omitido (no se pudo verificar) / otro = falla.
 
     python adapters/python/adapter.py <step>
 
-Pasos: naming | layers | lint | format | types | security | tests | coverage
+Pasos: naming | layers | lint | format | types | security | tests | integration |
+coverage
 
 El pipeline agnostico (core/pipeline.py) invoca `adapter.py <step>` para cada paso
 de codigo declarado en pipeline.steps. Los pasos de proceso (constitution,
@@ -135,6 +136,31 @@ def step_tests(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
     return _run([sys.executable, "-m", "pytest", unit, "-q"], repo_root)
 
 
+def step_integration(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
+    """Ejecuta `dirs.tests_integration` (SPEC-019 FR-US1-001..FR-US1-003).
+
+    Paso aparte de `tests` a proposito: el contrato define `tests` como la suite
+    unitaria, y fundirlos le impondria a todo derivado un ciclo unico. Aca no hay
+    fallback a `tests/`: ejecutar una carpeta que el proyecto no declaro es
+    adivinar con efectos, a diferencia de los pasos estaticos, que ante la duda
+    miran de mas y no rompen nada. Sin la clave declarada, omitido.
+    """
+    integration = cfg.dirs.get("tests_integration")
+    if not integration:
+        return _skip(
+            "sin 'dirs.tests_integration' declarada en el config, paso 'integration'"
+        )
+    if not _module_available("pytest"):
+        return _skip(
+            "tool 'pytest' no instalada (pip install pytest), paso 'integration'"
+        )
+    if not (repo_root / integration).exists():
+        return _skip(
+            f"sin carpeta de tests '{integration}' todavia, paso 'integration'"
+        )
+    return _run([sys.executable, "-m", "pytest", integration, "-q"], repo_root)
+
+
 def step_coverage(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
     """Verifica los umbrales de cobertura declarados (SPEC-009 FR-001/FR-002).
 
@@ -202,6 +228,7 @@ STEPS = {
     "types": step_types,
     "security": step_security,
     "tests": step_tests,
+    "integration": step_integration,
     "coverage": step_coverage,
 }
 

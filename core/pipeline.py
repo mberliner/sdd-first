@@ -42,6 +42,7 @@ CODE_STEPS = {
     "types",
     "security",
     "tests",
+    "integration",
     "coverage",
 }
 
