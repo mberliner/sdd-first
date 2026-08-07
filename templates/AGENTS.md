@@ -6,7 +6,9 @@
 >
 > Andamiaje provisto por **sdd-first**. Parámetros del proyecto en `.sdd/config.yaml`.
 
-Dominio: {{project.domain}}
+> El dominio del proyecto lo declara `CONSTITUTION.md`, que se genera desde
+> `project.domain` de `.sdd/config.yaml`. Acá no se repite: una copia escrita en
+> la instalación quedaría congelada en el primer valor (SPEC-014 FR-US2-006).
 
 Cuando trabajes en este proyecto, seguí este protocolo:
 

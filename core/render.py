@@ -47,13 +47,24 @@ def render_constitution(cfg: SddConfig) -> str:
     explica que ES una constitucion (y que no es), y una seccion Governance con
     el criterio de versionado y el procedimiento de enmienda. Sin eso, un equipo
     que recibe el archivo generado no sabe que hacer con el.
+
+    Tambien declara **el dominio del proyecto** (SPEC-014 FR-US2-006). Antes lo
+    afirmaba `AGENTS.md`, por sustitucion de `{{project.domain}}` en la
+    instalacion: una copia que quedaba congelada en el primer valor, porque el
+    derivado no tiene `templates/` y `render` no puede regenerarla. Aca el
+    dominio se deriva del config en cada corrida y `--check` vigila el drift.
     """
     core = cfg.kit_paths["{{sdd.core}}"]
     version = cfg.constitution_version
     ratified = cfg.constitution_ratified or _TODAY
     amended = cfg.constitution_amended or _TODAY
+    dominio = cfg.domain.strip() or (
+        "sin declarar (completá `project.domain` en `.sdd/config.yaml`)"
+    )
     lines = [
         "# Constitución del proyecto",
+        "",
+        f"**Proyecto:** {cfg.name} | **Dominio:** {dominio}",
         "",
         f"**Versión:** {version} | Ratificada: {ratified} | Última enmienda: {amended}",
         "",

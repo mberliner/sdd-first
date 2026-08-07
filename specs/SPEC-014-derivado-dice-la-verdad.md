@@ -88,6 +88,27 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   son los mensajes de **runtime**, que es lo que el operador copia y pega. Los
   docstrings se leen en el archivo, cuya ruta ya es visible.
 
+### Session 2026-08-07
+
+- Q: `AGENTS.md` afirma el dominio del proyecto, pero cambiar `project.domain`
+  después de instalar no lo actualiza. ¿Se regenera `AGENTS.md`? → A: no. El
+  dominio llega ahí por sustitución de `{{project.domain}}` **en la instalación**,
+  y `render.py` no puede regenerarlo porque el derivado no tiene `templates/`.
+  Regenerarlo exigiría vendorizar plantillas a cada proyecto: más superficie
+  instalada para sostener una copia que conviene no tener.
+- Q: ¿Entonces cómo se arregla? → A: eliminando la copia, no sincronizándola. El
+  dominio pasa a declararse en `CONSTITUTION.md`, que **sí** es artefacto generado,
+  sí existe en el derivado y sí lo vigila `render --check`; `AGENTS.md` remite. Un
+  solo lugar lo afirma, y ese lugar deriva del config (principio IV).
+- Q: ¿No se pierde el dominio para el asistente, que lee `AGENTS.md`? → A: no: el
+  paso 1 del protocolo ya lo manda a leer `CONSTITUTION.md` antes de cualquier
+  cambio. Pasa a encontrarlo ahí, actualizado, en vez de leer en `AGENTS.md` una
+  afirmación que puede tener meses.
+- Q: ¿Por qué en esta spec y no en una nueva? → A: es exactamente el invariante de
+  la HU-2 —*el derivado no afirma nada que no sea cierto de sí mismo*— con el
+  mismo origen que U-4..U-11. Lo encontró la suite e2e (**V-3** de
+  `docs/IDEAS.md`), no una campaña manual, pero el defecto es de la misma clase.
+
 ## Acceptance Scenarios
 
 - **Given** un proyecto con `.pre-commit-config.yaml` y `.claude/settings.json`
@@ -108,6 +129,10 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   la ruta real del script que los regenera.
 - **Given** un proyecto cuya rama por defecto es `develop`, **When** se instala y
   se corre `render.py`, **Then** el `ci.yml` generado dispara en `develop`.
+- **Given** un derivado instalado, **When** se cambia `project.domain` en el
+  config y se corre `render.py`, **Then** `CONSTITUTION.md` refleja el dominio
+  nuevo y ningún otro artefacto instalado afirma el viejo; **When** se cambia sin
+  regenerar, **Then** `render --check` reporta el drift.
 
 ## Functional Requirements — HU-1 (enforcement)
 
@@ -153,6 +178,11 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 - **FR-US2-005** SHOULD: el `ci.yml` generado dispara en la rama por defecto real
   del proyecto, leída de `project.default_branch` del config. `sdd-init` la
   siembra con lo que informe git en el destino; sin dato, `main`.
+- **FR-US2-006** MUST: el dominio del proyecto lo afirma **un solo artefacto**, y
+  es generado: `CONSTITUTION.md` lo declara desde `project.domain`. Ninguna
+  plantilla instalada guarda una copia sustituida en la instalación, que quedaría
+  congelada al primer valor. `render --check` detecta el drift como con cualquier
+  otro artefacto generado.
 
 ## Success Criteria
 
@@ -166,6 +196,9 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 - **SC-005**: instalado sobre un repo en rama `develop`, el `ci.yml` generado
   dispara en `develop`; en un repo sin git, en `main`.
 - **SC-006**: el pipeline del kit sigue VERDE y la suite pasa completa.
+- **SC-007**: cambiar `project.domain` en un derivado ya instalado y regenerar
+  deja el dominio nuevo en `CONSTITUTION.md`; ningún archivo instalado conserva el
+  viejo.
 
 ## Key Entities
 
@@ -190,6 +223,7 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 | FR-US2-003 | `tests/unit/test_sdd_doctor_wiring.py` |
 | FR-US2-004 | `tests/unit/test_sdd_init_seeded_config.py` |
 | FR-US2-005 | `tests/unit/test_render.py`, `tests/unit/test_sdd_init_seeded_config.py` |
+| FR-US2-006 | `tests/unit/test_render.py`, `tests/e2e/escenarios/test_configuracion.py` |
 
 ## Fuera de alcance
 
@@ -209,6 +243,9 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   passed + 1 skip. Verificada además sobre el testigo con wiring propio de la
   campaña: instalación que avisa, doctor en exit 1 nombrando cada archivo sin
   cablear, `ci.yml` disparando en `master` y gate resolviendo la raíz.
+- 2026-08-07 (iteración 4): FR-US2-006 y SC-007. La suite e2e mostró que
+  `project.domain` quedaba congelado en `AGENTS.md` desde la instalación (V-3);
+  el dominio pasa a declararse en `CONSTITUTION.md`, que sí se regenera.
 - 2026-08-05: FR-US1-003 enmendado el mismo día. La primera implementación
   denegaba toda edición cuyo `cwd` no resolviera a una raíz SDD, y bloqueó en
   vivo la edición de un archivo de otra carpeta y del propio kit. La raíz ahora

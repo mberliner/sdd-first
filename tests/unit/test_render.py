@@ -123,6 +123,42 @@ def test_constitucion_incluye_preambulo_y_governance(tmp_path):
     assert "Procedimiento de enmienda" in text
 
 
+def test_constitucion_declara_el_dominio_del_config(tmp_path):
+    # SPEC-014 FR-US2-006: el dominio lo afirma un artefacto generado, para que
+    # cambiarlo en el config y regenerar alcance para actualizarlo (V-3).
+    raw = dict(_PRINCIPIO, project={"name": "cobranzas", "domain": "gestion de mora"})
+    text = render.render_constitution(_cfg(tmp_path, raw))
+
+    assert "**Proyecto:** cobranzas | **Dominio:** gestion de mora" in text
+
+    raw["project"]["domain"] = "gestion de mora temprana"
+    assert "gestion de mora temprana" in render.render_constitution(_cfg(tmp_path, raw))
+
+
+def test_constitucion_sin_dominio_declarado_lo_dice(tmp_path):
+    # Callar el dato dejaria al lector sin saber si falta o si nadie lo declaro.
+    text = render.render_constitution(_cfg(tmp_path, dict(_PRINCIPIO)))
+
+    assert "**Dominio:** sin declarar" in text
+    assert "`project.domain`" in text
+
+
+def test_ninguna_plantilla_instalable_congela_el_dominio():
+    # FR-US2-006: `sdd-init` sustituye {{project.domain}} una sola vez, en la
+    # instalacion. Una plantilla que lo use deja en el derivado una copia que
+    # ningun render puede actualizar despues (el derivado no tiene templates/).
+    templates = Path(__file__).resolve().parents[2] / "templates"
+    culpables = [
+        ruta.relative_to(templates).as_posix()
+        for ruta in templates.rglob("*")
+        if ruta.is_file() and "{{project.domain}}" in ruta.read_text(encoding="utf-8")
+    ]
+
+    assert culpables == [], (
+        f"estas plantillas congelan el dominio en la instalacion: {culpables}"
+    )
+
+
 def test_constitucion_toma_version_y_fechas_del_config(tmp_path):
     # FR-003: antes estaban hardcodeadas en render.py (ítem C-5 de IDEAS).
     raw = dict(

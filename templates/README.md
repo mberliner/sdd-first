@@ -1,7 +1,8 @@
 # {{project.name}}
 
 TODO: describir en una o dos frases qué es este proyecto y qué problema
-resuelve. Dominio: {{project.domain}}.
+resuelve. El dominio declarado vive en `CONSTITUTION.md`, generado desde
+`project.domain` de `.sdd/config.yaml`.
 
 ## Instalación
 

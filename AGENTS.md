@@ -9,7 +9,9 @@
 > proyectos vive en `templates/` + `core/` + `adapters/`; acá lo usamos sobre
 > nosotros mismos. Parámetros en `.sdd/config.yaml`.
 
-Dominio: andamiaje SDD universal, agnóstico y personalizable para otros proyectos.
+> El dominio del proyecto lo declara `CONSTITUTION.md`, que se genera desde
+> `project.domain` de `.sdd/config.yaml`. Acá no se repite: una copia escrita a
+> mano quedaría congelada en el primer valor (SPEC-014 FR-US2-006).
 
 ## Antes de cualquier cambio
 

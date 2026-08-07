@@ -1,5 +1,7 @@
 # Constitución del proyecto
 
+**Proyecto:** sdd-first | **Dominio:** andamiaje SDD universal, agnostico y personalizable para otros proyectos
+
 **Versión:** 0.3.0 | Ratificada: 2026-08-02 | Última enmienda: 2026-08-05
 
 > Generado por `core/render.py` desde `.sdd/config.yaml`. La forma de cada

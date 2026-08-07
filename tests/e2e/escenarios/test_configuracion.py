@@ -56,6 +56,38 @@ def test_el_config_gobierna_los_artefactos_y_el_veredicto(derivado: Path) -> Non
     dice(naming, PALABRA, "reporte.py")
 
 
+def test_cambiar_el_dominio_lo_propaga_a_lo_generado(derivado: Path) -> None:
+    """SPEC-014 FR-US2-006: un solo artefacto lo afirma, y se regenera.
+
+    Antes el dominio se escribia en `AGENTS.md` por sustitucion en la
+    instalacion: cambiarlo en el config no llegaba a ningun lado y ni
+    `render --check` ni `sdd-doctor` lo notaban (V-3 de IDEAS).
+    """
+    nuevo = "gestion de mora temprana"
+    config = derivado / ".sdd" / "config.yaml"
+    texto = config.read_text(encoding="utf-8")
+    viejo = next(
+        linea.split(":", 1)[1].strip()
+        for linea in texto.splitlines()
+        if linea.startswith("  domain:")
+    )
+    config.write_text(texto.replace(viejo, nuevo), encoding="utf-8")
+
+    drift = entorno.herramienta(derivado, "render", "--check")
+    espera_exit(drift, 1, porque="el dominio cambio y CONSTITUTION.md no")
+    dice(drift, "CONSTITUTION.md")
+
+    espera_exit(entorno.herramienta(derivado, "render"))
+    archivo_dice(derivado / "CONSTITUTION.md", nuevo)
+
+    congelados = [
+        ruta.relative_to(derivado).as_posix()
+        for ruta in derivado.rglob("*.md")
+        if ".git" not in ruta.parts and viejo in ruta.read_text(encoding="utf-8")
+    ]
+    assert congelados == [], f"estos archivos siguen afirmando el dominio viejo: {congelados}"
+
+
 def test_el_gate_sigue_al_config_sin_tocar_el_wiring(derivado: Path) -> None:
     """Las tres capas derivan los roots del config (SPEC-015): cambiar el config alcanza."""
     espera_exit(
