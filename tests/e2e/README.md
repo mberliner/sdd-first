@@ -36,7 +36,8 @@ artefactos quedan en disco para inspeccionar un fallo.
 | `test_instalacion_brownfield` | Proyecto con historia git: conserva lo del dueño, detecta `source_roots`, el gate protege esa carpeta, el CI dispara en la rama real. |
 | `test_wiring_propio` | Wiring del dueño preexistente: se conserva, se avisa, y `sdd-doctor` no dice "sana" con cero capas activas. |
 | `test_configuracion` | Editar `.sdd/config.yaml` cambia los artefactos **y** el veredicto sobre el mismo código. |
-| `test_ciclo_spec_first` | Los tres escenarios de SPEC-017 US3 con commits reales, más el escape hatch. |
+| `test_ciclo_spec_first` | Los tres escenarios de SPEC-017 US3 con commits reales, más el escape hatch y su aviso al operador. |
+| `test_tests_de_integracion` | Declarar `dirs.tests_integration` alcanza para que esos tests corran, fallen en su propio paso y no queden huérfanos (SPEC-019). |
 
 ## Cómo se agrega uno
 

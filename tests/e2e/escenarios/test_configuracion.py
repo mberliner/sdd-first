@@ -85,7 +85,9 @@ def test_cambiar_el_dominio_lo_propaga_a_lo_generado(derivado: Path) -> None:
         for ruta in derivado.rglob("*.md")
         if ".git" not in ruta.parts and viejo in ruta.read_text(encoding="utf-8")
     ]
-    assert congelados == [], f"estos archivos siguen afirmando el dominio viejo: {congelados}"
+    assert congelados == [], (
+        f"estos archivos siguen afirmando el dominio viejo: {congelados}"
+    )
 
 
 def test_el_gate_sigue_al_config_sin_tocar_el_wiring(derivado: Path) -> None:
