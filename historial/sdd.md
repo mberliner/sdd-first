@@ -1,5 +1,26 @@
 # Historial SDD — sdd-first
 
+## 2026-08-07 — SPEC-013 (FR-006): preámbulo explicativo en el wizard de sdd-configure
+
+**Scope:** `specs/SPEC-013-proyecto-derivado-coherente.md` (reabierta, iteración 3),
+`templates/docs/playbooks/sdd-configure.md` (SSOT), `docs/playbooks/sdd-configure.md`
+(sincronizado vía `render.py`), `specs/SPECS_REGISTRY.md`.
+
+**Qué cambió:** cada pregunta del wizard de `sdd-configure` (nombre/dominio,
+lenguaje, `naming.prohibited`, `principles`, `layers`, `dirs`, `pipeline.steps`)
+ahora tiene, antes de preguntarse, una explicación en lenguaje simple de qué es
+ese campo, para qué sirve y qué efecto concreto tiene responderlo.
+
+**Por qué:** quien corre `sdd-configure` puede estar arrancando el proyecto y no
+conocer el vocabulario de SDD — no hay razón para asumir que sabe qué es una
+"palabra excluida" o un "principio opcional" antes de que se le pregunte por
+ellos. Mismo problema de fondo que motivó SPEC-013 (comprensión real, no
+heredada en silencio), aplicado al propio wizard.
+
+**Decisiones:** se reabrió SPEC-013 en vez de crear una spec nueva — mismo tema,
+mismo archivo que ya tocaba FR-005. Solo cambió texto del playbook, sin lógica
+nueva. Pipeline VERDE 10/10, 310 tests + 1 skip.
+
 ## 2026-08-07 — SPEC-019 + enmiendas a SPEC-014/017: cerrar lo que encontró la suite e2e
 
 **Scope:** `specs/SPEC-019-...` (nueva), `specs/SPEC-014-...` (FR-US2-006, SC-007),

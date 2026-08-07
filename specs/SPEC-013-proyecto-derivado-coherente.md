@@ -48,6 +48,25 @@ instalados apunta a un archivo ausente.
   `sdd-configure` avisa cuando un principio declara un enforcement que la
   instalación no puede ejecutar, en vez de dejarlo pasar en silencio.
 
+### Session 2026-08-07
+
+- Q: ¿por qué reabrir esta spec en vez de crear una nueva? → A: el problema es
+  el mismo que motivó la spec (un dueño de proyecto derivado que no puede
+  cumplir de verdad lo que el wizard le pregunta), aplicado a la comprensión
+  del wizard en sí: `docs/playbooks/sdd-configure.md` preguntaba
+  `naming.prohibited`, `principles`, `layers`, etc. asumiendo que quien
+  responde ya sabe qué es cada cosa. Alguien recién llegado no tiene por qué
+  saber qué es una "palabra excluida" ni por qué existe.
+- Q: ¿alcanza con un glosario aparte? → A: no; un glosario se lee o no se lee.
+  La explicación tiene que estar en el momento de cada pregunta (qué es, para
+  qué sirve, dónde impacta), no en un documento separado que compite con el
+  wizard.
+- Q: ¿esto cambia el comportamiento del wizard o solo su texto? → A: solo el
+  texto del playbook (SSOT en `templates/docs/playbooks/sdd-configure.md`,
+  sincronizado a `docs/playbooks/sdd-configure.md` vía `render.py`). No hay
+  lógica nueva: es la instrucción que el asistente sigue al conversar con el
+  dueño del proyecto.
+
 ## Acceptance Scenarios
 
 - **Given** un directorio vacío, **When** se instala y se corre `render.py`,
@@ -60,6 +79,12 @@ instalados apunta a un archivo ausente.
   rutas citadas en los documentos instalados, **Then** todas existen.
 - **Given** el config de ejemplo, **When** se lo consulta como catálogo,
   **Then** sigue mostrando el set completo de principios.
+- **Given** una persona que corre `sdd-configure` por primera vez sin conocer
+  el vocabulario de SDD, **When** llega a cada pregunta del wizard (nombre,
+  dominio, lenguaje, palabras excluidas, principios, capas, dirs, pasos del
+  pipeline), **Then** el playbook le da, antes de preguntar, una explicación
+  en lenguaje simple de qué es ese campo, para qué sirve y qué efecto
+  concreto tiene responderlo.
 
 ## Functional Requirements
 
@@ -80,6 +105,14 @@ instalados apunta a un archivo ausente.
   principio declara un `Enforcement:` que la instalación no puede ejecutar
   (por lenguaje o por tooling ausente), para que el dueño lo decida en vez de
   heredarlo en silencio.
+- **FR-006** MUST: `templates/docs/playbooks/sdd-configure.md` antepone a cada
+  pregunta del wizard (`project.name`/`project.domain`, `project.language`,
+  `naming.prohibited`, `principles`, `layers`, `dirs`, `pipeline.steps`) una
+  explicación en lenguaje simple de qué es ese campo, para qué sirve y qué
+  efecto concreto tiene responderlo — sin asumir que quien contesta ya conoce
+  el vocabulario de SDD. `docs/playbooks/sdd-configure.md` (del propio kit)
+  refleja el mismo texto vía `render.py` (`_SYNCED_FROM_TEMPLATES`), no una
+  copia editada a mano.
 
 ## Key Entities
 
@@ -90,7 +123,7 @@ instalados apunta a un archivo ausente.
 - `tests/unit/test_derived_references.py` — auditoría de rutas colgadas
   (nuevo).
 - `templates/docs/playbooks/sdd-configure.md` — aviso de enforcement no
-  disponible.
+  disponible; preámbulo explicativo por pregunta (FR-006).
 
 ## Success Criteria
 
@@ -101,6 +134,10 @@ instalados apunta a un archivo ausente.
 - **SC-003** Pipeline de una instalación fresca sigue VERDE en ambos lenguajes
   (sin regresión de SPEC-003 SC-001).
 - **SC-004** El kit sigue VERDE 10/10.
+- **SC-005** Cada pregunta del wizard de `sdd-configure` en
+  `templates/docs/playbooks/sdd-configure.md` (y su reflejo sincronizado en
+  `docs/playbooks/sdd-configure.md`) tiene una explicación previa en lenguaje
+  simple (antes: preguntaba directo, sin contexto).
 
 ## Assumptions
 
@@ -121,6 +158,7 @@ instalados apunta a un archivo ausente.
 | FR-003 | tests/unit/test_derived_references.py |
 | FR-004 | tests/unit/test_derived_references.py |
 | FR-005 | verificación manual (playbook) |
+| FR-006 | verificación manual (playbook); tests/unit/test_render.py (sync sin drift) |
 
 ## Fuera de alcance
 
@@ -138,3 +176,7 @@ instalados apunta a un archivo ausente.
   instalación fresca: 4 principios (antes 6). Cero rutas colgadas en ambos
   lenguajes. Pipelines VERDE: derivado `none` 4/4, derivado `python` 8/8,
   kit 10/10. 146 tests + 1 skip.
+- 2026-08-07: reabierta para FR-006 (preámbulo explicativo por pregunta en el
+  wizard de `sdd-configure`, para quien lo corre sin conocer el vocabulario de
+  SDD). Editado `templates/docs/playbooks/sdd-configure.md`; sincronizado a
+  `docs/playbooks/sdd-configure.md` vía `render.py`.
