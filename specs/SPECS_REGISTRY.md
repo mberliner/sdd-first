@@ -31,3 +31,4 @@
 | SPEC-015 | El wiring del gate apunta al código real del proyecto | active | 3 | hibrido | [SPEC-015-wiring-apunta-al-codigo-real.md](SPEC-015-wiring-apunta-al-codigo-real.md) |
 | SPEC-016 | Las skills quedan usables apenas termina sdd-init | active | 3 | hibrido | [SPEC-016-skills-listas-tras-init.md](SPEC-016-skills-listas-tras-init.md) |
 | SPEC-017 | Gate spec-first: qué decide bloquear una edición de código | active | 3 | hibrido | [SPEC-017-gate-decision-spec-first.md](SPEC-017-gate-decision-spec-first.md) |
+| SPEC-018 | Verificación de punta a punta del kit instalado | active | 4 | hibrido | [SPEC-018-verificacion-e2e.md](SPEC-018-verificacion-e2e.md) |
