@@ -20,7 +20,13 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import GATE_WIRING, find_repo_root, load, script_hint  # noqa: E402
+from sdd_config import (  # noqa: E402
+    GATE_WIRING,
+    TEST_DIR_STEP,
+    find_repo_root,
+    load,
+    script_hint,
+)
 
 REQUIRED = [
     "CONSTITUTION.md",
@@ -89,6 +95,26 @@ def _gate_wiring_problems(repo_root: Path) -> list[str]:
     return problems
 
 
+def _tests_sin_ejecutor(cfg) -> list[str]:  # type: ignore[no-untyped-def]
+    """Carpetas de tests declaradas que ningun paso del pipeline corre (SPEC-019).
+
+    Que el ciclo rapido incluya o no los tests de integracion es decision del
+    proyecto —por eso el paso es opcional en `pipeline.steps`—, pero la omision
+    no puede ser silenciosa: `dirs.tests_integration` existe como clave desde
+    siempre y durante todo ese tiempo nadie ejecuto lo que declaraba (V-1).
+    """
+    declarados = set(cfg.pipeline_steps)
+    problemas: list[str] = []
+    for clave, paso in TEST_DIR_STEP.items():
+        carpeta = cfg.dirs.get(clave)
+        if carpeta and paso not in declarados:
+            problemas.append(
+                f"Tests declarados que no corre nadie: dirs.{clave} = {carpeta}, "
+                f"pero '{paso}' no esta en pipeline.steps de .sdd/config.yaml."
+            )
+    return problemas
+
+
 def main(argv: list[str]) -> int:
     fix = "--fix" in argv
     repo_root = find_repo_root()
@@ -111,6 +137,9 @@ def main(argv: list[str]) -> int:
 
     # 3. Gates cableados (existen y cablean el gate).
     problems.extend(_gate_wiring_problems(repo_root))
+
+    # 3b. Carpetas de tests declaradas sin paso que las ejecute.
+    problems.extend(_tests_sin_ejecutor(cfg))
 
     # 4. Drift de artefactos generados.
     core = repo_root / "tools" / "sdd" / "core"

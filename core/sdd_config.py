@@ -91,6 +91,17 @@ GATE_WIRING = {
 }
 
 
+# Que paso de pipeline ejecuta cada carpeta de tests declarada en `dirs`
+# (SPEC-019 FR-US2-002). SSOT unico: el adaptador implementa un paso por clave y
+# `sdd_doctor` cruza este mapa contra `pipeline.steps` para detectar carpetas
+# declaradas que no corre nadie -- el defecto que tuvo `tests_integration` desde
+# que existe la clave (V-1 de docs/IDEAS.md).
+TEST_DIR_STEP = {
+    "tests_unit": "tests",
+    "tests_integration": "integration",
+}
+
+
 def script_hint(module_file: str | Path, repo_root: Path) -> str:
     """Ruta invocable de un script del andamiaje, relativa a la raiz del repo.
 
