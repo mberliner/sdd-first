@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import subprocess
 
+import sdd_doctor
 import sdd_init
 from sdd_config import load
 
@@ -43,6 +44,57 @@ def test_siembra_la_rama_real_del_destino(tmp_path):
     subprocess.run(["git", "init", "-b", "develop", str(tmp_path)], check=True)
     sdd_init.main([str(tmp_path), "--language=python"])
     assert load(tmp_path).default_branch == "develop"
+
+
+def test_siembra_la_carpeta_de_integracion_y_su_paso(tmp_path):
+    """SPEC-019 FR-US3-001/FR-US3-002: la instalacion no nace con tests huerfanos."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "integration").mkdir()
+
+    sdd_init.main([str(tmp_path), "--language=python"])
+
+    cfg = load(tmp_path)
+    assert cfg.dirs["tests_integration"] == "tests/integration"
+    assert "integration" in cfg.pipeline_steps
+    assert sdd_doctor._tests_sin_ejecutor(cfg) == []
+
+
+def test_sin_carpeta_de_integracion_la_deja_comentada_y_sin_paso(tmp_path):
+    """Sembrar el paso siempre lo dejaria omitiendose en cada corrida de todos."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+
+    sdd_init.main([str(tmp_path), "--language=python"])
+
+    cfg = load(tmp_path)
+    assert "tests_integration" not in cfg.dirs
+    assert "integration" not in cfg.pipeline_steps
+    assert "# tests_integration: tests/integration" in _config(tmp_path)
+
+
+def test_el_layout_plano_no_declara_integracion_por_separado(tmp_path):
+    """Con `tests/` como carpeta unitaria, declarar `tests/integration` aparte
+    haria correr los mismos tests dos veces."""
+    (tmp_path / "tests" / "integration").mkdir(parents=True)
+
+    layout = sdd_init._detect_layout(tmp_path, "python")
+
+    assert layout.tests_unit == "tests"
+    assert layout.tests_integration is None
+
+
+def test_el_mensaje_de_layout_nombra_la_carpeta_de_integracion(tmp_path, capsys):
+    """FR-US3-003: el dueno tiene que poder corregir lo que se adivino."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "integration").mkdir()
+
+    sdd_init.main([str(tmp_path), "--language=python"])
+
+    assert "integracion en tests/integration/" in capsys.readouterr().out
 
 
 def test_sin_repo_git_no_declara_rama_y_asume_main(tmp_path):

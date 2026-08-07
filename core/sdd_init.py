@@ -134,9 +134,9 @@ def _write_config(
     example = example.replace("name: mi-proyecto", f"name: {name}")
     example = example.replace("language: python", f"language: {language}")
     example = _seed_default_branch(example, target)
-    example = _seed_pipeline_steps(example)
-    example = _seed_principles(example)
     layout = _detect_layout(target, language)
+    example = _seed_pipeline_steps(example, layout)
+    example = _seed_principles(example)
     example = _seed_dirs(example, layout)
     dst.parent.mkdir(parents=True, exist_ok=True)
     write_text_lf(dst, example)
@@ -224,8 +224,17 @@ _SEEDED_STEPS = [
 _OPTIONAL_STEPS = ["lint", "format", "types", "security"]
 
 
-def _seed_pipeline_steps(config_text: str) -> str:
-    """Reemplaza la lista `steps:` del ejemplo por el set mínimo operativo."""
+def _seed_pipeline_steps(config_text: str, layout: Layout | None = None) -> str:
+    """Reemplaza la lista `steps:` del ejemplo por el set mínimo operativo.
+
+    El paso `integration` se siembra solo si el destino tiene carpeta de tests de
+    integración (SPEC-019 FR-US3-002): sembrarlo siempre lo dejaría omitiéndose en
+    cada corrida de todo proyecto que no la use, y no sembrarlo cuando la carpeta
+    existe haría nacer la instalación con tests declarados que no corre nadie.
+    """
+    pasos = list(_SEEDED_STEPS)
+    if layout is not None and layout.tests_integration:
+        pasos.insert(pasos.index("tests") + 1, "integration")
     lines = config_text.splitlines()
     out: list[str] = []
     in_steps = False
@@ -239,7 +248,7 @@ def _seed_pipeline_steps(config_text: str) -> str:
         if stripped == "steps:" and not replaced:
             out.append(line)
             indent = line[: len(line) - len(line.lstrip())] + "  "
-            out.extend(f"{indent}- {s}" for s in _SEEDED_STEPS)
+            out.extend(f"{indent}- {s}" for s in pasos)
             out.append(f"{indent}# Habilitá según el tooling del proyecto:")
             out.extend(f"{indent}# - {s}" for s in _OPTIONAL_STEPS)
             in_steps = True
@@ -255,6 +264,7 @@ def _seed_pipeline_steps(config_text: str) -> str:
 # dueno lo puede corregir. Ver SPEC-003 FR-007.
 _SOURCE_CANDIDATES = ("src", "app", "lib", "pkg", "source", "internal")
 _TEST_CANDIDATES = ("tests/unit", "tests", "test")
+_INTEGRATION_CANDIDATES = ("tests/integration", "tests/integracion")
 
 # Extension de los archivos que delatan codigo del lenguaje, por adaptador.
 _LANGUAGE_GLOBS = {"python": "*.py"}
@@ -266,10 +276,11 @@ class Layout:
 
     source_root: str | None
     tests_unit: str | None
+    tests_integration: str | None = None
 
     @property
     def detected(self) -> bool:
-        return bool(self.source_root or self.tests_unit)
+        return bool(self.source_root or self.tests_unit or self.tests_integration)
 
 
 def _has_language_files(directory: Path, language: str) -> bool:
@@ -297,7 +308,23 @@ def _detect_layout(target: Path, language: str) -> Layout:
     tests_unit = next(
         (name for name in _TEST_CANDIDATES if (target / name).is_dir()), None
     )
-    return Layout(source_root=source_root, tests_unit=tests_unit)
+    tests_integration = next(
+        (name for name in _INTEGRATION_CANDIDATES if (target / name).is_dir()), None
+    )
+    # Si la carpeta unitaria detectada ya contiene a la de integracion (layout
+    # `tests/` plano), declararlas por separado haria correr los mismos tests dos
+    # veces: manda la unitaria, que es la que se detecto.
+    if (
+        tests_integration
+        and tests_unit
+        and tests_integration.startswith(f"{tests_unit}/")
+    ):
+        tests_integration = None
+    return Layout(
+        source_root=source_root,
+        tests_unit=tests_unit,
+        tests_integration=tests_integration,
+    )
 
 
 def _seed_dirs(config_text: str, layout: Layout) -> str:
@@ -326,6 +353,13 @@ def _seed_dirs(config_text: str, layout: Layout) -> str:
         cuerpo.append(f"  tests_unit: {layout.tests_unit}")
     else:
         cuerpo.append("  # tests_unit: tests/unit")
+    # La carpeta de integracion la corre el paso `integration`; declararla sin
+    # ese paso deja tests que no ejecuta nadie, y eso lo reporta sdd-doctor
+    # (SPEC-019 FR-US3-001).
+    if layout.tests_integration:
+        cuerpo.append(f"  tests_integration: {layout.tests_integration}")
+    else:
+        cuerpo.append("  # tests_integration: tests/integration  # paso 'integration'")
     cuerpo.append("  # Rutas de cada capa (las pregunta sdd-configure):")
     cuerpo.append("  # domain: <ruta>")
 
@@ -455,6 +489,8 @@ def _layout_notice(layout: Layout | None) -> list[str]:
         detectado = f"codigo en {layout.source_root}/"
         if layout.tests_unit:
             detectado += f", tests en {layout.tests_unit}/"
+        if layout.tests_integration:
+            detectado += f", integracion en {layout.tests_integration}/"
         return [
             f"  Layout detectado: {detectado}",
             "  Verificalo en .sdd/config.yaml (dirs.source_roots) antes de seguir:",
