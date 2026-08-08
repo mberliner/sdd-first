@@ -11,6 +11,12 @@ El workspace **nunca** puede caer dentro del arbol del kit ni contenerlo
 archivos, asi que un destino bajo el kit quedaria gobernado por el gate del kit
 en vez del suyo; y un workspace que contenga al kit seria borrado entero por
 `rehacer()`.
+
+Fuera del kit el borrado tampoco es incondicional (FR-US2-007): solo se borra lo
+que la suite dejo. Un `SDD_E2E_WORK` mal tipeado apunta a una carpeta cualquiera
+del disco, y `rehacer()` la borraria entera; por eso la suite siembra una marca
+al crear el workspace y se niega a borrar un directorio con contenido que no la
+tenga.
 """
 
 from __future__ import annotations
@@ -28,6 +34,12 @@ from .ejecucion import Resultado, correr, correr_python
 KIT_ROOT = Path(__file__).resolve().parents[3]
 VAR_WORKSPACE = "SDD_E2E_WORK"
 NOMBRE_WORKSPACE = "sdd-e2e"
+MARCA = ".sdd-e2e-workspace"
+TEXTO_MARCA = (
+    "Workspace efimero de la suite e2e de sdd-first.\n"
+    "Esta marca autoriza a la suite a borrar esta carpeta entera al inicio de la\n"
+    "corrida siguiente. Si borras la marca, la suite se niega a tocar la carpeta.\n"
+)
 VENDOR = "tools/sdd"
 RAMA_DEFECTO = "main"
 
@@ -71,6 +83,25 @@ def verificar_fuera_del_kit(raiz: Path) -> None:
         )
 
 
+def verificar_borrable(raiz: Path) -> None:
+    """Aborta si `raiz` tiene contenido que no dejo la suite (FR-US2-007).
+
+    Se borra lo que no existe, lo que esta vacio y lo que lleva la marca. Todo
+    lo demas es de otro: la suite se detiene antes de tocarlo.
+    """
+    if not raiz.exists():
+        return
+    if not raiz.is_dir():
+        raise WorkspaceInvalido(f"el workspace e2e ({raiz}) no es un directorio")
+    if (raiz / MARCA).exists() or not any(raiz.iterdir()):
+        return
+    raise WorkspaceInvalido(
+        f"el workspace e2e ({raiz}) ya tiene contenido y no lleva la marca "
+        f"{MARCA}: no lo dejo esta suite y regenerarlo lo borraria entero. "
+        f"Eleji una carpeta vacia o inexistente con {VAR_WORKSPACE}."
+    )
+
+
 def _forzar_escritura(func, path, _exc):  # type: ignore[no-untyped-def]
     """Reintento de borrado para los archivos de solo lectura de `.git`."""
     os.chmod(path, stat.S_IWRITE)
@@ -88,11 +119,13 @@ def borrar(ruta: Path) -> None:
 
 
 def rehacer(raiz: Path | None = None) -> Path:
-    """Deja el workspace vacio y existente. Se llama una vez por corrida."""
+    """Deja el workspace vacio, existente y marcado. Se llama una vez por corrida."""
     raiz = raiz or raiz_de_trabajo()
     verificar_fuera_del_kit(raiz)
+    verificar_borrable(raiz)
     borrar(raiz)
     raiz.mkdir(parents=True)
+    (raiz / MARCA).write_text(TEXTO_MARCA, encoding="utf-8")
     return raiz
 
 

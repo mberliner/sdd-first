@@ -28,6 +28,12 @@ El workspace se borra y recrea **al inicio** de la corrida, no al final: así la
 regeneración no depende de que la corrida anterior haya terminado bien, y los
 artefactos quedan en disco para inspeccionar un fallo.
 
+Ese borrado no es incondicional: la suite siembra `.sdd-e2e-workspace` en la raíz
+del workspace y solo borra lo que no existe, lo que está vacío o lo que lleva esa
+marca. Un `SDD_E2E_WORK` que apunte a una carpeta con contenido ajeno aborta la
+corrida y la deja intacta; borrar la marca a mano es la forma de blindar un
+workspace que querés conservar.
+
 ## Qué verifica cada escenario
 
 | Escenario | Promesa |

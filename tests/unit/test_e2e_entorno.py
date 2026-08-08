@@ -1,9 +1,10 @@
 """Unitarios del harness e2e: el que verifica al kit tambien se verifica.
 
 Cubren lo que un escenario e2e no puede cubrir sin destruir algo: que el
-workspace nunca se solape con el arbol del kit (SPEC-018 FR-US2-001), que se
-regenere igual dos veces seguidas (FR-US2-002) y que el degradado por entorno
-incompleto no se vuelva un verde silencioso (FR-US1-005).
+workspace nunca se solape con el arbol del kit (SPEC-018 FR-US2-001), que solo
+se borre lo que dejo la suite (FR-US2-007), que se regenere igual dos veces
+seguidas (FR-US2-002) y que el degradado por entorno incompleto no se vuelva un
+verde silencioso (FR-US1-005).
 """
 
 from __future__ import annotations
@@ -63,16 +64,66 @@ def test_la_variable_de_entorno_tambien_se_verifica(
 
 
 def test_rehacer_deja_el_workspace_vacio_y_es_repetible(tmp_path: Path) -> None:
-    raiz = tmp_path / "work"
-    raiz.mkdir()
+    raiz = entorno.rehacer(tmp_path / "work")
     (raiz / "residuo.txt").write_text("de la corrida anterior", encoding="utf-8")
 
-    primera = entorno.rehacer(raiz)
-    assert list(primera.iterdir()) == []
-
-    (primera / "otro-residuo.txt").write_text("de esta corrida", encoding="utf-8")
     segunda = entorno.rehacer(raiz)
-    assert list(segunda.iterdir()) == [], "dos corridas seguidas no parten de lo mismo"
+    assert [p.name for p in segunda.iterdir()] == [entorno.MARCA], (
+        "dos corridas seguidas no parten de lo mismo"
+    )
+
+    (segunda / "otro-residuo.txt").write_text("de esta corrida", encoding="utf-8")
+    tercera = entorno.rehacer(raiz)
+    assert [p.name for p in tercera.iterdir()] == [entorno.MARCA]
+
+
+# --- Solo se borra lo que la suite dejo (FR-US2-007) ---
+
+
+def test_una_carpeta_ajena_con_contenido_no_se_borra(tmp_path: Path) -> None:
+    ajena = tmp_path / "proyectos"
+    ajena.mkdir()
+    (ajena / "tesis.txt").write_text("trabajo de otro", encoding="utf-8")
+
+    with pytest.raises(entorno.WorkspaceInvalido) as excinfo:
+        entorno.rehacer(ajena)
+
+    assert entorno.MARCA in str(excinfo.value)
+    assert (ajena / "tesis.txt").exists(), "aborto pero igual borro algo"
+
+
+def test_una_carpeta_vacia_o_inexistente_si_se_usa(tmp_path: Path) -> None:
+    vacia = tmp_path / "vacia"
+    vacia.mkdir()
+    assert entorno.rehacer(vacia) == vacia
+    assert entorno.rehacer(tmp_path / "todavia-no-existe").exists()
+
+
+def test_la_marca_de_la_corrida_anterior_autoriza_el_borrado(tmp_path: Path) -> None:
+    raiz = entorno.rehacer(tmp_path / "work")
+    (raiz / "derivado").mkdir()
+    assert (raiz / entorno.MARCA).exists(), "rehacer no sembro la marca"
+
+    entorno.rehacer(raiz)
+    assert not (raiz / "derivado").exists()
+
+
+def test_sin_la_marca_la_corrida_siguiente_ya_no_borra(tmp_path: Path) -> None:
+    """Borrar la marca a mano es la forma de proteger un workspace."""
+    raiz = entorno.rehacer(tmp_path / "work")
+    (raiz / "derivado").mkdir()
+    (raiz / entorno.MARCA).unlink()
+
+    with pytest.raises(entorno.WorkspaceInvalido):
+        entorno.rehacer(raiz)
+    assert (raiz / "derivado").exists()
+
+
+def test_un_archivo_donde_va_el_workspace_aborta(tmp_path: Path) -> None:
+    archivo = tmp_path / "no-soy-carpeta"
+    archivo.write_text("x", encoding="utf-8")
+    with pytest.raises(entorno.WorkspaceInvalido):
+        entorno.rehacer(archivo)
 
 
 def test_borrar_vence_a_los_archivos_de_solo_lectura(tmp_path: Path) -> None:
