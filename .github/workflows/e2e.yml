@@ -79,3 +79,16 @@ jobs:
       - name: Escenarios e2e
         run: python -m pytest tests/e2e -q
         shell: bash
+
+      # SC-002: el workspace vive fuera del arbol del kit, asi que la corrida no
+      # deberia dejar nada aca. Sin este paso, esa promesa la sostenia la
+      # revision manual.
+      - name: La corrida no dejo residuo en el repositorio
+        run: |
+          residuo="$(git status --porcelain)"
+          if [ -n "$residuo" ]; then
+            echo "$residuo"
+            echo "::error::la suite e2e dejo archivos en el repositorio (SPEC-018 SC-002)"
+            exit 1
+          fi
+        shell: bash

@@ -64,16 +64,40 @@ def test_el_ci_generado_no_sabe_de_e2e() -> None:
     assert "tests/e2e" not in generado
 
 
-def test_el_workflow_e2e_es_propio_del_kit_y_escrito_a_mano() -> None:
+@pytest.fixture(scope="module")
+def workflow_e2e() -> str:
     workflow = KIT_ROOT / ".github" / "workflows" / "e2e.yml"
     assert workflow.exists(), "falta el job propio de la suite e2e"
-    texto = workflow.read_text(encoding="utf-8")
+    return workflow.read_text(encoding="utf-8")
+
+
+def test_el_workflow_e2e_es_propio_del_kit_y_escrito_a_mano(workflow_e2e: str) -> None:
+    texto = workflow_e2e
     assert "tests/e2e" in texto
     assert "SDD_E2E_STRICT" in texto, "en CI el degradado por entorno tiene que fallar"
     render = (KIT_ROOT / "core" / "render.py").read_text(encoding="utf-8")
     assert "e2e.yml" not in render, (
         "`render_ci_workflow` genera el workflow universal de los derivados: "
         "un job e2e del kit no puede salir de ahi"
+    )
+
+
+def test_el_workflow_corre_en_las_dos_plataformas(workflow_e2e: str) -> None:
+    """SC-001 se apoya en Windows: sacarlo del matrix lo dejaba sin enforcement.
+
+    El criterio multiplataforma es de [[SPEC-012-suite-multiplataforma]]; aca
+    solo se fija que la suite e2e lo respete (FR-US2-008).
+    """
+    faltan = [
+        so for so in ("ubuntu-latest", "windows-latest") if so not in workflow_e2e
+    ]
+    assert not faltan, f"la matriz del job e2e no cubre: {faltan}"
+
+
+def test_el_workflow_verifica_que_no_quedo_residuo(workflow_e2e: str) -> None:
+    """FR-US2-009: SC-002 deja de depender de que alguien mire `git status`."""
+    assert "git status --porcelain" in workflow_e2e, (
+        "nada verifica que la corrida no haya dejado archivos en el repositorio"
     )
 
 
