@@ -5,10 +5,15 @@ workspace nunca se solape con el arbol del kit (SPEC-018 FR-US2-001), que solo
 se borre lo que dejo la suite (FR-US2-007), que se regenere igual dos veces
 seguidas (FR-US2-002) y que el degradado por entorno incompleto no se vuelva un
 verde silencioso (FR-US1-005).
+
+Cubren tambien las reglas que la suite se impone a si misma (FR-US1-006): un
+escenario afirma contenido y no solo codigos de salida, y su docstring nombra el
+defecto que lo origino.
 """
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -195,17 +200,63 @@ def test_el_detalle_de_un_comando_mudo_lo_dice(tmp_path: Path) -> None:
 # --- Los escenarios declaran que verifican (FR-US1-003/FR-US1-004) ---
 
 
-def test_cada_escenario_documenta_el_defecto_que_lo_origino() -> None:
+ASERCIONES_DE_CONTENIDO = ("dice(", "no_dice(", "archivo_dice(")
+
+# `C-1`, `G-5`, `V-3` o `SPEC-016`: como nombran los defectos el historial y IDEAS.
+IDENTIFICADOR_DE_DEFECTO = re.compile(r"\b(?:[A-Z]-\d+|SPEC-\d{3})\b")
+
+
+def _escenarios() -> list[Path]:
     archivos = sorted(ESCENARIOS.glob("test_*.py"))
     assert len(archivos) >= 5, (
         "faltan escenarios de los que declara SPEC-018 FR-US1-003"
     )
-    sin_docstring = [
-        f.name
-        for f in archivos
-        if not re.match(r'^"""', f.read_text(encoding="utf-8").lstrip())
+    return archivos
+
+
+def test_cada_escenario_documenta_el_defecto_que_lo_origino() -> None:
+    """FR-US1-004: el docstring dice que promesa verifica y de que defecto nacio.
+
+    Que exista un docstring no alcanzaba: lo que el requisito pide es que
+    **nombre** el defecto. Cuando el escenario declara tener uno, el modulo
+    tiene que traer su identificador (C-N, G-N, V-N o SPEC-NNN).
+    """
+    sin_docstring: list[str] = []
+    sin_identificador: list[str] = []
+    for archivo in _escenarios():
+        texto = archivo.read_text(encoding="utf-8")
+        modulo = ast.parse(texto)
+        doc = ast.get_docstring(modulo)
+        if not doc or len(doc.splitlines()) < 2:
+            sin_docstring.append(archivo.name)
+            continue
+        if "efecto" in doc and not IDENTIFICADOR_DE_DEFECTO.search(doc):
+            sin_identificador.append(archivo.name)
+
+    assert not sin_docstring, f"escenarios sin docstring util: {sin_docstring}"
+    assert not sin_identificador, (
+        f"declaran un defecto sin nombrarlo con su identificador: {sin_identificador}"
+    )
+
+
+def test_cada_escenario_afirma_contenido_y_no_solo_el_exit() -> None:
+    """FR-US1-002, mecanico.
+
+    El peor hallazgo de la campana manual fue un `sdd-doctor` que decia
+    "Instalacion SDD sana" con cero capas de gate activas y salia exit 0: un
+    escenario que solo mira `espera_exit` lo habria dado por bueno. Sin esta
+    guardia, la regla vive en la revision humana.
+    """
+    solo_exit = [
+        archivo.name
+        for archivo in _escenarios()
+        if not any(
+            a in archivo.read_text(encoding="utf-8") for a in ASERCIONES_DE_CONTENIDO
+        )
     ]
-    assert not sin_docstring, f"escenarios sin docstring: {sin_docstring}"
+    assert not solo_exit, (
+        f"solo verifican codigos de salida; un mensaje que miente pasaria: {solo_exit}"
+    )
 
 
 def test_la_suite_cubre_los_cinco_escenarios_declarados() -> None:
