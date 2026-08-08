@@ -9,6 +9,7 @@ reintroduce el acople sin enterarse.
 
 from __future__ import annotations
 
+import ast
 import tomllib
 from pathlib import Path
 
@@ -87,6 +88,69 @@ def test_el_testigo_brownfield_tiene_un_solo_ssot() -> None:
     assert definiciones == ["tests/fixtures_proyecto.py"], (
         f"el testigo se define en mas de un lugar: {definiciones}"
     )
+
+
+FIXTURES_DEL_HARNESS = frozenset(
+    {"workspace", "destino", "repo", "derivado", "derivado_con_hooks"}
+)
+
+
+def _es_fixture(funcion: ast.FunctionDef) -> bool:
+    return any("fixture" in ast.unparse(d) for d in funcion.decorator_list)
+
+
+def _fixtures_locales(modulo: ast.Module) -> dict[str, list[str]]:
+    return {
+        nodo.name: [a.arg for a in nodo.args.args]
+        for nodo in modulo.body
+        if isinstance(nodo, ast.FunctionDef) and _es_fixture(nodo)
+    }
+
+
+def _llega_al_harness(params: list[str], locales: dict[str, list[str]]) -> bool:
+    """Recorre la cadena de fixtures hasta dar con una del harness."""
+    pendientes, vistos = list(params), set()
+    while pendientes:
+        nombre = pendientes.pop()
+        if nombre in FIXTURES_DEL_HARNESS:
+            return True
+        if nombre in vistos:
+            continue
+        vistos.add(nombre)
+        pendientes.extend(locales.get(nombre, []))
+    return False
+
+
+def test_todo_escenario_parte_de_un_entorno_del_harness() -> None:
+    """SPEC-018 FR-US1-007: la carpeta es infraestructura compartida.
+
+    Otra spec puede agregar su escenario aca —`test_tests_de_integracion.py` es
+    de [[SPEC-019]]— pero no puede armarse su propio entorno: el workspace
+    efimero, su aislamiento del arbol del kit y el degradado por `pre-commit`
+    ausente son contrato de esta spec. Cada test tiene que llegar, directo o a
+    traves de un fixture propio, a uno de los fixtures del harness.
+    """
+    infractores: list[str] = []
+    duplican: list[str] = []
+    for archivo in sorted((E2E / "escenarios").glob("test_*.py")):
+        modulo = ast.parse(archivo.read_text(encoding="utf-8"))
+        locales = _fixtures_locales(modulo)
+        duplican.extend(
+            f"{archivo.name}::{n}" for n in locales if n in FIXTURES_DEL_HARNESS
+        )
+        for nodo in modulo.body:
+            if not isinstance(nodo, ast.FunctionDef) or not nodo.name.startswith(
+                "test_"
+            ):
+                continue
+            params = [a.arg for a in nodo.args.args]
+            if not _llega_al_harness(params, locales):
+                infractores.append(f"{archivo.name}::{nodo.name}")
+
+    assert not infractores, (
+        f"no parten de un entorno del harness (se arman el suyo): {infractores}"
+    )
+    assert not duplican, f"redefinen un fixture del harness: {duplican}"
 
 
 def test_solo_el_harness_conoce_la_ruta_del_kit() -> None:
