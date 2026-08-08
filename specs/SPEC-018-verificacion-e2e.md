@@ -99,6 +99,38 @@ limpio.
   regeneración total sin depender de que la corrida anterior haya terminado bien, y
   deja los artefactos en disco para inspeccionar un fallo.
 
+### Session 2026-08-08
+
+- Q: El workspace se borra entero al inicio y lo único que lo protege es no
+  solaparse con el árbol del kit; un `SDD_E2E_WORK` mal tipeado borraría datos
+  ajenos sin aviso. ¿Qué se exige antes de borrar? → A: marca propia o vacío. Se
+  borra solo si la ruta no existe, está vacía, o lleva la marca que siembra la
+  propia suite; un directorio preexistente sin marca aborta nombrando el
+  conflicto, igual que el solape con el kit (FR-US2-007). No se restringe la ruta
+  al temp del sistema: apuntar el workspace a un disco elegido es útil en Windows
+  y para inspeccionar artefactos.
+- Q: `tests/e2e/escenarios/` ya aloja un escenario de otra spec
+  ([[SPEC-019-tests-integracion-ejecutados]]). ¿De quién es la carpeta? → A: es
+  infraestructura compartida del kit. Cualquier spec puede agregar un escenario y
+  lo mapea en **su propio** Coverage mapping; SPEC-018 mantiene el contrato del
+  harness y sigue exigiendo solo los cinco escenarios fundacionales de FR-US1-003
+  (FR-US1-007). Duplicar el inventario acá obligaría a tocar esta spec cada vez
+  que otra agrega un escenario (Principio IV).
+- Q: FR-US1-002 y FR-US1-004 son reglas sobre la propia suite, pero se verifican
+  con tests más baratos que lo enunciado (que `detalle()` imprima la salida, que
+  exista un docstring). ¿Se sostienen? → A: con una guardia estructural sobre
+  `escenarios/`, al estilo de la que ya impide construir rutas contra el kit
+  (FR-US1-006). Los dos siguen siendo MUST y pasan a ser verificables.
+- Q: SC-001 exige verde en Windows y SC-002 `git status` limpio, y ninguno se
+  mide. → A: se cierran los dos en el workflow propio: la matriz Linux + Windows
+  queda fijada por un unitario (FR-US2-008) y un paso final exige
+  `git status --porcelain` vacío (FR-US2-009). SC-001 no reenuncia el criterio
+  multiplataforma: su SSOT es [[SPEC-012-suite-multiplataforma]].
+- Q: ¿Qué entra al Coverage mapping: los escenarios o el unitario que verifica que
+  existan? → A: los escenarios reales cubren FR-US1-001 y FR-US1-003; el unitario
+  de completitud queda listado junto a ellos como guardia de que ninguno
+  desaparezca, no como cobertura principal.
+
 ## Acceptance Scenarios
 
 ### US1 — el producto instalado
@@ -128,6 +160,10 @@ limpio.
   `git status` no reporta archivos nuevos ni modificados.
 - **Given** un `SDD_E2E_WORK` que resolvería dentro del árbol del kit, **When** se
   inicia la suite, **Then** aborta nombrando el conflicto, sin borrar nada.
+- **Given** un `SDD_E2E_WORK` que apunta a un directorio con contenido que no dejó
+  la suite, **When** se inicia, **Then** aborta nombrando el conflicto y el
+  directorio queda intacto; **Given** el mismo directorio ya marcado por una
+  corrida anterior, **When** se inicia, **Then** se regenera sin preguntar.
 - **Given** dos corridas consecutivas sin limpieza manual entre ellas, **When**
   terminan, **Then** el resultado es el mismo.
 - **Given** un entorno sin `pre-commit` utilizable, **When** corre un escenario que
@@ -152,6 +188,14 @@ limpio.
 - **FR-US1-005** MUST: los escenarios que requieren `pre-commit` real se omiten con
   un motivo que nombra qué faltó cuando no está disponible, y fallan cuando
   `SDD_E2E_STRICT` tiene valor no vacío.
+- **FR-US1-006** MUST: una guardia estructural recorre `tests/e2e/escenarios/` y
+  verifica mecánicamente FR-US1-002 y FR-US1-004: cada archivo usa al menos una
+  aserción de contenido, y su docstring de módulo nombra la promesa que verifica
+  y —cuando nació de un defecto reproducido— el identificador de ese defecto.
+- **FR-US1-007** MUST: `tests/e2e/` es infraestructura compartida del kit: otra
+  spec puede agregar un escenario y lo mapea en su propio Coverage mapping. Esta
+  spec es SSOT del contrato del harness (workspace, fixtures, aserciones,
+  aislamiento) y no del inventario de escenarios ajenos.
 
 ### US2
 
@@ -170,6 +214,13 @@ limpio.
   universal que reciben los derivados—.
 - **FR-US2-006** MUST: el testigo de proyecto preexistente tiene un solo SSOT,
   compartido por la suite unitaria y la e2e.
+- **FR-US2-007** MUST: el workspace se borra solo si la ruta no existe, está vacía
+  o lleva la marca que siembra la propia suite; un directorio preexistente sin
+  marca aborta nombrando el conflicto, **sin borrar nada**.
+- **FR-US2-008** MUST: el workflow e2e del kit corre en Linux y Windows, y esa
+  matriz queda fijada por un test, no solo por el archivo.
+- **FR-US2-009** MUST: el workflow e2e verifica al terminar la corrida que
+  `git status --porcelain` esté vacío.
 
 ## Key Entities
 
@@ -179,15 +230,18 @@ limpio.
   verifica y qué defecto lo originó.
 - `tests/fixtures_proyecto.py` — SSOT del testigo de proyecto preexistente.
 - `SDD_E2E_WORK` — override del workspace efímero.
+- Marca del workspace — archivo que la suite siembra en la raíz del workspace y
+  que autoriza a borrarlo en la corrida siguiente (FR-US2-007).
 - `SDD_E2E_STRICT` — convierte en fallo las omisiones por entorno incompleto.
 - `.github/workflows/e2e.yml` — job propio del kit, escrito a mano.
 
 ## Success Criteria
 
-- **SC-001** `pytest tests/e2e` corre verde en Windows, y dos corridas consecutivas
-  sin limpieza manual entre ellas dan el mismo resultado.
+- **SC-001** `pytest tests/e2e` corre verde en las plataformas que exige
+  [[SPEC-012-suite-multiplataforma]] —su SSOT—, y dos corridas consecutivas sin
+  limpieza manual entre ellas dan el mismo resultado.
 - **SC-002** Tras una corrida completa, `git status` está limpio: ningún artefacto
-  de la suite quedó dentro del repositorio.
+  de la suite quedó dentro del repositorio, y el propio workflow lo verifica.
 - **SC-003** `pytest tests/unit` no recoge ningún escenario e2e y
   `python core/pipeline.py` sigue VERDE sin ejecutarlos.
 - **SC-004** Los tres defectos que originan esta spec tienen cada uno un escenario
@@ -208,24 +262,30 @@ limpio.
 
 | Requisito | Cubierto por |
 |-----------|--------------|
-| FR-US1-001 | tests/e2e/escenarios/test_instalacion_limpia.py |
+| FR-US1-001 | tests/e2e/escenarios/test_instalacion_limpia.py, tests/e2e/escenarios/test_instalacion_brownfield.py, tests/e2e/escenarios/test_wiring_propio.py, tests/e2e/escenarios/test_configuracion.py, tests/e2e/escenarios/test_ciclo_spec_first.py |
 | FR-US1-002 | tests/unit/test_e2e_entorno.py |
-| FR-US1-003 | tests/unit/test_e2e_entorno.py |
+| FR-US1-003 | tests/e2e/escenarios/test_instalacion_limpia.py, tests/e2e/escenarios/test_instalacion_brownfield.py, tests/e2e/escenarios/test_wiring_propio.py, tests/e2e/escenarios/test_configuracion.py, tests/e2e/escenarios/test_ciclo_spec_first.py; guardia de completitud: tests/unit/test_e2e_entorno.py |
 | FR-US1-004 | tests/unit/test_e2e_entorno.py |
 | FR-US1-005 | tests/unit/test_e2e_entorno.py |
+| FR-US1-006 | tests/unit/test_e2e_entorno.py |
+| FR-US1-007 | tests/unit/test_e2e_aislamiento.py |
 | FR-US2-001 | tests/unit/test_e2e_entorno.py |
 | FR-US2-002 | tests/unit/test_e2e_entorno.py |
 | FR-US2-003 | tests/unit/test_e2e_aislamiento.py |
 | FR-US2-004 | tests/unit/test_e2e_aislamiento.py |
 | FR-US2-005 | tests/unit/test_e2e_aislamiento.py |
 | FR-US2-006 | tests/unit/test_e2e_aislamiento.py |
+| FR-US2-007 | tests/unit/test_e2e_entorno.py |
+| FR-US2-008 | tests/unit/test_e2e_aislamiento.py |
+| FR-US2-009 | tests/unit/test_e2e_aislamiento.py |
 
 ## Fuera de alcance
 
 - **Cerrar el hueco de `tests_integration` en el producto** (sembrarlo en
   `sdd-init`, ejecutarlo en `step_tests`, prescribirlo en `templates/`). Es cambio
-  sobre `core/` y `adapters/` con efecto en todos los derivados: merece spec
-  propia. Acá solo queda registrado en `docs/IDEAS.md`.
+  sobre `core/` y `adapters/` con efecto en todos los derivados, y tiene spec
+  propia: [[SPEC-019-tests-integracion-ejecutados]]. Su escenario e2e vive en esta
+  carpeta y lo mapea esa spec (FR-US1-007).
 - Escenarios para otros lenguajes: los adaptadores `node`/`go` no existen todavía.
 - La ruta de actualización del kit vendorizado (E-2 de `docs/IDEAS.md`).
 - Verificar la experiencia dentro de cada asistente (que Claude Code u opencode
@@ -237,3 +297,9 @@ limpio.
 - 2026-08-07: creada (draft) y promovida a `active` en la iteración 4. Automatiza
   SPEC-017 SC-004 y convierte la campaña manual de usabilidad del derivado en
   suite versionada. Su primera corrida dejó V-1, V-2 y V-3 en `docs/IDEAS.md`.
+- 2026-08-08: `/clarify` agrega FR-US1-006/007 y FR-US2-007/008/009 —guardia
+  estructural de los escenarios, carpeta como infraestructura compartida, marca
+  del workspace antes de borrar, matriz del workflow y verificación de residuo—.
+  Implementados el mismo día: marca `.sdd-e2e-workspace` en `tests/e2e/lib/entorno.py`,
+  guardias estructurales en los dos unitarios del harness, y matriz + paso de
+  residuo afirmados sobre `.github/workflows/e2e.yml`.
