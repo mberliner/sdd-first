@@ -17,6 +17,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 KIT_ROOT = Path(__file__).resolve().parents[2]
 KIT_HOOK = KIT_ROOT / ".claude" / "sdd_gate_hook.sh"
 TEMPLATE_HOOK = KIT_ROOT / "templates" / "wiring" / "sdd_gate_hook.sh"
@@ -54,16 +56,33 @@ def test_kit_hook_normal_corre_el_gate_y_bloquea_sin_spec(tmp_path):
     assert "no se encontro un interprete" not in res.stderr
 
 
-def test_kit_hook_fail_closed_bloquea_bajo_los_roots_del_kit(tmp_path):
-    # Contra la raiz real del kit, cuyo config declara [core, adapters].
-    res = _run_hook(KIT_HOOK, KIT_ROOT, "core/foo.py", path="/nonexistent")
-    assert res.returncode == 2
+@pytest.fixture
+def kit_sin_venv(tmp_path):
+    """Raiz con el config **real** del kit y sin `.venv`.
+
+    La rama fail-closed empieza probando `$ROOT/.venv/bin/python`, asi que
+    contra la raiz real del clon era inalcanzable en cuanto el proyecto tenia
+    entorno virtual: el hook encontraba interprete y decidia normalmente. Estos
+    tests pasaban en CI (que instala global) y fallaban en la maquina de quien
+    desarrolla, que es justo al reves de lo util. Copiar el config preserva lo
+    que interesa —los roots que declara el kit— sin depender del clon.
+    """
+    raiz = tmp_path / "kit"
+    (raiz / ".sdd").mkdir(parents=True)
+    shutil.copy(KIT_ROOT / ".sdd" / "config.yaml", raiz / ".sdd" / "config.yaml")
+    return raiz
+
+
+def test_kit_hook_fail_closed_bloquea_bajo_los_roots_del_kit(kit_sin_venv):
+    # El config del kit declara [core, adapters].
+    res = _run_hook(KIT_HOOK, kit_sin_venv, "core/foo.py", path="/nonexistent")
+    assert res.returncode == 2, res.stderr
     assert "no se encontro un interprete" in res.stderr
 
 
-def test_kit_hook_fail_closed_permite_fuera_de_los_roots(tmp_path):
-    res = _run_hook(KIT_HOOK, KIT_ROOT, "README.md", path="/nonexistent")
-    assert res.returncode == 0
+def test_kit_hook_fail_closed_permite_fuera_de_los_roots(kit_sin_venv):
+    res = _run_hook(KIT_HOOK, kit_sin_venv, "README.md", path="/nonexistent")
+    assert res.returncode == 0, res.stderr
 
 
 def test_template_hook_fail_closed_bloquea_el_root_declarado(tmp_path):
