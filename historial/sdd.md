@@ -1,5 +1,86 @@
 # Historial SDD — sdd-first
 
+## 2026-08-08 — SPEC-003 (FR-010/FR-011): el paso `layers` nunca se había ejecutado
+
+**Scope:** `adapters/python/gen_import_linter.py`, `adapters/python/adapter.py`
+(`step_layers`), `tests/unit/test_gen_import_linter.py` (nuevo),
+`tests/unit/test_python_adapter.py`, `specs/SPEC-003-install-happy-path.md`
+(reapertura, iteración 4).
+
+**Qué cambió:** dos defectos encadenados que dejaban ROJO el primer pipeline de
+todo proyecto derivado con `import-linter` instalado.
+
+1. `gen_import_linter.py` emitía `[[importlinter:contract]]` —sintaxis TOML de
+   array-of-tables— dentro de un `.importlinter`, que import-linter lee como INI
+   con `configparser`. `lint-imports` abortaba con `section '' already exists`.
+   Ahora emite `[importlinter:contract:<capa>]`, una sección por capa, que es lo
+   que el lector real consume.
+2. Con el archivo ya legible, la instalación fresca **seguía** ROJO:
+   `lint-imports` importa el paquete raíz para construir el grafo y en greenfield
+   no existe (`Could not find package 'src'`). `step_layers` era el único paso de
+   código sin la guardia de targets de FR-001 — `naming`, `lint`, `format` y
+   `types` ya omitían con exit 3 en ese caso. Ahora también omite, y además
+   cuando el config no declara `layers`.
+
+**Cómo aparecieron:** corriendo la suite e2e de SPEC-018 con `.venv/bin` en el
+PATH. Hasta ese momento `lint-imports` no estaba en el PATH de quien corría, así
+que el paso se omitía y los 17 escenarios pasaban en verde.
+
+**Por qué nadie los vio antes:** por dos ausencias que se tapaban entre sí. La
+única cobertura del generador era su propio `--check`, que compara el archivo
+contra lo que el generador produce —coincide siempre, sea válido o no—; y el kit
+no declara `layers` en sus `pipeline.steps`, así que su propio pipeline nunca
+ejecutó `lint-imports`. De ahí la regla nueva (FR-010), que es la lección
+generalizable: **lo que un adaptador genera para una tool externa se verifica con
+el parser de esa tool**, no con una comparación contra el generador.
+
+**Decisiones:** el destino sigue siendo `.importlinter` y no el `pyproject.toml`
+del adoptante (es suyo, el kit no lo toca). El test end-to-end nuevo corre
+`lint-imports` de verdad sobre un paquete de tres capas: es el único lugar donde
+el archivo generado se somete al ejecutable, porque tras FR-011 los escenarios
+e2e greenfield omiten el paso por diseño. Verificado además que una violación
+real de capas rompe el contrato (no es un verde vacío).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-003-install-happy-path, SPEC-013, SPEC-018, SPEC-000-naming
+- Includes/excludes verificados: adapters/python + tests/unit; el kit no cablea `layers` (sin cambio)
+- SSOTs afectados: specs/SPEC-003-install-happy-path.md, specs/SPECS_REGISTRY.md
+- Verificación: python core/pipeline.py → VERDE (10/10); pytest tests/e2e → 17 passed con lint-imports en PATH
+```
+
+## 2026-08-08 — SPEC-018 (FR-US1-006/007, FR-US2-007/008/009): la suite e2e se verifica a sí misma
+
+**Scope:** `tests/e2e/lib/entorno.py`, `tests/e2e/README.md`,
+`tests/unit/test_e2e_entorno.py`, `tests/unit/test_e2e_aislamiento.py`,
+`.github/workflows/e2e.yml`, `tests/unit/test_sdd_gate_hook.py`,
+`specs/SPEC-018-verificacion-e2e.md` (sesión de clarify).
+
+**Qué cambió:**
+- El workspace efímero solo se borra si no existe, está vacío o lleva la marca
+  `.sdd-e2e-workspace` que siembra la propia suite. Un `SDD_E2E_WORK` mal tipeado
+  ya no puede borrar una carpeta ajena: aborta sin tocar nada.
+- Guardias estructurales (AST) sobre `tests/e2e/escenarios/`: cada escenario
+  afirma contenido y no solo códigos de salida, su docstring nombra el defecto
+  que lo originó, y todos parten de un fixture del harness en vez de armarse su
+  propio entorno.
+- El workflow e2e fija la matriz Linux+Windows y verifica al terminar que
+  `git status --porcelain` esté vacío.
+- `test_sdd_gate_hook.py`: los tests fail-closed dejan de depender del `.venv`
+  del clon (pasaban en CI y fallaban en la máquina de quien desarrolla, que es
+  al revés de lo útil).
+
+**Decisiones:** `tests/e2e/` es infraestructura compartida del kit, no propiedad
+de SPEC-018: otra spec puede agregar su escenario, pero no su propio entorno.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-018-verificacion-e2e, SPEC-012, SPEC-019, SPEC-004, SPEC-015
+- Includes/excludes verificados: tests/e2e + tests/unit + workflow e2e; core/ y adapters/ sin tocar
+- SSOTs afectados: specs/SPEC-018-verificacion-e2e.md
+- Verificación: python core/pipeline.py → VERDE (10/10); pytest tests/e2e → 17 passed
+```
+
 ## 2026-08-07 — SPEC-013 (FR-007): forzar la lectura del playbook en Codex/Antigravity
 
 **Scope:** `specs/SPEC-013-proyecto-derivado-coherente.md` (iteración 4),
