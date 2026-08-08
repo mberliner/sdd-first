@@ -16,7 +16,7 @@
 | SPEC-000 | Nomenclatura agnóstica | active | 1 | casero | [SPEC-000-naming.md](SPEC-000-naming.md) |
 | SPEC-001 | Núcleo agnóstico + adaptadores | active | 1 | hibrido | [SPEC-001-agnostic-core.md](SPEC-001-agnostic-core.md) |
 | SPEC-002 | Dogfooding íntegro del kit | active | 1 | hibrido | [SPEC-002-dogfooding-integro.md](SPEC-002-dogfooding-integro.md) |
-| SPEC-003 | Happy path de instalación | active | 1 | hibrido | [SPEC-003-install-happy-path.md](SPEC-003-install-happy-path.md) |
+| SPEC-003 | Happy path de instalación | active | 4 | hibrido | [SPEC-003-install-happy-path.md](SPEC-003-install-happy-path.md) |
 | SPEC-004 | Enforcement hardening (bootstrap hooks, reset post-commit, pre-commit robusto) | active | 1 | hibrido | [SPEC-004-enforcement-hardening.md](SPEC-004-enforcement-hardening.md) |
 | SPEC-005 | Desduplicar SSOTs del kit (docs/templates, defaults) | active | 1 | hibrido | [SPEC-005-desduplicar-ssot.md](SPEC-005-desduplicar-ssot.md) |
 | SPEC-006 | El gate verifica el estado (draft/active) de la spec declarada | superseded | 1 | hibrido | [SPEC-006-gate-verifica-estado-spec.md](SPEC-006-gate-verifica-estado-spec.md) |

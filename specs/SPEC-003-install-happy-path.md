@@ -63,6 +63,38 @@ distingue los pasos que verificaron algo de los que se omitieron.
   `gen_import_linter` ya cae a `<source_root>/<capa>` cuando `dirs` no declara
   la capa, así que el comportamiento no empeora respecto de hoy.
 
+### Session 2026-08-08 (reapertura)
+
+- Q: ¿Por qué se reabre otra vez? → A: la suite e2e de SPEC-018, corrida con
+  `lint-imports` en el PATH, mostró que una instalación fresca sale **ROJO** en
+  el paso `layers`: `.importlinter` se generaba con `[[importlinter:contract]]`
+  (sintaxis TOML de array-of-tables) dentro de un archivo que import-linter lee
+  como INI con `configparser`. Los corchetes dobles no son un nombre de sección
+  válido y, repetidos por cada contrato, revientan con `section '' already
+  exists`. Es una violación directa de SC-001, viva desde que existe el
+  generador.
+- Q: ¿Por qué ningún test lo vio? → A: por dos ausencias que se tapaban entre
+  sí. El generador solo se verificaba por *drift* (`--check` compara el archivo
+  con lo que el propio generador produce: siempre coincide, sea válido o no), y
+  el kit no declara `layers` en sus `pipeline.steps`, así que su pipeline nunca
+  ejecuta `lint-imports`. La regla que faltaba no es "generar bien": es que
+  **alguien lea lo generado con el parser real**.
+- Q: ¿Se arregla emitiendo TOML en `pyproject.toml` en vez de INI? → A: no. El
+  archivo `.importlinter` sigue siendo el destino (no toca el `pyproject.toml`
+  del proyecto adoptante, que es suyo); lo que cambia es la sintaxis, a la
+  sección INI por contrato que import-linter documenta:
+  `[importlinter:contract:<capa>]`.
+- Q: ¿El paso `layers` debería fallar si `lint-imports` no está? → A: no, sigue
+  vigente FR-004 (omitir con aviso y exit 3). Lo que no puede pasar es que
+  *estando* instalado, el archivo que le damos sea ilegible.
+- Q (descubierto al verificar el fix): con el `.importlinter` ya legible, la
+  instalación fresca **seguía** ROJO: `lint-imports` importa el paquete raíz
+  para construir el grafo y en greenfield no existe (`Could not find package
+  'src'`). → A: `step_layers` era el único paso de código sin la guardia de
+  targets de FR-001 —sus hermanos (`naming`, `lint`, `format`, `types`) ya
+  omiten cuando no hay carpetas—; se le agrega (FR-011). Dos defectos
+  encadenados con la misma raíz: el paso nunca se había ejecutado de verdad.
+
 ## Acceptance Scenarios
 
 - **Given** un directorio vacío, **When** corre `sdd-init` + render + gen +
@@ -84,6 +116,9 @@ distingue los pasos que verificaron algo de los que se omitieron.
 - **Given** un paso que el adaptador omite (sin targets, sin tool o sin umbrales),
   **When** el pipeline lo agrega, **Then** lo imprime como `[OMITIDO]`, no lo
   cuenta entre los pasos OK y el resumen final informa cuántos se omitieron.
+- **Given** una instalación fresca con `import-linter` instalado, **When** corre
+  el paso `layers`, **Then** `lint-imports` lee el `.importlinter` generado y
+  evalúa los contratos (no aborta al parsear el archivo).
 
 ## Functional Requirements
 
@@ -122,6 +157,21 @@ distingue los pasos que verificaron algo de los que se omitieron.
   `[OMITIDO]`, lo excluye del conteo de pasos OK e informa el total de omitidos
   en la línea de cierre. Aplica también al paso de proceso `hooks` cuando no hay
   repositorio git.
+- **FR-010** MUST: lo que genera un adaptador para una tool externa tiene que
+  ser legible **por esa tool**, y un test lo verifica con su parser, no con una
+  comparación contra el propio generador. En concreto:
+  `adapters/python/gen_import_linter.py` emite un `.importlinter` en sintaxis
+  INI —`[importlinter]` y una sección `[importlinter:contract:<capa>]` por
+  contrato— y un test unitario lo parsea con el lector de import-linter (o, si
+  no está instalado, con `configparser`, que es lo que ese lector usa) y
+  comprueba que aparezcan todos los contratos declarados por `layers`. Un
+  chequeo de drift (`--check`) no cuenta como cobertura: compara el generador
+  consigo mismo.
+- **FR-011** MUST: `step_layers` aplica la misma guardia de targets que el
+  resto de los pasos de código (FR-001): con `lint-imports` instalado pero sin
+  capas declaradas en `layers`, o sin el paquete raíz (`source_roots[0]`) en
+  disco, omite con aviso y exit 3 en vez de dejar que la tool aborte. Era el
+  único paso de código sin esa guardia.
 
 ## Key Entities
 
@@ -134,6 +184,8 @@ distingue los pasos que verificaron algo de los que se omitieron.
 - `core/pipeline.py` — agregación con `[OMITIDO]` y conteo aparte.
 - `core/bootstrap_hooks.py` — el no-op sin git se reporta como omitido.
 - `adapters/CONTRACT.md` — contrato de exit codes (0 / 3 / otro).
+- `adapters/python/gen_import_linter.py` — traducción de `layers` a contratos;
+  desde FR-010, en la sintaxis INI que import-linter realmente lee.
 
 ## Success Criteria
 
@@ -150,6 +202,10 @@ distingue los pasos que verificaron algo de los que se omitieron.
   carpetas de codigo todavia", 2 violaciones sin detectar).
 - **SC-006** El gate bloquea la edición del código real de ese proyecto tras la
   instalación (antes: permitía commits sobre `app/`, bloqueaba solo `src/`).
+- **SC-007** Instalación fresca **con `import-linter` instalado**: el paso
+  `layers` corre y el pipeline sigue VERDE (antes: ROJO 4/5, `lint-imports`
+  abortaba con `While reading from '<string>' : section '' already exists`
+  sobre el `.importlinter` recién generado).
 
 ## Assumptions
 
@@ -171,6 +227,8 @@ distingue los pasos que verificaron algo de los que se omitieron.
 | FR-007 | tests/unit/test_sdd_init_seeded_dirs.py, tests/unit/test_install_brownfield.py |
 | FR-008 | tests/unit/test_readme_bootstrap.py |
 | FR-009 | tests/unit/test_pipeline_omitidos.py, tests/unit/test_python_adapter.py, tests/unit/test_bootstrap_hooks.py, tests/unit/test_install_brownfield.py |
+| FR-010 | tests/unit/test_gen_import_linter.py |
+| FR-011 | tests/unit/test_python_adapter.py |
 
 ## Fuera de alcance
 
