@@ -44,6 +44,35 @@ def test_layers_sin_lint_imports_se_omite_con_exit_omitido(tmp_path, monkeypatch
     assert adapter.step_layers(tmp_path, cfg) == EXIT_OMITIDO
 
 
+def test_layers_sin_el_paquete_raiz_en_disco_se_omite(tmp_path, monkeypatch):
+    """SPEC-003 FR-011: era el unico paso de codigo sin guardia de targets.
+
+    Con la tool instalada y `layers` sembrado —el estado de toda instalacion
+    fresca— `lint-imports` abortaba con "Could not find package 'src'" y la
+    instalacion salia ROJO en su primer pipeline.
+    """
+    monkeypatch.setattr(adapter.shutil, "which", lambda name: "/usr/bin/lint-imports")
+    cfg = _cfg(tmp_path, {"layers": {"domain": [], "application": ["domain"]}})
+    assert adapter.step_layers(tmp_path, cfg) == EXIT_OMITIDO
+
+
+def test_layers_sin_capas_declaradas_se_omite(tmp_path, monkeypatch):
+    """Sin `layers` no hay contrato que verificar: omitir, no correr en vacio."""
+    monkeypatch.setattr(adapter.shutil, "which", lambda name: "/usr/bin/lint-imports")
+    (tmp_path / "src").mkdir()
+    assert adapter.step_layers(tmp_path, _cfg(tmp_path, {})) == EXIT_OMITIDO
+
+
+def test_layers_con_capas_y_paquete_raiz_si_se_ejecuta(tmp_path, monkeypatch):
+    llamadas = []
+    monkeypatch.setattr(adapter, "_run", lambda cmd, cwd: llamadas.append(cmd) or 0)
+    monkeypatch.setattr(adapter.shutil, "which", lambda name: "/usr/bin/lint-imports")
+    (tmp_path / "src").mkdir()
+    cfg = _cfg(tmp_path, {"layers": {"domain": [], "application": ["domain"]}})
+    assert adapter.step_layers(tmp_path, cfg) == 0
+    assert llamadas[-1] == ["lint-imports"]
+
+
 def test_con_targets_y_tool_si_se_ejecuta(tmp_path, monkeypatch):
     llamadas = []
     monkeypatch.setattr(adapter, "_run", lambda cmd, cwd: llamadas.append(cmd) or 0)

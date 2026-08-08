@@ -80,6 +80,16 @@ def step_layers(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
         return _skip(
             "tool 'lint-imports' no instalada (pip install import-linter), paso 'layers'"
         )
+    if not cfg.layers:
+        return _skip("sin capas declaradas en 'layers' del config, paso 'layers'")
+    # `lint-imports` importa el paquete raiz para construir el grafo: sin la
+    # carpeta en disco aborta ("Could not find package"). Es el mismo caso que
+    # los demas pasos de codigo resuelven omitiendo (SPEC-003 FR-001/FR-011).
+    root_package = cfg.source_roots[0] if cfg.source_roots else "src"
+    if not (repo_root / root_package).exists():
+        return _skip(
+            f"sin carpetas de codigo todavia (falta '{root_package}/'), paso 'layers'"
+        )
     # Regenera .importlinter desde config y corre lint-imports.
     gen = _run([sys.executable, str(HERE / "gen_import_linter.py")], repo_root)
     if gen != 0:
