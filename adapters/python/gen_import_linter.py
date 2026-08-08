@@ -5,6 +5,13 @@ una capa no puede importar de las capas que NO estan en su lista de permitidos.
 Este generador traduce el mapa declarativo `layers` del config a esos contratos,
 de modo que el proyecto no mantiene la matriz de imports a mano.
 
+El archivo es **INI**: import-linter lo lee con `configparser` y toma como
+contrato toda seccion que empiece con `importlinter:`, usando lo que sigue al
+ultimo `:` como identificador. De ahi `[importlinter:contract:<capa>]`, una por
+capa. La sintaxis TOML de array-of-tables (`[[importlinter:contract]]`) no es un
+nombre de seccion valido y hacia abortar a `lint-imports` con
+"section '' already exists" (SPEC-003 FR-010).
+
 Uso:
     python adapters/python/gen_import_linter.py           # escribe .importlinter
     python adapters/python/gen_import_linter.py --check   # falla si hay drift
@@ -44,7 +51,7 @@ def render(repo_root: Path) -> str:
         ]
         if not forbidden:
             continue
-        lines.append("[[importlinter:contract]]")
+        lines.append(f"[importlinter:contract:{layer}]")
         lines.append(f"name = {layer} no depende de {', '.join(forbidden)}")
         lines.append("type = forbidden")
         lines.append(f"source_modules =\n    {source_mod}")
