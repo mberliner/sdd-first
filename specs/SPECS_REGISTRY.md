@@ -33,3 +33,4 @@
 | SPEC-017 | Gate spec-first: qué decide bloquear una edición de código | active | 3 | hibrido | [SPEC-017-gate-decision-spec-first.md](SPEC-017-gate-decision-spec-first.md) |
 | SPEC-018 | Verificación de punta a punta del kit instalado | active | 4 | hibrido | [SPEC-018-verificacion-e2e.md](SPEC-018-verificacion-e2e.md) |
 | SPEC-019 | Los tests declarados se ejecutan o el proyecto se entera | active | 4 | hibrido | [SPEC-019-tests-integracion-ejecutados.md](SPEC-019-tests-integracion-ejecutados.md) |
+| SPEC-020 | El enforcement de un principio se declara en el config, no en un mapa hardcodeado | active | 5 | hibrido | [SPEC-020-enforcement-declarado-en-config.md](SPEC-020-enforcement-declarado-en-config.md) |

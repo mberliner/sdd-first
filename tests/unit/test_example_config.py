@@ -72,6 +72,34 @@ def test_todo_principio_declara_invariante_enforcement_y_detalle():
         assert p.get("detail"), p
 
 
+def test_los_principios_enforzados_por_pipeline_declaran_su_paso():
+    # SPEC-020 FR-005: sin `step`, check_constitution no verifica el cableado y
+    # el principio queda decorativo en cada proyecto sembrado desde este ejemplo.
+    # Los enforcements que NO son pasos (el gate va por hooks, el SSOT por
+    # convención) se declaran sin `step` a propósito.
+    esperado = {
+        "check_naming.py": "naming",
+        "lint-imports": "layers",
+        "check_traceability.py": "traceability",
+    }
+    declarado = {
+        p["enforcement"]: p.get("step")
+        for p in _cargado()["principles"]
+        if p.get("step")
+    }
+    assert declarado == esperado
+
+
+def test_los_pasos_declarados_por_los_principios_existen_en_el_pipeline():
+    # Un `step` que no está en pipeline.steps haría ROJO el paso `constitution`
+    # de toda instalación fresca.
+    cargado = _cargado()
+    pasos = set(cargado["pipeline"]["steps"])
+    for p in cargado["principles"]:
+        if p.get("step"):
+            assert p["step"] in pasos, p
+
+
 def test_declara_la_seccion_constitution_con_semver():
     # SPEC-010 FR-003: el procedimiento de enmienda necesita dónde bumpear.
     constitution = _cargado()["constitution"]

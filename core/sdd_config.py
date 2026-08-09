@@ -161,11 +161,19 @@ def write_text_lf(path: Path, text: str) -> None:
 
 @dataclass(frozen=True)
 class Principle:
+    """Un principio de la constitucion (SPEC-020 FR-001).
+
+    `step` es opcional y nombra el paso de `pipeline.steps` que activa su
+    enforcement. Sin `step`, el cableado no se verifica contra el pipeline: es la
+    forma de declarar un enforcement que corre por otra via (hooks, convencion).
+    """
+
     id: str
     title: str
     invariant: str = ""
     enforcement: str = ""
     detail: str = ""
+    step: str = ""
 
 
 @dataclass(frozen=True)
@@ -273,8 +281,26 @@ class SddConfig:
                     invariant=str(item.get("invariant", "")),
                     enforcement=str(item.get("enforcement", "")),
                     detail=str(item.get("detail", "")),
+                    step=str(item.get("step", "")),
                 )
             )
+        return out
+
+    @property
+    def enforcement_steps(self) -> dict[str, str]:
+        """Mapa token de enforcement -> paso que lo activa (SPEC-020 FR-002).
+
+        La clave es el basename del `enforcement` del principio, porque en la
+        constitucion se escribe con ruta (`adapters/python/check_naming.py`) y
+        aca interesa la tool. Antes esto era un dict hardcodeado en
+        `check_constitution.py`, con el efecto de que un principio propio no
+        obtenia verificacion de cableado (E-4 de docs/IDEAS.md).
+        """
+        out: dict[str, str] = {}
+        for p in self.principles:
+            if not p.enforcement or not p.step:
+                continue
+            out[p.enforcement.rsplit("/", 1)[-1]] = p.step
         return out
 
     # -- layers ----------------------------------------------------------------

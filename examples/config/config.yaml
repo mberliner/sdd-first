@@ -64,31 +64,41 @@ constitution:
 
 principles:
   # Los cuatro primeros son el NUCLEO MINIMO obligatorio del kit.
+  #
+  # `step` (opcional) nombra el paso de pipeline.steps que activa el enforcement:
+  # check_constitution.py verifica que ese paso este cableado (SPEC-020). Vale
+  # para CUALQUIER enforcement, incluido uno propio: si declaras
+  # `enforcement: mi_check.py` + `step: mi-paso`, el paso tiene que estar en
+  # pipeline.steps o la constitucion falla. Omitir `step` declara un enforcement
+  # que el pipeline no activa -- ver el principio IV (hooks) y el VI (convencion).
   - id: I
     title: Nomenclatura agnostica a tecnologia
     invariant: Ningun identificador de codigo nombra proveedor, UI, formato o auth.
     enforcement: check_naming.py
+    step: naming
     detail: specs/SPEC-000-naming.md
   - id: II
     title: Capas limpias con dependencia unidireccional
     invariant: El dominio es puro; las dependencias apuntan al dominio.
     enforcement: lint-imports
+    step: layers
     detail: docs/ARCHITECTURE.md
   - id: III
     title: Trazabilidad spec-codigo
     invariant: Toda capacidad tiene spec registrada antes de implementar.
     enforcement: check_traceability.py
+    step: traceability
     detail: specs/SPECS_REGISTRY.md
   - id: IV
     title: Gate spec-first
     invariant: No se edita codigo fuente sin una spec vigente declarada.
+    # Sin `step`: el gate se cablea via hooks, no como paso del pipeline; su
+    # presencia la verifica sdd-doctor.
     enforcement: sdd_gate.py
     detail: docs/SDD-ENFORCEMENT.md
   # A partir de aca, principios OPCIONALES: elegi los que apliquen a tu
-  # proyecto y borra el resto. No tienen por que enforzarse con una tool;
-  # check_constitution solo exige paso de pipeline para los enforcements que
-  # conoce (check_naming.py, lint-imports, check_traceability.py,
-  # check_constitution.py). El resto se verifica en code review.
+  # proyecto y borra el resto. No tienen por que enforzarse con una tool: sin
+  # `step`, el principio se verifica en code review.
   - id: V
     title: Datos no versionados
     invariant: El repo contiene codigo y specs, no datasets.

@@ -9,6 +9,10 @@ A diferencia del original (que hardcodeaba PIPELINE_TOOLS y buscaba en un
 pipeline_local.sh fijo), aqui el cableado se verifica contra los pasos
 declarados en el config, de modo que es agnostico del layout y del lenguaje.
 
+Que tool corresponde a que paso tambien sale del config: cada principio declara
+su `step` (SPEC-020). Este modulo no conoce ninguna tool por nombre, asi que un
+principio propio obtiene la misma verificacion que los del kit.
+
 Uso:
     python core/check_constitution.py CONSTITUTION.md
 
@@ -23,19 +27,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sdd_config import load  # noqa: E402
-
-# Herramientas de enforcement cuyo cableado se verifica, mapeadas al paso de
-# pipeline que las activa. Si un principio declara una de estas como Enforcement,
-# el paso correspondiente debe estar en pipeline.steps del config.
-# Nota: sdd_gate.py NO se mapea a un paso de pipeline; se cablea via hooks
-# (PreToolUse / pre-commit / plugin opencode) y su presencia la verifica
-# sdd-doctor, no el pipeline. Aca solo se cruzan las tools que SÍ son pasos.
-ENFORCEMENT_STEP: dict[str, str] = {
-    "check_naming.py": "naming",
-    "lint-imports": "layers",
-    "check_traceability.py": "traceability",
-    "check_constitution.py": "constitution",
-}
 
 _BACKTICK = re.compile(r"`([^`]+)`")
 _SEMVER = re.compile(r"\b\d+\.\d+\.\d+\b")
@@ -98,6 +89,7 @@ def _check_references(
     principles: list[_Principle],
     repo_root: Path,
     wired_steps: set[str],
+    enforcement_steps: dict[str, str],
     errors: list[str],
 ) -> None:
     for p in principles:
@@ -117,7 +109,10 @@ def _check_references(
 
         for token in p.enforcement:
             name = token.rsplit("/", 1)[-1]
-            step = ENFORCEMENT_STEP.get(name)
+            # Sin `step` declarado en el config no se verifica cableado: el
+            # enforcement corre por otra via (hooks, convencion) y exigirle un
+            # paso de pipeline seria falso (SPEC-020 FR-004).
+            step = enforcement_steps.get(name)
             if step is not None and step not in wired_steps:
                 errors.append(
                     f"Principio '{p.title}' Enforcement '{token}' no esta activo: "
@@ -151,7 +146,7 @@ def main(argv: list[str]) -> int:
     _check_version(version_line, errors)
     if not principles:
         errors.append("No se encontraron principios bajo '## Principios'.")
-    _check_references(principles, repo_root, wired_steps, errors)
+    _check_references(principles, repo_root, wired_steps, cfg.enforcement_steps, errors)
 
     print(f"Constitucion: {len(principles)} principio(s) activo(s)")
     for p in principles:

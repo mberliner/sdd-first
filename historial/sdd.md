@@ -1,5 +1,50 @@
 # Historial SDD — sdd-first
 
+## 2026-08-08 — SPEC-020: el enforcement de un principio lo declara el config
+
+**Scope:** `core/sdd_config.py` (`Principle.step`, `enforcement_steps`),
+`core/check_constitution.py` (se elimina `ENFORCEMENT_STEP`), `.sdd/config.yaml`,
+`examples/config/config.yaml`, `tests/unit/test_check_constitution.py` (nuevo),
+`tests/unit/test_sdd_config.py`, `tests/unit/test_example_config.py`.
+
+**Qué cambió:** el mapa tool→paso que usaba el Constitution Check para verificar
+que el enforcement de un principio esté cableado era un `dict` hardcodeado con
+cuatro entradas en `core/check_constitution.py`. Ahora cada principio declara su
+`step` en `.sdd/config.yaml` y el check resuelve contra `cfg.enforcement_steps`.
+El núcleo dejó de nombrar tools. Un principio propio (`enforcement: mi_check.py`
++ `step: mi-paso`) obtiene exactamente la misma verificación que los del kit.
+
+**Cómo apareció:** yendo a declarar el principio de cobertura de K-3 (el kit se
+exige más que lo que reparte). Al escribirlo se vio que no obtendría
+verificación: `ENFORCEMENT_STEP.get(name)` devuelve `None` para cualquier tool
+fuera del mapa y el check **pasa en silencio**. Habría sido un enforcement
+decorativo en la constitución del propio kit — el fallo que el kit existe para
+evitar. Estaba registrado como E-4 en `docs/IDEAS.md` desde la primera revisión
+crítica; lo que cambió es que dejó de ser deuda abstracta y pasó a ser
+prerrequisito.
+
+**Decisión de diseño:** `step` va **dentro de cada principio**, no como un mapa
+de nivel superior. Un mapa aparte partiría en dos lugares la descripción de un
+mismo principio y sería duplicación de SSOT dentro del config: el principio es la
+unidad. Un principio **sin** `step` no verifica cableado y no es error — es cómo
+se declara un enforcement que el pipeline no activa: el gate (Principio III) va
+por hooks y lo verifica `sdd-doctor`, el SSOT único (Principio IV) es convención
+de `AGENTS.md`. Esa distinción vivía en un comentario de código; ahora es
+explícita en el config. Fuera de alcance: renderizar el paso en
+`CONSTITUTION.md` (la línea `Enforcement:` se parsea con `_BACKTICK.findall`, así
+que un segundo token se leería como otro enforcement).
+
+**Cobertura (K-3):** `check_constitution.py` pasó de **0% a 99%** — 96 stmts que
+nunca se habían ejecutado, en un módulo que corre en el paso `constitution` de
+*todo* proyecto instalado. Total del kit: 75% → **81%**, y el umbral de
+`pipeline.coverage` subió de 50 (25 puntos por debajo del piso real: no protegía
+nada) a **80**. Objetivo declarado 90%; falta cubrir `sdd_spec` (44%), el
+adaptador python (51%) y `check_naming` (59%).
+
+**Estado:** pipeline 10/10 VERDE, 352 tests + 1 skip. `CONSTITUTION.md` no
+cambió: `step` no se renderiza, así que la enmienda no fue tal y la versión de la
+constitución sigue en 0.3.0.
+
 ## 2026-08-08 — SPEC-003 (FR-010/FR-011): el paso `layers` nunca se había ejecutado
 
 **Scope:** `adapters/python/gen_import_linter.py`, `adapters/python/adapter.py`

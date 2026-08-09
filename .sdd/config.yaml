@@ -35,19 +35,27 @@ constitution:
   amended: 2026-08-05
 
 principles:
+  # `step` (opcional) nombra el paso de pipeline.steps que activa el enforcement:
+  # check_constitution.py verifica que ese paso este cableado (SPEC-020 FR-001).
+  # Omitirlo declara un enforcement que el pipeline NO activa -- ver III y IV.
   - id: I
     title: Nomenclatura agnostica a tecnologia
     invariant: Ningun identificador del kit acopla a un proveedor o UI concretos.
     enforcement: check_naming.py
+    step: naming
     detail: specs/SPEC-000-naming.md
   - id: II
     title: Trazabilidad spec-codigo
     invariant: Toda capacidad del kit tiene spec registrada antes de implementar.
     enforcement: check_traceability.py
+    step: traceability
     detail: specs/SPECS_REGISTRY.md
   - id: III
     title: Gate spec-first
     invariant: No se edita el nucleo del kit sin una spec vigente declarada.
+    # Sin `step`: el gate se cablea via hooks (PreToolUse / pre-commit / plugin
+    # de opencode), no como paso del pipeline, y su presencia la verifica
+    # sdd-doctor.
     enforcement: sdd_gate.py
     detail: docs/SDD-ENFORCEMENT.md
   - id: IV
@@ -77,10 +85,13 @@ pipeline:
     - tests
     - coverage
 
-  # Umbrales de cobertura del propio kit (SPEC-009). Se fijan en el piso actual
-  # medido, no en un ideal: sirven como trinquete (impiden que baje) y se suben
-  # a medida que se cubren los modulos hoy sin tests (check_constitution,
-  # gen_skill_adapters y sdd_doctor estan en 0% — deuda anotada en IDEAS).
+  # Umbrales de cobertura del propio kit (SPEC-009). Trinquete: se fijan en el
+  # piso medido, no en un ideal, y se suben a medida que se cubren modulos.
+  # Objetivo declarado: 90% (K-3 de docs/IDEAS.md) — todo lo que el kit tiene es
+  # codigo de palanca que corre dentro de proyectos ajenos, asi que se exige mas
+  # que lo que reparte. Escalon actual: 80% (medido 81% al cubrir
+  # check_constitution en SPEC-020). Falta cubrir sdd_spec (44%), el adaptador
+  # python (51%) y check_naming (59%).
   coverage:
     - paths: [core, adapters]
-      min: 50
+      min: 80

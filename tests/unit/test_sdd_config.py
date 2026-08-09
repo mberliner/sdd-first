@@ -59,6 +59,59 @@ def test_principles_ignora_entradas_no_dict():
     assert cfg.principles[0].id == "I"
 
 
+# SPEC-020: el paso que activa el enforcement lo declara el principio, no un
+# mapa hardcodeado en check_constitution.
+
+
+def test_principle_step_es_opcional_y_default_vacio():
+    cfg = _cfg({"principles": [{"id": "I", "title": "T", "enforcement": "x.py"}]})
+    assert cfg.principles[0].step == ""
+
+
+def test_enforcement_steps_mapea_tool_a_paso():
+    cfg = _cfg(
+        {
+            "principles": [
+                {
+                    "id": "I",
+                    "title": "T",
+                    "enforcement": "check_naming.py",
+                    "step": "naming",
+                },
+            ]
+        }
+    )
+    assert cfg.enforcement_steps == {"check_naming.py": "naming"}
+
+
+def test_enforcement_steps_usa_el_basename_de_la_ruta():
+    cfg = _cfg(
+        {
+            "principles": [
+                {
+                    "id": "I",
+                    "title": "T",
+                    "enforcement": "adapters/python/check_naming.py",
+                    "step": "naming",
+                },
+            ]
+        }
+    )
+    assert cfg.enforcement_steps == {"check_naming.py": "naming"}
+
+
+def test_enforcement_steps_omite_principios_sin_step_o_sin_enforcement():
+    cfg = _cfg(
+        {
+            "principles": [
+                {"id": "I", "title": "Hooks", "enforcement": "sdd_gate.py"},
+                {"id": "II", "title": "Convencion", "step": "naming"},
+            ]
+        }
+    )
+    assert cfg.enforcement_steps == {}
+
+
 def test_layers_tolera_listas_nulas():
     cfg = _cfg({"layers": {"domain": None, "app": ["domain"]}})
     assert cfg.layers == {"domain": [], "app": ["domain"]}
