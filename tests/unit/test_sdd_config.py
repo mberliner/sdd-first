@@ -131,7 +131,7 @@ def test_enforcement_steps_usa_el_basename_de_la_ruta():
     assert cfg.enforcement_steps == {"check_naming.py": "naming"}
 
 
-def test_enforcement_steps_omite_principios_sin_step_o_sin_enforcement():
+def test_enforcement_steps_ignora_principio_sin_step_o_sin_enforcement():
     cfg = _cfg(
         {
             "principles": [
@@ -141,6 +141,31 @@ def test_enforcement_steps_omite_principios_sin_step_o_sin_enforcement():
         }
     )
     assert cfg.enforcement_steps == {}
+
+
+def test_enforcement_steps_falla_ante_colision_de_nombres():
+    import pytest
+
+    cfg = _cfg(
+        {
+            "principles": [
+                {
+                    "id": "I",
+                    "title": "C1",
+                    "enforcement": "core/check_naming.py",
+                    "step": "naming",
+                },
+                {
+                    "id": "II",
+                    "title": "C2",
+                    "enforcement": "adapters/python/check_naming.py",
+                    "step": "naming",
+                },
+            ]
+        }
+    )
+    with pytest.raises(ValueError, match="Colisión de enforcement: 'check_naming.py'"):
+        _ = cfg.enforcement_steps
 
 
 def test_layers_tolera_listas_nulas():

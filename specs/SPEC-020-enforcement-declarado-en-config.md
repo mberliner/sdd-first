@@ -80,8 +80,9 @@ paso al config, pasa.
   enforcement.
 - **FR-002** MUST: `core/sdd_config.py` expone el dato tipado: `Principle.step` y
   un mapa derivado `enforcement_steps` (token de enforcement → paso), donde el
-  token es el basename del valor de `enforcement`. Ningún consumidor parsea el
-  YAML crudo ni recompone el mapa por su cuenta.
+  token es el basename del valor de `enforcement`. Si dos basenames colisionan,
+  se levanta un `ValueError` considerándolo un error de configuración. Ningún
+  consumidor parsea el YAML crudo ni recompone el mapa por su cuenta.
 - **FR-003** MUST: `core/check_constitution.py` no contiene ninguna lista de
   tools ni de pasos: resuelve token→paso contra `enforcement_steps` del config.
   Un principio con `step` declarado y ausente de `pipeline.steps` es error, con
@@ -118,6 +119,10 @@ paso al config, pasa.
 
 ## Assumptions
 
+- "Declarado en `pipeline.steps`" no significa "ejecutado en runtime". Si un paso
+  está declarado pero se omite (ej. sin adaptador o tool), el enforcement no corre
+  pero la constitución queda VERDE. Los pasos omitidos se reportan en el resumen
+  del pipeline. Hacer que un principio omitido sea aviso se abre como idea.
 - El nombre del paso no se valida contra un catálogo cerrado: los pasos de código
   los define cada adaptador, así que un `step` inventado se reporta como "falta
   el paso X en pipeline.steps", que es visible aunque sea un typo — preferible a

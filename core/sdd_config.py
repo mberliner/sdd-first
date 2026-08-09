@@ -372,7 +372,13 @@ class SddConfig:
         for p in self.principles:
             if not p.enforcement or not p.step:
                 continue
-            out[p.enforcement.rsplit("/", 1)[-1]] = p.step
+            basename = p.enforcement.rsplit("/", 1)[-1]
+            if basename in out:
+                raise ValueError(
+                    f"Colisión de enforcement: '{basename}' está declarado "
+                    "más de una vez en principles."
+                )
+            out[basename] = p.step
         return out
 
     # -- layers ----------------------------------------------------------------

@@ -637,3 +637,8 @@ evaluó y se dejó afuera:
   existencia sobre él. Un principio con dos SSOTs de detalle (o con enforcement
   mixto tool + revisión) no se puede expresar. Aceptar listas sería cambio de
   núcleo (config + render + check) y necesita spec propia.
+- **Omitido no es VERDE**. Un principio cuyo `step` de enforcement está declarado
+  en el config pero se omite en runtime (por falta de adaptador o tool) deja a
+  la constitución en verde pero sin ejecución real. Hacer que `check_constitution`
+  lea el reporte de omitidos y lance un aviso o error para principios no
+  enforceados.
