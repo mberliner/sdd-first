@@ -53,6 +53,37 @@ def test_naming_normaliza_a_minusculas():
     assert cfg.naming_prohibited == ("acme", "gadget")
 
 
+# SPEC-021: una clave declarada pero vacia se comporta como ausente. YAML carga
+# `prohibited:` sin items como None, y vaciar la lista es la forma natural de
+# desactivar la regla sin borrar la clave.
+
+
+def test_naming_con_claves_vacias_equivale_a_ausentes():
+    vacio = _cfg(
+        {
+            "naming": {
+                "prohibited": None,
+                "allowed_identifiers": None,
+                "relax_in_tests": None,
+            }
+        }
+    )
+    ausente = _cfg({})
+    assert vacio.naming_prohibited == ausente.naming_prohibited == ()
+    assert vacio.naming_allowed == ausente.naming_allowed == frozenset()
+    assert vacio.naming_relax_in_tests == ausente.naming_relax_in_tests == frozenset()
+
+
+def test_naming_con_escalar_en_vez_de_lista_no_rompe():
+    cfg = _cfg({"naming": {"prohibited": "acme"}})
+    assert cfg.naming_prohibited == ()
+
+
+def test_naming_acepta_tupla_ademas_de_lista():
+    cfg = _cfg({"naming": {"prohibited": ("Acme",)}})
+    assert cfg.naming_prohibited == ("acme",)
+
+
 def test_principles_ignora_entradas_no_dict():
     cfg = _cfg({"principles": [{"id": "I", "title": "T"}, "basura", None]})
     assert len(cfg.principles) == 1

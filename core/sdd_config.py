@@ -250,17 +250,30 @@ class SddConfig:
         return roots or [DEFAULT_SOURCE_ROOT]
 
     # -- naming ----------------------------------------------------------------
+    def _naming_list(self, key: str) -> list[Any]:
+        """Lista del bloque `naming`, tolerante a clave vacia o malformada.
+
+        SPEC-021 FR-001/FR-003: `prohibited:` sin items lo carga YAML como `None`
+        —la forma natural de desactivar la regla sin borrar la clave— y iterarlo
+        reventaba el paso `naming` con un TypeError, tapando el aviso de "nada
+        que verificar" que el propio consumidor ya tenia escrito. Ausente, vacia
+        y malformada colapsan al mismo resultado. La guarda vive aca y no
+        repetida en cada propiedad para que una lista nueva la herede.
+        """
+        value = self._naming.get(key)
+        return list(value) if isinstance(value, (list, tuple)) else []
+
     @property
     def naming_prohibited(self) -> tuple[str, ...]:
-        return tuple(str(x).lower() for x in self._naming.get("prohibited", []))
+        return tuple(str(x).lower() for x in self._naming_list("prohibited"))
 
     @property
     def naming_allowed(self) -> frozenset[str]:
-        return frozenset(str(x) for x in self._naming.get("allowed_identifiers", []))
+        return frozenset(str(x) for x in self._naming_list("allowed_identifiers"))
 
     @property
     def naming_relax_in_tests(self) -> frozenset[str]:
-        return frozenset(str(x).lower() for x in self._naming.get("relax_in_tests", []))
+        return frozenset(str(x).lower() for x in self._naming_list("relax_in_tests"))
 
     @property
     def _naming(self) -> dict[str, Any]:
