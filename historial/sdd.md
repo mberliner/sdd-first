@@ -1,5 +1,46 @@
 # Historial SDD — sdd-first
 
+## 2026-08-09 — K-2: el catálogo de claves del config viaja con la instalación
+
+**Scope:** `specs/SPEC-013-proyecto-derivado-coherente.md` (reabierta, iteración
+6), `core/sdd_init.py`, `templates/00-INDEX.md`,
+`tests/unit/test_catalogo_config_viaja.py` (nuevo),
+`tests/unit/test_derived_references.py`.
+
+**Qué cambió:** `sdd-init` instala el catálogo de claves —`examples/config/
+config.yaml`, verbatim— como `.sdd/config.reference.yaml` del destino, y la
+cabecera sembrada remite ahí en vez de a "el kit, en `examples/config/
+config.yaml`". Era una referencia colgada en el archivo que el dueño más edita,
+que solo se sostenía asumiendo que siempre hay un clon del kit a mano.
+
+**Por qué ahora:** la premisa cambió. El README declara que el kit es desechable
+(K-6), así que todo lo que el derivado necesite tiene que viajar con la
+instalación. Un catálogo que solo existe en el repo del kit es un hueco.
+
+**Decisiones:**
+
+- **El YAML verbatim, no un `docs/CONFIG-REFERENCE.md`.** El catálogo *es* ese
+  archivo: su valor está en los comentarios junto a cada clave. Reexplicarlas en
+  prosa sería una segunda descripción del mismo tema, divergente por construcción
+  (Principio IV). Copiar el archivo del kit al derivado no duplica un SSOT dentro
+  de un repo: es la misma vendorización que ya hace `tools/sdd/`.
+- **`config.reference.yaml`, no `config.example.yaml`.** "Example" invita a
+  copiarlo, que es la instrucción absurda que SPEC-014 FR-US2-004 sacó de la
+  cabecera sembrada.
+- **Se reescribe en cada instalación.** El config es del dueño y se conserva; el
+  catálogo es artefacto del kit. Uno viejo, describiendo claves de otra versión
+  del andamiaje, es peor que no tenerlo.
+
+**El test que no veía nada:** `test_derived_references.py` auditaba rutas colgadas
+solo sobre los `.md` instalados. Por eso FR-004 estaba verde con esta referencia
+rota desde siempre. Ahora la auditoría alcanza también a `.sdd/config.yaml`
+(FR-009). Límite conocido, heredado: solo se auditan rutas en backticks — la
+convención del kit para "ruta que el lector puede seguir".
+
+**Verificación:** pipeline VERDE 10/10, 434 unitarios + 17 e2e.
+
+**[SDD-Check]** SPEC-013 · FR-008, FR-009, FR-010 · SC-007 · pipeline VERDE 10/10
+
 ## 2026-08-09 — K-5: el paso `coverage` sembrado deja de nacer inerte
 
 **Scope:** `specs/SPEC-009-coverage-y-ci.md` (reabierta con US2, iteración 6),

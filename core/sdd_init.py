@@ -30,6 +30,11 @@ from sdd_config import GATE_WIRING, VENDOR_PREFIX, write_text_lf  # noqa: E402
 KIT_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = KIT_ROOT / "templates"
 
+# Catalogo de claves del config: SSOT en el kit, instalado en el destino para
+# que la cabecera del config sembrado pueda apuntarle (SPEC-013 FR-008).
+EXAMPLE_CONFIG = KIT_ROOT / "examples" / "config" / "config.yaml"
+CONFIG_REFERENCE_RELPATH = Path(".sdd") / "config.reference.yaml"
+
 # Plantillas estáticas: (origen relativo a templates/, destino relativo a target).
 STATIC_DOCS = [
     ("AGENTS.md", "AGENTS.md"),
@@ -120,6 +125,25 @@ def _vendor_kit(target: Path, language: str, force: bool) -> list[str]:
     return out
 
 
+def _install_config_reference(target: Path) -> str:
+    """Instala el catalogo de claves del config en el destino (SPEC-013 FR-008).
+
+    La cabecera del config sembrado remite al catalogo, que hasta ahora vivia
+    solo en el kit (`examples/config/config.yaml`): una referencia colgada en el
+    archivo que el dueno mas edita, y que solo se sostenia asumiendo que siempre
+    hay un clon del kit a mano. No la hay: el kit es desechable.
+
+    Se copia verbatim porque el catalogo *es* ese YAML --su valor esta en los
+    comentarios junto a cada clave--, y se reescribe siempre porque es artefacto
+    del kit, no del dueno: un catalogo viejo describiendo claves de una version
+    anterior del andamiaje es peor que no tenerlo.
+    """
+    dst = target / CONFIG_REFERENCE_RELPATH
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    write_text_lf(dst, EXAMPLE_CONFIG.read_text(encoding="utf-8"))
+    return f"  instalado {dst}"
+
+
 def _write_config(
     target: Path, name: str, language: str, force: bool
 ) -> tuple[str, Layout | None]:
@@ -127,9 +151,7 @@ def _write_config(
     dst = target / ".sdd" / "config.yaml"
     if dst.exists() and not force:
         return f"  (existe, se conserva) {dst}", None
-    example = (KIT_ROOT / "examples" / "config" / "config.yaml").read_text(
-        encoding="utf-8"
-    )
+    example = EXAMPLE_CONFIG.read_text(encoding="utf-8")
     example = _seed_header(example, name)
     example = example.replace("name: mi-proyecto", f"name: {name}")
     example = example.replace("language: python", f"language: {language}")
@@ -166,8 +188,8 @@ def _seed_header(config_text: str, name: str) -> str:
         "# Todo el andamiaje SDD lee sus parametros de aca: cambiar este archivo",
         "# cambia lo que el pipeline verifica y lo que el gate protege. Tras",
         "# editarlo, regenera los derivados con `render.py` (CONSTITUTION.md,",
-        "# SPEC-000, CI). El catalogo completo de claves esta en el kit, en",
-        "# examples/config/config.yaml.",
+        "# SPEC-000, CI). El catalogo completo de claves, con su documentacion,",
+        f"# esta al lado: `{CONFIG_REFERENCE_RELPATH.as_posix()}`.",
         "",
     ]
     return "\n".join([*cabecera, *cuerpo[inicio:]]).rstrip() + "\n"
@@ -639,6 +661,7 @@ def main(argv: list[str]) -> int:
             (target / dst_rel).chmod(0o755)
     config_line, layout = _write_config(target, name, language, force)
     log.append(config_line)
+    log.append(_install_config_reference(target))
     log.extend(_vendor_kit(target, language, force))
     log.extend(_install_project_skills(target, force))
     log.extend(_generate_skill_adapters(target))

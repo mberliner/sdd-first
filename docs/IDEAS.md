@@ -496,6 +496,14 @@ evidencia que les faltaba:
   a editar. Fix: instalar el catálogo como `docs/CONFIG-REFERENCE.md` (o
   `.sdd/config.example.yaml`) y que la cabecera apunte ahí. Emparejado con K-6:
   si el kit es desechable, su documentación de referencia tiene que viajar.
+  **(cerrado el 2026-08-09)** → [[SPEC-013-proyecto-derivado-coherente]] FR-008..010.
+  Ninguna de las dos formas propuestas: se instala el **YAML verbatim** como
+  `.sdd/config.reference.yaml`. Un `docs/CONFIG-REFERENCE.md` en prosa habría sido
+  una segunda descripción de las mismas claves (Principio IV), y `config.example`
+  invita a copiarlo, que es justo la instrucción que SPEC-014 FR-US2-004 sacó de
+  la cabecera. De paso destapó por qué FR-004 estaba verde con esta referencia
+  rota desde siempre: el test de rutas colgadas miraba solo los `.md` instalados,
+  no `.sdd/config.yaml`.
 - **K-3 · La cobertura del kit está mal calibrada — y es el punto de mayor
   palanca.** Medido el 2026-08-08: total **75%** contra un umbral declarado de
   **50** (el trinquete quedó 25 puntos por debajo del piso real y no protege

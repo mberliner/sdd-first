@@ -32,11 +32,22 @@ _EXCLUIDOS = ("tools/sdd", ".agents", ".claude", ".opencode")
 
 
 def _docs_instalados(target: Path) -> list[Path]:
-    return [
+    """Los `.md` instalados, mas `.sdd/config.yaml` (FR-009).
+
+    El config no es un doc, pero su cabecera referencia igual que uno --y es el
+    archivo que el dueno mas abre--. Mirar solo `.md` fue exactamente lo que dejo
+    pasar K-2: la cabecera mandaba al catalogo "en el kit", que el derivado no
+    tiene.
+    """
+    archivos = [
         md
         for md in sorted(target.rglob("*.md"))
         if not any(x in md.as_posix() for x in _EXCLUIDOS)
     ]
+    config = target / ".sdd" / "config.yaml"
+    if config.exists():
+        archivos.append(config)
+    return archivos
 
 
 def _bootstrap(target: Path, language: str) -> None:

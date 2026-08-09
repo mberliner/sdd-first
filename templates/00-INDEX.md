@@ -25,6 +25,7 @@
 |------|----------------------|
 | Principios / constitución | `CONSTITUTION.md` (← `.sdd/config.yaml`) |
 | Parámetros del proyecto | `.sdd/config.yaml` |
+| Qué significa cada clave del config | `.sdd/config.reference.yaml` (catálogo, no se edita) |
 | Protocolo del agente | `AGENTS.md` |
 | Specs vigentes | `specs/SPECS_REGISTRY.md` |
 | Nomenclatura | `specs/SPEC-000-naming.md` (← `.sdd/config.yaml`) |

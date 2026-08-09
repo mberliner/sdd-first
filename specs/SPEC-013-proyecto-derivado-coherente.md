@@ -82,6 +82,35 @@ instalados apunta a un archivo ausente.
   kit — el mecanismo de carga forzada de Claude Code no es replicable desde
   acá.
 
+### Session 2026-08-09 (K-2)
+
+- Q: la cabecera de `.sdd/config.yaml` remite al catálogo de claves "en el kit, en
+  `examples/config/config.yaml`" — un archivo que el derivado no tiene (**K-2** de
+  `docs/IDEAS.md`). ¿Es esta la spec? → A: sí. FR-004 ya exige que ningún
+  documento instalado cite una ruta inexistente; esto es la misma referencia
+  colgada, en la superficie que el test no mira porque no es `.md`, y encima
+  dentro del archivo que el dueño más va a editar. El invariante de la US es
+  literal: *cada referencia apunta a algo que mi instalación realmente tiene*.
+- Q: ¿por qué no en SPEC-014 FR-US2-004, que fue quien tocó esa cabecera? → A:
+  porque el eje de esa HU es el vocabulario (*el derivado habla en sus propios
+  términos*) y acá el problema no es cómo está dicho sino que lo referido no
+  viaja. Son ejes distintos sobre el mismo archivo.
+- Q: ¿el catálogo se instala como `.md` explicativo o como el YAML? → A: como el
+  YAML, verbatim. El catálogo **es** `examples/config/config.yaml`: su valor está
+  en los comentarios junto a cada clave. Un `docs/CONFIG-REFERENCE.md` que
+  reexplicara las claves en prosa sería una segunda descripción de lo mismo,
+  divergente por construcción (Principio IV). Copiar el archivo del kit al
+  derivado no duplica un SSOT dentro de un repo: es la misma vendorización que ya
+  hace `tools/sdd/`.
+- Q: ¿`config.example.yaml`? → A: no. "Example" invita a copiarlo, que es
+  exactamente la instrucción absurda que SPEC-014 FR-US2-004 sacó de la cabecera
+  sembrada. Se instala como `.sdd/config.reference.yaml`: catálogo de consulta, al
+  lado del archivo que se edita.
+- Q: ¿se conserva si ya existe, como el config? → A: no. El config sembrado es del
+  dueño y por eso se conserva; el catálogo es artefacto del kit y se reescribe en
+  cada instalación, igual que `tools/sdd/`. Un catálogo viejo describiendo claves
+  de una versión anterior del andamiaje es peor que no tenerlo.
+
 ## Acceptance Scenarios
 
 - **Given** un directorio vacío, **When** se instala y se corre `render.py`,
@@ -104,6 +133,12 @@ instalados apunta a un archivo ausente.
   directo (Codex, Antigravity), **When** invoca la skill, **Then** el wrapper
   le exige explícitamente abrir y leer completo el playbook antes de
   preguntar nada, en vez de mencionarlo de forma pasiva.
+- **Given** una instalación fresca sin el clon del kit a mano, **When** el dueño
+  abre `.sdd/config.yaml` y sigue la referencia al catálogo de claves, **Then**
+  el archivo referido existe en su proyecto.
+- **Given** una reinstalación sobre un proyecto que ya tiene config propio,
+  **When** termina `sdd-init`, **Then** el `.sdd/config.yaml` del dueño se
+  conserva y el catálogo queda actualizado a la versión del andamiaje instalado.
 
 ## Functional Requirements
 
@@ -137,6 +172,16 @@ instalados apunta a un archivo ausente.
   instruye de forma imperativa abrir y leer completo el playbook antes de
   preguntar nada — no una mención pasiva que un asistente pueda saltear
   confiando en lo que "cree" recordar del nombre de la skill.
+- **FR-008** MUST: `core/sdd_init.py` instala el catálogo de claves del config
+  —`examples/config/config.yaml`, verbatim— en el destino como
+  `.sdd/config.reference.yaml`, y la cabecera que siembra en `.sdd/config.yaml`
+  remite ahí en vez de a una ruta del kit. Es artefacto del kit, no del dueño: se
+  reescribe en cada instalación, como `tools/sdd/`.
+- **FR-009** MUST: la verificación de referencias colgadas de FR-004 alcanza
+  también a `.sdd/config.yaml`. El test miraba solo los `.md` instalados, y por
+  eso no veía la referencia rota del archivo que más se edita.
+- **FR-010** SHOULD: `00-INDEX.md` nombra el catálogo, que es donde el dueño
+  busca qué documento es el SSOT de cada tema.
 
 ## Key Entities
 
@@ -169,6 +214,8 @@ instalados apunta a un archivo ausente.
   playbook" sin marcar que es obligatorio hacerlo antes de proceder;
   Antigravity, probado en la práctica, corrió el wizard sin el preámbulo
   nuevo).
+- **SC-007** Ninguna referencia de `.sdd/config.yaml` apunta fuera del proyecto:
+  el catálogo de claves está en disco, en el destino, sin el clon del kit al lado.
 
 ## Assumptions
 
@@ -191,6 +238,9 @@ instalados apunta a un archivo ausente.
 | FR-005 | verificación manual (playbook) |
 | FR-006 | verificación manual (playbook); tests/unit/test_render.py (sync sin drift) |
 | FR-007 | verificación manual (probado con Antigravity); tests/unit/test_gen_skill_adapters.py (sync sin drift) |
+| FR-008 | tests/unit/test_catalogo_config_viaja.py |
+| FR-009 | tests/unit/test_derived_references.py |
+| FR-010 | tests/unit/test_catalogo_config_viaja.py |
 
 ## Fuera de alcance
 
