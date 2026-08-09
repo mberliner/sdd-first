@@ -263,6 +263,10 @@ def _seed_pipeline_steps(config_text: str, layout: Layout | None = None) -> str:
     pasos = list(_SEEDED_STEPS)
     if layout is not None and layout.tests_integration:
         pasos.insert(pasos.index("tests") + 1, "integration")
+    # `e2e` va ultimo por costo: un fallo barato tiene que aparecer antes
+    # (SPEC-018 FR-US3-003).
+    if layout is not None and layout.tests_e2e:
+        pasos.append("e2e")
     lines = config_text.splitlines()
     out: list[str] = []
     in_steps = False
@@ -293,6 +297,7 @@ def _seed_pipeline_steps(config_text: str, layout: Layout | None = None) -> str:
 _SOURCE_CANDIDATES = ("src", "app", "lib", "pkg", "source", "internal")
 _TEST_CANDIDATES = ("tests/unit", "tests", "test")
 _INTEGRATION_CANDIDATES = ("tests/integration", "tests/integracion")
+_E2E_CANDIDATES = ("tests/e2e", "tests/end-to-end", "e2e")
 
 # Extension de los archivos que delatan codigo del lenguaje, por adaptador.
 _LANGUAGE_GLOBS = {"python": "*.py"}
@@ -305,10 +310,16 @@ class Layout:
     source_root: str | None
     tests_unit: str | None
     tests_integration: str | None = None
+    tests_e2e: str | None = None
 
     @property
     def detected(self) -> bool:
-        return bool(self.source_root or self.tests_unit or self.tests_integration)
+        return bool(
+            self.source_root
+            or self.tests_unit
+            or self.tests_integration
+            or self.tests_e2e
+        )
 
 
 def _has_language_files(directory: Path, language: str) -> bool:
@@ -339,6 +350,9 @@ def _detect_layout(target: Path, language: str) -> Layout:
     tests_integration = next(
         (name for name in _INTEGRATION_CANDIDATES if (target / name).is_dir()), None
     )
+    tests_e2e = next(
+        (name for name in _E2E_CANDIDATES if (target / name).is_dir()), None
+    )
     # Si la carpeta unitaria detectada ya contiene a la de integracion (layout
     # `tests/` plano), declararlas por separado haria correr los mismos tests dos
     # veces: manda la unitaria, que es la que se detecto.
@@ -348,10 +362,13 @@ def _detect_layout(target: Path, language: str) -> Layout:
         and tests_integration.startswith(f"{tests_unit}/")
     ):
         tests_integration = None
+    if tests_e2e and tests_unit and tests_e2e.startswith(f"{tests_unit}/"):
+        tests_e2e = None
     return Layout(
         source_root=source_root,
         tests_unit=tests_unit,
         tests_integration=tests_integration,
+        tests_e2e=tests_e2e,
     )
 
 
@@ -388,6 +405,10 @@ def _seed_dirs(config_text: str, layout: Layout) -> str:
         cuerpo.append(f"  tests_integration: {layout.tests_integration}")
     else:
         cuerpo.append("  # tests_integration: tests/integration  # paso 'integration'")
+    if layout.tests_e2e:
+        cuerpo.append(f"  tests_e2e: {layout.tests_e2e}")
+    else:
+        cuerpo.append("  # tests_e2e: tests/e2e  # paso 'e2e'")
     cuerpo.append("  # Rutas de cada capa (las pregunta sdd-configure):")
     cuerpo.append("  # domain: <ruta>")
 
@@ -519,6 +540,8 @@ def _layout_notice(layout: Layout | None) -> list[str]:
             detectado += f", tests en {layout.tests_unit}/"
         if layout.tests_integration:
             detectado += f", integracion en {layout.tests_integration}/"
+        if layout.tests_e2e:
+            detectado += f", e2e en {layout.tests_e2e}/"
         return [
             f"  Layout detectado: {detectado}",
             "  Verificalo en .sdd/config.yaml (dirs.source_roots) antes de seguir:",

@@ -26,6 +26,7 @@ python adapters/<language>/adapter.py <step>
 | `tests` | Suite de tests unitarios (`dirs.tests_unit`). |
 | `integration` | Suite de tests de integración (`dirs.tests_integration`). |
 | `coverage` | Umbrales de `pipeline.coverage` (SPEC-009 FR-001). |
+| `e2e` | Suite de punta a punta (`dirs.tests_e2e`). Declarada en `dirs`, la miran los pasos estáticos; **no** entra a la corrida de `coverage`, porque una suite que maneja el producto por subproceso no aporta líneas medidas (SPEC-018 FR-US3-002). |
 
 ## Consultas que puede soportar
 

@@ -115,6 +115,7 @@ CODE_STEPS = (
     "tests",
     "integration",
     "coverage",
+    "e2e",
 )
 
 
@@ -124,6 +125,15 @@ class TestDir:
 
     step: str
     """Paso de `pipeline.steps` que la ejecuta (SPEC-019 FR-US2-002)."""
+
+    medida: bool = True
+    """Si entra a la corrida del paso `coverage` (SPEC-018 FR-US3-002).
+
+    False para las suites que manejan el producto **por subproceso**: no aportan
+    una sola linea medida en proceso, asi que incluirlas en la corrida de
+    cobertura solo las volveria a ejecutar. No es una preferencia sobre que
+    merece medirse: es que ahi no hay nada que medir.
+    """
 
 
 # SSOT de las carpetas de tests que el kit conoce (SPEC-005 FR-007). Antes esto
@@ -135,12 +145,20 @@ class TestDir:
 TEST_DIRS = {
     "tests_unit": TestDir(step="tests"),
     "tests_integration": TestDir(step="integration"),
+    "tests_e2e": TestDir(step="e2e", medida=False),
 }
 
 
-def declared_test_dirs() -> tuple[str, ...]:
-    """Claves de `dirs` que declaran carpetas de tests, en orden de declaracion."""
-    return tuple(TEST_DIRS)
+def declared_test_dirs(*, solo_medidas: bool = False) -> tuple[str, ...]:
+    """Claves de `dirs` que declaran carpetas de tests, en orden de declaracion.
+
+    Con `solo_medidas`, unicamente las que entran a la corrida de cobertura: es
+    la distincion entre "carpeta que los pasos estaticos miran" --ante la duda
+    miran de mas y no rompen nada-- y "carpeta que un paso ejecuta".
+    """
+    return tuple(
+        clave for clave, meta in TEST_DIRS.items() if not solo_medidas or meta.medida
+    )
 
 
 def script_hint(module_file: str | Path, repo_root: Path) -> str:

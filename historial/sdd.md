@@ -1,5 +1,64 @@
 # Historial SDD — sdd-first
 
+## 2026-08-09 — K-4: la suite e2e entra al pipeline
+
+**Scope:** `specs/SPEC-018-verificacion-e2e.md` (reabierta, iteración 5),
+`specs/SPEC-019-tests-integracion-ejecutados.md` (nota de reversión),
+`core/sdd_config.py`, `core/sdd_init.py`, `adapters/python/adapter.py`,
+`adapters/CONTRACT.md`, `.sdd/config.yaml`, `examples/config/config.yaml`,
+`.github/workflows/e2e.yml`, `tests/unit/test_adapter_e2e.py` (nuevo),
+`tests/unit/test_e2e_aislamiento.py`, `tests/unit/test_sdd_init_seeded_config.py`,
+`tests/unit/test_sdd_doctor_tests_huerfanos.py`.
+
+**Qué cambió:** el adaptador expone un paso `e2e` que corre `dirs.tests_e2e`, el
+kit declara la clave y el paso (último), y `sdd-init` los siembra cuando detecta
+la carpeta en el destino. El pipeline pasa de 10 a 11 pasos.
+
+**Se revirtió una decisión, no se la esquivó.** SPEC-018 US2 prohibía justamente
+esto (FR-US2-003, SC-003). Abrir una spec nueva habría dejado dos SSOTs
+contradictorios sobre el mismo archivo, así que va como enmienda de la spec dueña,
+con la revisión escrita en sus Clarifications y las dos mitades del argumento
+original marcadas como falsas en el propio FR:
+
+- **El costo nunca se había medido.** Medido: e2e 16,6 s, pipeline entero 17,2 s,
+  `coverage` 9,2 s, `tests` 7,3 s. La e2e es 1,8× el paso más caro que ya existía,
+  no un orden de magnitud. El ciclo pasa de ~17 s a ~36 s.
+- **"Cableada al ciclo de cada commit" era falso.** En cada commit corren los
+  hooks; el pipeline corre al cerrar iteración — que es exactamente cuando se
+  quiere saber si el producto instalado todavía funciona.
+
+**Sin flag.** Un disparador opcional reproduce el modo de falla que US2 temía
+("se termina salteando") con otro nombre, y le devuelve al kit un VERDE que no
+miró su nivel de test primario. Último por costo, no por importancia.
+
+**Lo que US2 sí describía bien** era el acople: declarar la carpeta la arrastraba
+a la corrida de `coverage`. Se cerró antes, en C-8: `TEST_DIRS` declara si la
+carpeta entra a la medición, y `tests_e2e` no entra —no por preferencia, sino
+porque los escenarios manejan el kit por subproceso y no aportan una sola línea
+medida en proceso—. Verificado: el paso `coverage` no menciona `tests/e2e`, y
+romper un escenario pinta el paso `e2e` en rojo (exit 1).
+
+**Salió gratis:** el paso "Lint de la suite" escrito a mano en `e2e.yml`
+desaparece; con la carpeta en `dirs`, la cubren `naming`/`lint`/`format` desde el
+config.
+
+**Hallazgo, registrado y no arreglado de contrabando (V-4):** al sacar ese paso
+apareció que la raíz de `tests/` no la mira ningún paso — las claves apuntan a
+subcarpetas, así que `tests/conftest.py` **nunca estuvo lintado** y
+`tests/fixtures_proyecto.py` solo lo salvaba ese paso a mano. Queda un lint
+acotado en el workflow y la idea abierta en `docs/IDEAS.md`: el fix pide decidir
+entre una clave `tests_root` o derivar la raíz común, y eso es otra iteración.
+
+**Verificación:** pipeline VERDE 11/11 (36 s), 454 unitarios + 17 e2e,
+`sdd-doctor` sano.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-018-verificacion-e2e, SPEC-019, SPEC-005
+- SSOTs afectados: SPEC-018 (US2 enmendada, US3 nueva), .sdd/config.yaml, adapters/CONTRACT.md
+- Verificación: python core/pipeline.py → VERDE (11/11); 454 unitarios; e2e 17; sdd-doctor sano
+```
+
 ## 2026-08-09 — C-8: un solo SSOT para los vocabularios del kit
 
 **Scope:** `specs/SPEC-005-desduplicar-ssot.md` (reabierta, iteración 2),

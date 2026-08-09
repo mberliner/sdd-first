@@ -31,7 +31,7 @@
 | SPEC-015 | El wiring del gate apunta al código real del proyecto | active | 3 | hibrido | [SPEC-015-wiring-apunta-al-codigo-real.md](SPEC-015-wiring-apunta-al-codigo-real.md) |
 | SPEC-016 | Las skills quedan usables apenas termina sdd-init | active | 3 | hibrido | [SPEC-016-skills-listas-tras-init.md](SPEC-016-skills-listas-tras-init.md) |
 | SPEC-017 | Gate spec-first: qué decide bloquear una edición de código | active | 3 | hibrido | [SPEC-017-gate-decision-spec-first.md](SPEC-017-gate-decision-spec-first.md) |
-| SPEC-018 | Verificación de punta a punta del kit instalado | active | 4 | hibrido | [SPEC-018-verificacion-e2e.md](SPEC-018-verificacion-e2e.md) |
+| SPEC-018 | Verificación de punta a punta del kit instalado | active | 5 | hibrido | [SPEC-018-verificacion-e2e.md](SPEC-018-verificacion-e2e.md) |
 | SPEC-019 | Los tests declarados se ejecutan o el proyecto se entera | active | 4 | hibrido | [SPEC-019-tests-integracion-ejecutados.md](SPEC-019-tests-integracion-ejecutados.md) |
 | SPEC-020 | El enforcement de un principio se declara en el config, no en un mapa hardcodeado | active | 5 | hibrido | [SPEC-020-enforcement-declarado-en-config.md](SPEC-020-enforcement-declarado-en-config.md) |
 | SPEC-021 | Una clave del config declarada pero vacía no rompe el pipeline | active | 5 | hibrido | [SPEC-021-config-vacio-no-rompe.md](SPEC-021-config-vacio-no-rompe.md) |

@@ -70,10 +70,13 @@ jobs:
           git config --global user.name "Suite e2e"
         shell: bash
 
-      # La suite e2e no la miran los pasos del pipeline (no esta declarada en
-      # `dirs`), asi que su lint se corre aca, explicito.
-      - name: Lint de la suite
-        run: python -m ruff check tests/e2e tests/fixtures_proyecto.py
+      # `tests/e2e` ya no se linta aca: esta declarada en `dirs.tests_e2e`, asi
+      # que la cubren los pasos naming/lint/format del pipeline, desde su SSOT
+      # (SPEC-018 FR-US3-005). Queda solo la infraestructura compartida de la
+      # raiz de `tests/`, que ninguna clave de `dirs` alcanza --hueco preexistente
+      # registrado como V-4 en docs/IDEAS.md; `conftest.py` no lo lintaba nadie--.
+      - name: Lint de la infraestructura compartida de tests
+        run: python -m ruff check tests/conftest.py tests/fixtures_proyecto.py
         shell: bash
 
       - name: Escenarios e2e

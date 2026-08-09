@@ -237,6 +237,17 @@ encontró.
   artefacto derivado lo reflejaba. Se cerró eliminando la copia en vez de
   sincronizarla: el dominio lo declara `CONSTITUTION.md`, que sí es generado y sí
   lo vigila `render --check`; `AGENTS.md` y el `README.md` de plantilla remiten.
+- **V-4 · La raíz de `tests/` no la mira ningún paso** (encontrado el 2026-08-09
+  al implementar K-4, **abierto**). Las claves de `dirs` apuntan a subcarpetas
+  (`tests_unit`, `tests_integration`, `tests_e2e`), así que la infraestructura
+  compartida que vive en la raíz —`tests/conftest.py`,
+  `tests/fixtures_proyecto.py`— queda fuera de `naming`/`lint`/`format`.
+  `conftest.py` no lo lintaba nadie; `fixtures_proyecto.py` solo lo salvaba un
+  paso a mano del workflow e2e. Es la familia de V-1: una carpeta que existe y
+  ningún paso mira. Ojo con el fix fácil: declarar `tests/` a secas la solaparía
+  con sus propias subcarpetas y los pasos las visitarían dos veces. Opciones:
+  una clave `tests_root` que solo alimente los pasos estáticos, o que los pasos
+  estáticos deriven la raíz común de las carpetas declaradas.
 
 ## P2 — Bugs y asperezas menores de código
 
@@ -553,6 +564,18 @@ evidencia que les faltaba:
   Y con el costo: el paso es caro comparado con el resto, así que hay que decidir
   si va en el pipeline completo o detrás de un flag/orden (al final, después de
   `coverage`).
+  **(cerrado el 2026-08-09)** → [[SPEC-018-verificacion-e2e]] US3
+  (FR-US3-001..005), como reapertura: US2 ordenaba lo contrario y una spec nueva
+  habría dejado dos SSOTs contradictorios sobre el mismo archivo. **El costo era
+  un mito**: medido, 16,6 s contra los 17,2 s del pipeline entero (`coverage`
+  solo tarda 9,2 s). El pipeline pasa a ~36 s. Nada de flag: un disparador
+  opcional reproduce el "se termina salteando" que US2 temía, con otro nombre. Y
+  "cableada al ciclo de cada commit" era falso desde el principio — en cada commit
+  corren los hooks, el pipeline corre al cerrar iteración. El acople que US2 sí
+  describía bien (la carpeta arrastrada a `coverage`) se cerró antes, en C-8:
+  ahora `TEST_DIRS` declara si la carpeta entra a la medición, y la e2e no entra
+  porque maneja el kit por subproceso y no aporta líneas medidas. Salió gratis:
+  el paso de lint a mano de `e2e.yml` desaparece. Destapó **V-4**.
 - **K-5 · El paso `coverage` se siembra sin umbrales, o sea inerte.** En el kit
   es una elección deliberada; en un proyecto de IT real con código creciendo, un
   paso que se omite con aviso en cada corrida enseña que el verde no significa

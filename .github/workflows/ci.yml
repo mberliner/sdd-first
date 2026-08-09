@@ -9,6 +9,7 @@ on:
       - "core/**"
       - "adapters/**"
       - "tests/unit/**"
+      - "tests/e2e/**"
       - ".sdd/config.yaml"
       - ".github/workflows/ci.yml"
   pull_request:
@@ -16,6 +17,7 @@ on:
       - "core/**"
       - "adapters/**"
       - "tests/unit/**"
+      - "tests/e2e/**"
       - ".sdd/config.yaml"
       - ".github/workflows/ci.yml"
 

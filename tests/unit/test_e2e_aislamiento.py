@@ -14,7 +14,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
-from sdd_config import load
+from sdd_config import TEST_DIRS, declared_test_dirs, load
 
 KIT_ROOT = Path(__file__).resolve().parents[2]
 E2E = KIT_ROOT / "tests" / "e2e"
@@ -41,27 +41,48 @@ def test_la_seleccion_no_tiene_un_segundo_mecanismo(pyproject: dict) -> None:
     )
 
 
-def test_el_config_no_declara_la_carpeta_e2e() -> None:
+def test_el_config_declara_la_carpeta_e2e_pero_no_como_integracion() -> None:
+    """SPEC-018 FR-US3-003. Enmienda de 2026-08-09: la carpeta ahora se declara.
+
+    Lo que sigue prohibido es declararla bajo `tests_integration`, que es lo que
+    la arrastraria a la corrida de `coverage`: esa clave si esta marcada como
+    medida. La carpeta e2e tiene clave propia, con `medida=False`.
+    """
     cfg = load(KIT_ROOT)
-    declaradas = {k: v for k, v in cfg.dirs.items() if "e2e" in str(v)}
-    assert not declaradas, (
-        "declarar tests/e2e en `dirs` la arrastra a los pasos del adaptador "
-        f"(naming/lint/format/coverage): {declaradas}"
-    )
+    assert cfg.dirs.get("tests_e2e") == "tests/e2e"
     assert "tests_integration" not in cfg.dirs
 
 
-def test_el_pipeline_no_incluye_un_paso_e2e() -> None:
+def test_la_carpeta_e2e_no_entra_a_la_corrida_de_cobertura() -> None:
+    """FR-US3-002: el acople que US2 nombraba, ahora impedido por propiedad.
+
+    Antes lo sostenia la *ausencia* de la clave en el config --frágil: cualquiera
+    que la declarara reintroducia el acople sin enterarse--. Ahora lo sostiene
+    `TEST_DIRS`, que es el SSOT (SPEC-005 FR-007).
+    """
+    assert TEST_DIRS["tests_e2e"].medida is False
+    assert "tests_e2e" not in declared_test_dirs(solo_medidas=True)
+    assert "tests_e2e" in declared_test_dirs()
+
+
+def test_el_pipeline_incluye_el_paso_e2e_ultimo() -> None:
+    """FR-US3-003: sin flag, y ultimo para que un fallo barato aparezca antes."""
     cfg = load(KIT_ROOT)
-    assert not [s for s in cfg.pipeline_steps if "e2e" in s]
+    assert "e2e" in cfg.pipeline_steps
+    assert cfg.pipeline_steps[-1] == "e2e"
+    assert cfg.pipeline_steps.index("coverage") < cfg.pipeline_steps.index("e2e")
 
 
-def test_el_ci_generado_no_sabe_de_e2e() -> None:
-    """El workflow universal que reciben los derivados no se contamina."""
-    generado = (KIT_ROOT / ".github" / "workflows" / "ci.yml").read_text(
-        encoding="utf-8"
-    )
-    assert "tests/e2e" not in generado
+def test_el_generador_de_ci_no_sabe_de_e2e() -> None:
+    """FR-US2-005: el workflow universal no se contamina con el caso del kit.
+
+    Se afirma sobre el *generador*, no sobre el `ci.yml` del kit: ese ahora
+    menciona `tests/e2e` legitimamente, porque sale de `dirs` como cualquier otra
+    carpeta declarada. Lo que no puede pasar es que `render_ci_workflow` tenga una
+    rama para la e2e.
+    """
+    fuente = (KIT_ROOT / "core" / "render.py").read_text(encoding="utf-8")
+    assert "e2e" not in fuente
 
 
 @pytest.fixture(scope="module")
@@ -92,6 +113,19 @@ def test_el_workflow_corre_en_las_dos_plataformas(workflow_e2e: str) -> None:
         so for so in ("ubuntu-latest", "windows-latest") if so not in workflow_e2e
     ]
     assert not faltan, f"la matriz del job e2e no cubre: {faltan}"
+
+
+def test_el_workflow_no_linta_la_suite_por_su_cuenta(workflow_e2e: str) -> None:
+    """FR-US3-005: con la carpeta declarada en `dirs`, la cubre el paso `lint`.
+
+    Lo que el workflow sigue lintando es la raiz de `tests/`, que ninguna clave
+    alcanza (V-4 de docs/IDEAS.md): eso no es duplicacion, es el unico lugar que
+    la mira hoy.
+    """
+    assert "ruff check tests/e2e" not in workflow_e2e, (
+        "el workflow linta la suite por su cuenta y el paso `lint` del pipeline "
+        "tambien: es la duplicacion que FR-US3-005 cierra"
+    )
 
 
 def test_el_workflow_verifica_que_no_quedo_residuo(workflow_e2e: str) -> None:

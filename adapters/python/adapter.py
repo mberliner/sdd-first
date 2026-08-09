@@ -8,7 +8,7 @@ exit 0 = OK / exit 3 = omitido (no se pudo verificar) / otro = falla.
     python adapters/python/adapter.py <step>
 
 Pasos: naming | layers | lint | format | types | security | tests | integration |
-coverage
+coverage | e2e
 Consultas (producen un dato, no validan): coverage-baseline
 
 El pipeline agnostico (core/pipeline.py) invoca `adapter.py <step>` para cada paso
@@ -60,9 +60,19 @@ def _skip(reason: str) -> int:
     return EXIT_OMITIDO
 
 
-def _test_dirs(cfg) -> list[str]:  # type: ignore[no-untyped-def]
-    """Carpetas de tests declaradas, derivadas del SSOT (SPEC-005 FR-007)."""
-    return [cfg.dirs[k] for k in declared_test_dirs() if k in cfg.dirs] or ["tests"]
+def _test_dirs(cfg, *, solo_medidas: bool = False) -> list[str]:  # type: ignore[no-untyped-def]
+    """Carpetas de tests declaradas, derivadas del SSOT (SPEC-005 FR-007).
+
+    `solo_medidas` separa las dos preguntas: los pasos estaticos miran **todas**
+    las carpetas de test, mientras que `coverage` se las pasa a pytest para
+    ejecutarlas, y ahi una suite que maneja el producto por subproceso se
+    correria de nuevo sin medir una linea (SPEC-018 FR-US3-002).
+    """
+    return [
+        cfg.dirs[k]
+        for k in declared_test_dirs(solo_medidas=solo_medidas)
+        if k in cfg.dirs
+    ] or ["tests"]
 
 
 def _source_and_test_dirs(cfg) -> tuple[list[str], list[str]]:  # type: ignore[no-untyped-def]
@@ -153,29 +163,41 @@ def step_tests(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
     return _run([sys.executable, "-m", "pytest", unit, "-q"], repo_root)
 
 
+def _run_declared_suite(repo_root: Path, cfg, clave: str, paso: str) -> int:  # type: ignore[no-untyped-def]
+    """Ejecuta la carpeta que declara `dirs.<clave>`, o se omite nombrando que falta.
+
+    Sin fallback a `tests/`: ejecutar una carpeta que el proyecto no declaro es
+    adivinar con efectos, a diferencia de los pasos estaticos, que ante la duda
+    miran de mas y no rompen nada (SPEC-019 FR-US1-003).
+    """
+    carpeta = cfg.dirs.get(clave)
+    if not carpeta:
+        return _skip(f"sin 'dirs.{clave}' declarada en el config, paso '{paso}'")
+    if not _module_available("pytest"):
+        return _skip(f"tool 'pytest' no instalada (pip install pytest), paso '{paso}'")
+    if not (repo_root / carpeta).exists():
+        return _skip(f"sin carpeta de tests '{carpeta}' todavia, paso '{paso}'")
+    return _run([sys.executable, "-m", "pytest", carpeta, "-q"], repo_root)
+
+
 def step_integration(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
     """Ejecuta `dirs.tests_integration` (SPEC-019 FR-US1-001..FR-US1-003).
 
     Paso aparte de `tests` a proposito: el contrato define `tests` como la suite
-    unitaria, y fundirlos le impondria a todo derivado un ciclo unico. Aca no hay
-    fallback a `tests/`: ejecutar una carpeta que el proyecto no declaro es
-    adivinar con efectos, a diferencia de los pasos estaticos, que ante la duda
-    miran de mas y no rompen nada. Sin la clave declarada, omitido.
+    unitaria, y fundirlos le impondria a todo derivado un ciclo unico.
     """
-    integration = cfg.dirs.get("tests_integration")
-    if not integration:
-        return _skip(
-            "sin 'dirs.tests_integration' declarada en el config, paso 'integration'"
-        )
-    if not _module_available("pytest"):
-        return _skip(
-            "tool 'pytest' no instalada (pip install pytest), paso 'integration'"
-        )
-    if not (repo_root / integration).exists():
-        return _skip(
-            f"sin carpeta de tests '{integration}' todavia, paso 'integration'"
-        )
-    return _run([sys.executable, "-m", "pytest", integration, "-q"], repo_root)
+    return _run_declared_suite(repo_root, cfg, "tests_integration", "integration")
+
+
+def step_e2e(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
+    """Ejecuta `dirs.tests_e2e` (SPEC-018 FR-US3-001).
+
+    Para un proyecto generador este es el nivel de test *primario*: el unico que
+    ejercita lo que el producto hace para otros, que es distinto de lo que hace
+    sobre si mismo. Va declarado ultimo en `pipeline.steps` por costo, no por
+    importancia.
+    """
+    return _run_declared_suite(repo_root, cfg, "tests_e2e", "e2e")
 
 
 def step_coverage(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
@@ -198,7 +220,7 @@ def step_coverage(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
             "tool 'pytest-cov' no instalada (pip install pytest-cov), paso 'coverage'"
         )
 
-    test_dirs = _existing_targets(repo_root, _test_dirs(cfg))
+    test_dirs = _existing_targets(repo_root, _test_dirs(cfg, solo_medidas=True))
     if not test_dirs:
         return _skip("sin carpetas de tests todavia, paso 'coverage'")
 
@@ -252,7 +274,7 @@ def query_coverage_baseline(repo_root: Path, cfg) -> int:  # type: ignore[no-unt
         return _skip("tool 'pytest-cov' no instalada (pip install pytest-cov)")
 
     src_dirs = _existing_targets(repo_root, cfg.source_roots)
-    test_dirs = _existing_targets(repo_root, _test_dirs(cfg))
+    test_dirs = _existing_targets(repo_root, _test_dirs(cfg, solo_medidas=True))
     if not src_dirs:
         return _skip("sin carpetas de codigo todavia")
     if not test_dirs:
@@ -296,10 +318,11 @@ STEPS = {
     "tests": step_tests,
     "integration": step_integration,
     "coverage": step_coverage,
+    "e2e": step_e2e,
 }
 
 # Consultas: verbos que producen un dato en vez de validar. No son pasos de
-# pipeline y no deben entrar a `pipeline.CODE_STEPS` (SPEC-009 FR-US2-001).
+# pipeline y no deben entrar a `CODE_STEPS` (SPEC-009 FR-US2-001).
 QUERIES = {
     "coverage-baseline": query_coverage_baseline,
 }

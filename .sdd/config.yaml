@@ -10,6 +10,11 @@ dirs:
   domain: core
   adapters: adapters
   tests_unit: tests/unit
+  # La e2e es el nivel de test *primario* de un generador: el unico que ejercita
+  # lo que el kit hace para otros, distinto de lo que hace sobre si mismo
+  # (SPEC-018 US3). Declarada aca, la miran naming/lint/format; NO entra a la
+  # corrida de `coverage` (los escenarios manejan el kit por subproceso).
+  tests_e2e: tests/e2e
   source_roots: [core, adapters]
 
 naming:
@@ -95,6 +100,9 @@ pipeline:
     - render
     - tests
     - coverage
+    # Ultimo por costo, no por importancia: ~17 s contra los ~17 s del resto
+    # del pipeline junto, asi que un fallo barato aparece antes.
+    - e2e
 
   # Umbral de cobertura del propio kit: es el enforcement del Principio V, asi
   # que bajarlo no es aflojar una metrica sino enmendar la constitucion.

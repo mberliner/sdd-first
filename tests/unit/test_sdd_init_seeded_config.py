@@ -97,6 +97,71 @@ def test_el_mensaje_de_layout_nombra_la_carpeta_de_integracion(tmp_path, capsys)
     assert "integracion en tests/integration/" in capsys.readouterr().out
 
 
+def test_siembra_la_carpeta_e2e_y_su_paso(tmp_path):
+    """SPEC-018 FR-US3-004: misma simetria que `integration`.
+
+    Una clave de primera clase que `sdd-init` nunca siembra es exactamente el
+    hueco de V-1; estrenar `tests_e2e` con ese defecto seria reintroducirlo a
+    sabiendas.
+    """
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "e2e").mkdir()
+
+    sdd_init.main([str(tmp_path), "--language=python"])
+
+    cfg = load(tmp_path)
+    assert cfg.dirs["tests_e2e"] == "tests/e2e"
+    assert "e2e" in cfg.pipeline_steps
+    assert sdd_doctor._tests_sin_ejecutor(cfg) == []
+
+
+def test_el_paso_e2e_va_ultimo(tmp_path):
+    """FR-US3-003: por costo, para que un fallo barato aparezca antes."""
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "e2e").mkdir()
+
+    sdd_init.main([str(tmp_path), "--language=python"])
+
+    assert load(tmp_path).pipeline_steps[-1] == "e2e"
+
+
+def test_sin_carpeta_e2e_la_deja_comentada_y_sin_paso(tmp_path):
+    """La mayoria de los derivados no tiene e2e: el paso se omitiria siempre."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+
+    sdd_init.main([str(tmp_path), "--language=python"])
+
+    cfg = load(tmp_path)
+    assert "tests_e2e" not in cfg.dirs
+    assert "e2e" not in cfg.pipeline_steps
+    assert "# tests_e2e: tests/e2e" in _config(tmp_path)
+
+
+def test_el_layout_plano_no_declara_e2e_por_separado(tmp_path):
+    """Con `tests/` como carpeta unitaria, `tests/e2e` correria dos veces."""
+    (tmp_path / "tests" / "e2e").mkdir(parents=True)
+
+    layout = sdd_init._detect_layout(tmp_path, "python")
+
+    assert layout.tests_unit == "tests"
+    assert layout.tests_e2e is None
+
+
+def test_el_mensaje_de_layout_nombra_la_carpeta_e2e(tmp_path, capsys):
+    """El dueno tiene que poder corregir lo que se adivino."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "e2e").mkdir()
+
+    sdd_init.main([str(tmp_path), "--language=python"])
+
+    assert "e2e en tests/e2e/" in capsys.readouterr().out
+
+
 def test_sin_repo_git_no_declara_rama_y_asume_main(tmp_path):
     """El catalogo trae la clave comentada como documentacion, asi que se mira
     solo el YAML activo: sin git no se declara nada y el default es `main`."""

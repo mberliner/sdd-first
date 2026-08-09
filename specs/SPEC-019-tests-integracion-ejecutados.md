@@ -213,9 +213,11 @@ de layout detectado las nombra.
   bajaría los números de cualquier proyecto que ya la declare.
 - **Migrar configs de derivados ya instalados.** El kit avisa, no reescribe
   (ver Clarifications).
-- **Un paso e2e en el pipeline.** SPEC-018 decidió lo contrario para el kit; que
-  un derivado quiera declarar su carpeta e2e como `tests_integration` es decisión
-  suya, y con esta spec al menos se entera de si corre o no.
+- **Un paso e2e en el pipeline.** ~~SPEC-018 decidió lo contrario para el kit.~~
+  Revertido el 2026-08-09: [[SPEC-018-verificacion-e2e]] US3 lo agrega, con clave
+  `dirs.tests_e2e` y paso propio, replicando el patrón que estrenó esta spec. Un
+  derivado ya no necesita declarar su carpeta e2e como `tests_integration` para
+  que alguien la corra.
 - Adaptadores de otros lenguajes (no existen).
 
 ## Historial

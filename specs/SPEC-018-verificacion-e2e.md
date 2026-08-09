@@ -44,19 +44,43 @@ cada skill que el mensaje de próximos pasos nombra existe en los cuatro formato
 ## User Story 2 (Priority P1) — la verificación e2e no contamina el ciclo rápido
 
 Como quien trabaja el kit todos los días, quiero que la suite e2e sea explícita y
-esté aislada, para que `pytest` y `python core/pipeline.py` sigan siendo rápidos y
-la suite e2e no deje residuos dentro del repositorio.
+esté aislada, para que `pytest` siga siendo rápido y la suite e2e no deje residuos
+dentro del repositorio.
 
-**Why this priority:** una suite lenta cableada al ciclo de cada commit se termina
-salteando, y entonces no verifica nada. Además el riesgo es concreto: declarar la
-carpeta como `dirs.tests_integration` la haría ejecutar dentro del paso `coverage`
-del pipeline (`adapters/python/adapter.py` la incluye vía `_source_and_test_dirs`),
-y un workspace resuelto dentro del árbol del kit quedaría gobernado por su propio
-gate, porque la raíz SDD se busca subiendo por el sistema de archivos.
+**Why this priority:** el riesgo es concreto: declarar la carpeta como
+`dirs.tests_integration` la haría ejecutar dentro del paso `coverage` del pipeline
+(`adapters/python/adapter.py` la incluye vía `_source_and_test_dirs`), y un
+workspace resuelto dentro del árbol del kit quedaría gobernado por su propio gate,
+porque la raíz SDD se busca subiendo por el sistema de archivos.
 
-**Independent Test:** `pytest` a secas y `python core/pipeline.py` terminan sin
-ejecutar ningún escenario e2e; tras correr `pytest tests/e2e`, `git status` está
-limpio.
+> **Enmendada el 2026-08-09 (US3).** Esta US también prohibía el paso `e2e` en
+> `pipeline.steps`, con el argumento de que "una suite lenta cableada al ciclo de
+> cada commit se termina salteando". Las dos mitades resultaron falsas y la
+> prohibición se levantó: ver la sesión de Clarifications de esa fecha y US3. Lo
+> que sigue vigente y sin cambios es el aislamiento propiamente dicho: `pytest` a
+> secas no recoge escenarios, el workspace vive fuera del árbol del kit y la
+> corrida no deja residuo.
+
+**Independent Test:** `pytest` a secas termina sin ejecutar ningún escenario e2e;
+tras correr `pytest tests/e2e`, `git status` está limpio.
+
+## User Story 3 (Priority P1) — el nivel de test primario del generador corre en el ciclo
+
+Como responsable del kit, quiero que la suite e2e sea un paso del pipeline local,
+para que el nivel de verificación que **más defectos reales encuentra** en un
+proyecto generador deje de depender de que alguien se acuerde de correrla a mano.
+
+**Why this priority:** el dogfooding es estructuralmente incapaz de cubrir lo que
+el kit genera *para otros*. El config del kit ejercita rutas distintas de las que
+siembra `sdd-init`: por ahí entró el bug de sintaxis INI de `gen_import_linter`
+—el kit no corre `layers`— que ningún unitario vio y solo apareció al correr la
+e2e. Para un generador, el test de instalación no es un extra: es el nivel
+primario, y dejarlo fuera del pipeline es la misma clase de falso verde que el
+kit persigue en todo lo demás (un VERDE que no miró lo que más importa).
+
+**Independent Test:** `python core/pipeline.py` sobre el kit ejecuta los
+escenarios e2e como un paso más, y romper un escenario pinta el paso `e2e` en
+rojo; el paso `coverage` sigue sin ejecutarlos.
 
 ## Clarifications
 
@@ -131,6 +155,55 @@ limpio.
   de completitud queda listado junto a ellos como guardia de que ninguno
   desaparezca, no como cobertura principal.
 
+### Session 2026-08-09 (K-4) — se reabre la exclusión del ciclo rápido
+
+- Q: US2 ordena lo contrario a lo que pide K-4. ¿Spec nueva? → A: no: dos SSOTs
+  contradictorios sobre el mismo archivo (Principio IV). Va como enmienda de esta
+  spec, que es la dueña de la decisión, con la revisión escrita acá y no
+  disimulada.
+- Q: El argumento de US2 era el costo. ¿Se midió? → A: nunca, y esa es la falla
+  de la decisión original. Medido ahora: la suite e2e completa tarda **16,6 s**
+  (17 escenarios) contra **17,2 s** del pipeline entero; el paso más caro que ya
+  existe, `coverage`, tarda 9,2 s y `tests` 7,3 s. La e2e es 1,8× el paso más
+  caro, no un orden de magnitud: el ciclo pasa de ~17 s a ~34 s. "Suite lenta" no
+  describe este caso.
+- Q: ¿Y "cableada al ciclo de cada commit"? → A: era falso desde el principio. En
+  cada commit corren los hooks (`sdd-gate`, `sdd-traceability`, `sdd-reset`); el
+  pipeline se corre al cerrar una iteración, que es exactamente el momento en que
+  se quiere saber si el producto instalado todavía funciona.
+- Q: ¿Detrás de un flag, o al final y siempre? → A: siempre, declarado último.
+  Un flag reproduce el modo de falla que US2 temía —"se termina salteando"— nada
+  más que con otro disparador, y le devuelve al kit un VERDE que no miró su nivel
+  de test primario. Al final por orden de costo, para que un fallo barato aparezca
+  antes.
+- Q: ¿Se replica el precedente de `integration` (clave `dirs.tests_e2e` + paso
+  propio)? → A: sí, pero la clave sola no alcanzaba: `_source_and_test_dirs` la
+  arrastraba a la corrida de `coverage` —el acople que esta misma US nombra—. Se
+  resolvió antes, en [[SPEC-005-desduplicar-ssot]] FR-007: la carpeta se declara
+  con la propiedad de si entra o no a la medición. Aquí `tests_e2e` entra a los
+  pasos estáticos y no a la medición.
+- Q: ¿Por qué la e2e no entra a la medición de cobertura? → A: no es una
+  preferencia. Los escenarios manejan el kit **por subproceso**, así que no
+  aportan una sola línea medida en proceso: incluirla solo duplicaría su costo
+  dentro de `coverage`, corriéndola dos veces por corrida del pipeline.
+- Q: ¿Qué pasa con el `ci.yml` generado, que ahora hereda el paso? → A: en el kit
+  el job de `ci.yml` pasa a correr la e2e en Linux, solapándose con la pata Linux
+  de `e2e.yml`. Es duplicación real y se acepta a ojos abiertos: son ~17 s de
+  runner, y evitarla exigiría que `render_ci_workflow` supiera del caso del kit,
+  que es justo lo que FR-US2-005 prohíbe. `e2e.yml` sigue siendo el SSOT de la
+  corrida e2e en CI: aporta Windows y `SDD_E2E_STRICT`, que el pipeline no setea.
+- Q: ¿Y el paso "Lint de la suite" escrito a mano en `e2e.yml`? → A: desaparece.
+  Existía precisamente porque la carpeta no estaba declarada en `dirs`; ahora
+  `lint`/`format`/`naming` la cubren desde el config, que es su SSOT.
+- Q: ¿Se siembra `tests_e2e` en un derivado? → A: sí, con detección, como
+  `tests_integration` ([[SPEC-019-tests-integracion-ejecutados]] FR-US3-001). Una
+  clave de primera clase que `sdd-init` nunca siembra es el hueco que produjo V-1;
+  repetirlo con una clave nueva sería reintroducir el defecto a sabiendas.
+- Q: ¿No hay recursión: el pipeline corre la e2e, que instala un kit y corre el
+  pipeline del derivado? → A: no. El config sembrado no declara `tests_e2e` salvo
+  detección, y ningún escenario copia el config del kit al derivado: `sdd-init`
+  siembra uno nuevo.
+
 ## Acceptance Scenarios
 
 ### US1 — el producto instalado
@@ -154,8 +227,8 @@ limpio.
 
 ### US2 — aislamiento
 
-- **Given** la suite e2e presente, **When** se corre `pytest` sin argumentos o
-  `python core/pipeline.py`, **Then** no se ejecuta ningún escenario e2e.
+- **Given** la suite e2e presente, **When** se corre `pytest` sin argumentos,
+  **Then** no se ejecuta ningún escenario e2e.
 - **Given** una corrida completa de `pytest tests/e2e`, **When** termina, **Then**
   `git status` no reporta archivos nuevos ni modificados.
 - **Given** un `SDD_E2E_WORK` que resolvería dentro del árbol del kit, **When** se
@@ -169,6 +242,21 @@ limpio.
 - **Given** un entorno sin `pre-commit` utilizable, **When** corre un escenario que
   lo requiere, **Then** se omite nombrando qué faltó; **When** además
   `SDD_E2E_STRICT` no está vacía, **Then** falla.
+
+### US3 — el paso `e2e`
+
+- **Given** el kit con `dirs.tests_e2e` declarada y `e2e` en `pipeline.steps`,
+  **When** corre `python core/pipeline.py`, **Then** los escenarios se ejecutan
+  como un paso medido, y romper uno pinta el paso `e2e` en rojo.
+- **Given** el mismo kit, **When** corre el paso `coverage`, **Then** no ejecuta
+  ningún escenario e2e: la carpeta está declarada pero no entra a la medición.
+- **Given** un proyecto sin `dirs.tests_e2e` declarada, **When** corre el paso
+  `e2e`, **Then** se omite nombrando la clave que falta, sin adivinar carpetas.
+- **Given** un proyecto con una carpeta de e2e propia, **When** se instala con
+  `sdd-init`, **Then** el config sembrado la declara y `e2e` queda en
+  `pipeline.steps`, de modo que `sdd-doctor` no reporta tests sin ejecutor.
+- **Given** `.github/workflows/e2e.yml`, **When** se lo lee, **Then** ya no linta
+  `tests/e2e` por su cuenta: lo cubre el paso `lint` del pipeline desde el config.
 
 ## Functional Requirements
 
@@ -204,9 +292,11 @@ limpio.
   aborta sin borrar nada.
 - **FR-US2-002** MUST: el workspace se borra y recrea al **inicio** de la corrida,
   y cada escenario instala desde cero.
-- **FR-US2-003** MUST: `tests/e2e/` no se declara en `.sdd/config.yaml` ni entra a
-  `pipeline.steps`; `pytest` sin argumentos y `python core/pipeline.py` no ejecutan
-  escenarios e2e.
+- **FR-US2-003** MUST: `pytest` sin argumentos no recoge ningún escenario e2e.
+  *(Enmendado el 2026-08-09: decía además que `tests/e2e/` no se declara en el
+  config ni entra a `pipeline.steps`, y que `python core/pipeline.py` no los
+  ejecuta. Lo revierte US3; el criterio de aislamiento que queda es el de
+  `pytest` a secas, que sigue siendo el ciclo rápido de verdad.)*
 - **FR-US2-004** MUST: la selección de escenarios tiene un solo mecanismo
   (`testpaths` de `pyproject.toml`), sin marca de pytest que duplique el filtro.
 - **FR-US2-005** MUST: el disparo de e2e en CI vive en un workflow propio del kit
@@ -221,6 +311,33 @@ limpio.
   matriz queda fijada por un test, no solo por el archivo.
 - **FR-US2-009** MUST: el workflow e2e verifica al terminar la corrida que
   `git status --porcelain` esté vacío.
+
+### US3
+
+- **FR-US3-001** MUST: el adaptador expone un paso `e2e` que ejecuta los tests de
+  `dirs.tests_e2e`. Es un paso distinto de `tests` y de `integration`, y no
+  adivina carpetas: sin la clave declarada se omite nombrándola, igual que
+  `integration` ([[SPEC-019-tests-integracion-ejecutados]] FR-US1-003).
+- **FR-US3-002** MUST: `dirs.tests_e2e` entra a los pasos estáticos
+  (`naming`/`lint`/`format`) y **no** a la corrida del paso `coverage`. La razón
+  es factual, no de preferencia: los escenarios manejan el producto por
+  subproceso y no aportan líneas medidas en proceso, así que incluirla solo los
+  correría de nuevo. Lo sostiene la propiedad declarada en
+  [[SPEC-005-desduplicar-ssot]] FR-007, no la ausencia de la clave en el config.
+- **FR-US3-003** MUST: el `.sdd/config.yaml` del kit declara `dirs.tests_e2e` y
+  `e2e` en `pipeline.steps`, **último**, después de `coverage`. Sin flag ni
+  invocación aparte: un disparador opcional reintroduce el "se termina salteando"
+  con otro nombre.
+- **FR-US3-004** MUST: `sdd-init` detecta una carpeta de e2e en el destino y, si
+  la encuentra, la siembra en `dirs.tests_e2e` **y** agrega `e2e` a
+  `pipeline.steps`; sin detección no declara ninguna de las dos. Una clave de
+  primera clase que el instalador nunca siembra es el hueco de V-1.
+- **FR-US3-005** MUST: `.github/workflows/e2e.yml` deja de lintar `tests/e2e/` por
+  su cuenta: con la carpeta declarada en `dirs`, los pasos `naming`/`lint`/
+  `format` la cubren desde el config, que es su SSOT. Lo que el workflow puede
+  conservar es el lint de la infraestructura compartida de la raíz de `tests/`
+  (`conftest.py`, `fixtures_proyecto.py`), que ninguna clave de `dirs` alcanza:
+  ese hueco es preexistente y ajeno a esta spec (V-4 de `docs/IDEAS.md`).
 
 ## Key Entities
 
@@ -242,12 +359,19 @@ limpio.
   limpieza manual entre ellas dan el mismo resultado.
 - **SC-002** Tras una corrida completa, `git status` está limpio: ningún artefacto
   de la suite quedó dentro del repositorio, y el propio workflow lo verifica.
-- **SC-003** `pytest tests/unit` no recoge ningún escenario e2e y
-  `python core/pipeline.py` sigue VERDE sin ejecutarlos.
+- **SC-003** `pytest tests/unit` no recoge ningún escenario e2e. *(Enmendado el
+  2026-08-09: exigía además que `python core/pipeline.py` siguiera VERDE **sin
+  ejecutarlos**; ahora los ejecuta como el paso `e2e`, ver SC-006.)*
 - **SC-004** Los tres defectos que originan esta spec tienen cada uno un escenario
   que los detectaría si volvieran.
 - **SC-005** El ciclo spec-first de SPEC-017 SC-004 se verifica en la suite y deja
   de depender de una corrida manual en una carpeta sin versionar.
+- **SC-006** `python core/pipeline.py` sobre el kit ejecuta los escenarios e2e
+  como paso propio y sale ROJO si uno falla; el paso `coverage` de esa misma
+  corrida no los ejecuta (una sola pasada de la suite por pipeline).
+- **SC-007** Un derivado cuya carpeta de e2e se detectó al instalar nace con la
+  clave declarada y el paso en `pipeline.steps`, de modo que `sdd-doctor` no
+  reporta tests declarados sin ejecutor.
 
 ## Assumptions
 
@@ -278,6 +402,11 @@ limpio.
 | FR-US2-007 | tests/unit/test_e2e_entorno.py |
 | FR-US2-008 | tests/unit/test_e2e_aislamiento.py |
 | FR-US2-009 | tests/unit/test_e2e_aislamiento.py |
+| FR-US3-001 | tests/unit/test_adapter_e2e.py |
+| FR-US3-002 | tests/unit/test_adapter_e2e.py, tests/unit/test_e2e_aislamiento.py |
+| FR-US3-003 | tests/unit/test_e2e_aislamiento.py |
+| FR-US3-004 | tests/unit/test_sdd_init_seeded_config.py |
+| FR-US3-005 | tests/unit/test_e2e_aislamiento.py |
 
 ## Fuera de alcance
 
@@ -303,3 +432,12 @@ limpio.
   Implementados el mismo día: marca `.sdd-e2e-workspace` en `tests/e2e/lib/entorno.py`,
   guardias estructurales en los dos unitarios del harness, y matriz + paso de
   residuo afirmados sobre `.github/workflows/e2e.yml`.
+- 2026-08-09: reabierta por K-4 de `docs/IDEAS.md`. US3 revierte la prohibición
+  del paso `e2e` que US2 imponía (FR-US2-003, SC-003): la premisa de costo nunca
+  se había medido y resultó falsa —16,6 s contra los 17,2 s del pipeline entero—,
+  y "cableada al ciclo de cada commit" describía algo que no pasaba (el pipeline
+  corre al cerrar iteración, no en cada commit). El acople que sí era real —la
+  carpeta arrastrada a `coverage`— se resolvió antes en
+  [[SPEC-005-desduplicar-ssot]] FR-007, declarando la propiedad en vez de omitir
+  la clave. El aislamiento de `pytest` a secas, el workspace y el residuo quedan
+  intactos.

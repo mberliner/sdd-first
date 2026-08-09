@@ -69,6 +69,7 @@ def test_la_correspondencia_carpeta_paso_tiene_un_solo_ssot():
     assert {clave: meta.step for clave, meta in TEST_DIRS.items()} == {
         "tests_unit": "tests",
         "tests_integration": "integration",
+        "tests_e2e": "e2e",
     }
 
     fuente = Path(sdd_doctor.__file__).read_text(encoding="utf-8")

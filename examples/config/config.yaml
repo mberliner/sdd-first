@@ -18,6 +18,10 @@ dirs:
   ui: src/dashboard
   tests_unit: tests/unit            # la corre el paso `tests`
   tests_integration: tests/integration  # la corre el paso `integration`
+  # tests_e2e: tests/e2e            # la corre el paso `e2e`. Los pasos estaticos
+                                    # (naming/lint/format) la miran; `coverage` no
+                                    # la ejecuta: una suite que maneja el producto
+                                    # por subproceso no aporta lineas medidas.
   # source_roots: [src]         # opcional; por defecto = top-level de las capas
 
 naming:
@@ -140,6 +144,8 @@ pipeline:
     - tests
     - integration    # corre dirs.tests_integration; sin esa clave, se omite
     - coverage
+    # - e2e         # corre dirs.tests_e2e; sin esa clave, se omite. Va ultimo:
+                    # es el paso mas caro del ciclo.
 
   # Umbrales de cobertura (OPCIONAL). Cada entrada mide sus `paths` juntas
   # contra `min`. Sin esta clave, el paso `coverage` se omite con aviso: un
