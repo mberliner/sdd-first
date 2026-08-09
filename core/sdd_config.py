@@ -97,15 +97,50 @@ GATE_WIRING = {
 }
 
 
-# Que paso de pipeline ejecuta cada carpeta de tests declarada en `dirs`
-# (SPEC-019 FR-US2-002). SSOT unico: el adaptador implementa un paso por clave y
-# `sdd_doctor` cruza este mapa contra `pipeline.steps` para detectar carpetas
-# declaradas que no corre nadie -- el defecto que tuvo `tests_integration` desde
-# que existe la clave (V-1 de docs/IDEAS.md).
-TEST_DIR_STEP = {
-    "tests_unit": "tests",
-    "tests_integration": "integration",
+# Vocabulario de pasos de codigo del contrato de adaptador (SPEC-005 FR-006).
+# Vive en el nucleo y no en el adaptador porque es el *contrato*
+# (adapters/CONTRACT.md) el que reserva estos nombres: lo que aporta el lenguaje
+# es la implementacion de cada paso, no la lista. `core/pipeline.py` lo importa y
+# un unitario lo cruza contra el dispatcher del adaptador en las dos direcciones.
+# Sin esa atadura, un paso implementado y no declarado queda como "paso
+# desconocido" que el pipeline descuenta del total sin ruido (C-8 de IDEAS: le
+# paso a `integration` al nacer).
+CODE_STEPS = (
+    "naming",
+    "layers",
+    "lint",
+    "format",
+    "types",
+    "security",
+    "tests",
+    "integration",
+    "coverage",
+)
+
+
+@dataclass(frozen=True)
+class TestDir:
+    """Que es y como se trata una carpeta de tests declarada en `dirs`."""
+
+    step: str
+    """Paso de `pipeline.steps` que la ejecuta (SPEC-019 FR-US2-002)."""
+
+
+# SSOT de las carpetas de tests que el kit conoce (SPEC-005 FR-007). Antes esto
+# era `TEST_DIR_STEP`, que respondia una sola de las preguntas, y las otras cuatro
+# quedaban como tuplas `("tests_unit", "tests_integration")` repetidas en el
+# adaptador, `check_naming`, `render` y este modulo. La lista plana obligaba a que
+# toda carpeta respondiera igual a todas las preguntas: por eso agregar una clase
+# nueva de test no era un renglon sino una revision de cuatro criterios.
+TEST_DIRS = {
+    "tests_unit": TestDir(step="tests"),
+    "tests_integration": TestDir(step="integration"),
 }
+
+
+def declared_test_dirs() -> tuple[str, ...]:
+    """Claves de `dirs` que declaran carpetas de tests, en orden de declaracion."""
+    return tuple(TEST_DIRS)
 
 
 def script_hint(module_file: str | Path, repo_root: Path) -> str:

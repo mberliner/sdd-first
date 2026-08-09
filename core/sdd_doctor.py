@@ -22,7 +22,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from sdd_config import (  # noqa: E402
     GATE_WIRING,
-    TEST_DIR_STEP,
+    TEST_DIRS,
     find_repo_root,
     load,
     script_hint,
@@ -105,12 +105,12 @@ def _tests_sin_ejecutor(cfg) -> list[str]:  # type: ignore[no-untyped-def]
     """
     declarados = set(cfg.pipeline_steps)
     problemas: list[str] = []
-    for clave, paso in TEST_DIR_STEP.items():
+    for clave, meta in TEST_DIRS.items():
         carpeta = cfg.dirs.get(clave)
-        if carpeta and paso not in declarados:
+        if carpeta and meta.step not in declarados:
             problemas.append(
                 f"Tests declarados que no corre nadie: dirs.{clave} = {carpeta}, "
-                f"pero '{paso}' no esta en pipeline.steps de .sdd/config.yaml."
+                f"pero '{meta.step}' no esta en pipeline.steps de .sdd/config.yaml."
             )
     return problemas
 

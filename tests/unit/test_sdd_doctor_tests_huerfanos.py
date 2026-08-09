@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import sdd_doctor
-from sdd_config import TEST_DIR_STEP, SddConfig
+from sdd_config import TEST_DIRS, SddConfig
 
 
 def _cfg(dirs: dict, steps: list[str]) -> SddConfig:
@@ -60,12 +60,20 @@ def test_tambien_cubre_la_carpeta_unitaria():
 
 
 def test_la_correspondencia_carpeta_paso_tiene_un_solo_ssot():
-    """FR-US2-002: el doctor no guarda su propia copia del mapa."""
-    assert TEST_DIR_STEP == {"tests_unit": "tests", "tests_integration": "integration"}
+    """FR-US2-002: el doctor no guarda su propia copia del mapa.
+
+    El SSOT se generalizo a `TEST_DIRS` (SPEC-005 FR-007): el mapa clave->paso
+    dejo de ser una constante suelta y paso a ser una propiedad de la carpeta
+    declarada, junto con las otras que la distinguen.
+    """
+    assert {clave: meta.step for clave, meta in TEST_DIRS.items()} == {
+        "tests_unit": "tests",
+        "tests_integration": "integration",
+    }
 
     fuente = Path(sdd_doctor.__file__).read_text(encoding="utf-8")
-    assert "TEST_DIR_STEP" in fuente
-    for paso in TEST_DIR_STEP.values():
-        assert f'"{paso}"' not in fuente, (
-            f"sdd_doctor.py nombra el paso '{paso}' a mano: sale de TEST_DIR_STEP"
+    assert "TEST_DIRS" in fuente
+    for meta in TEST_DIRS.values():
+        assert f'"{meta.step}"' not in fuente, (
+            f"sdd_doctor.py nombra el paso '{meta.step}' a mano: sale de TEST_DIRS"
         )

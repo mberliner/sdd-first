@@ -86,13 +86,11 @@ def test_el_paso_esta_en_el_dispatcher():
     assert adapter.STEPS["integration"] is adapter.step_integration
 
 
-def test_el_pipeline_reconoce_todos_los_pasos_del_adaptador():
-    """Un paso que el adaptador implementa y el pipeline no conoce se reporta
-    'paso desconocido' y sale del total sin que nadie lo note: el mismo falso
-    verde de C-1. Las dos listas viven separadas, asi que se cruzan aca."""
-    import pipeline
-
-    assert set(adapter.STEPS) <= pipeline.CODE_STEPS
+# El cruce "el pipeline reconoce todos los pasos del adaptador" vivia aca porque
+# las dos listas estaban separadas y nada las ataba. Con el SSOT unico de
+# SPEC-005 FR-006 el cruce es general y bidireccional, y su lugar es
+# `tests/unit/test_vocabulario_de_pasos.py`: repetirlo aca seria la duplicacion
+# que esa spec vino a cerrar.
 
 
 def test_el_contrato_documenta_el_paso_y_conserva_la_semantica_de_tests():

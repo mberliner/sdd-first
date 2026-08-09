@@ -31,6 +31,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from sdd_config import (  # noqa: E402
     SddConfig,
+    declared_test_dirs,
     find_repo_root,
     load,
     script_hint,
@@ -192,7 +193,7 @@ def render_ci_workflow(cfg: SddConfig) -> str:
     """
     core = cfg.kit_paths["{{sdd.core}}"]
     watched = list(cfg.source_roots)
-    for key in ("tests_unit", "tests_integration"):
+    for key in declared_test_dirs():
         value = cfg.dirs.get(key)
         if value and value not in watched:
             watched.append(value)

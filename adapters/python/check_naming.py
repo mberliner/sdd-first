@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "core"))
-from sdd_config import find_repo_root, load  # noqa: E402
+from sdd_config import declared_test_dirs, find_repo_root, load  # noqa: E402
 
 
 class _NameCollector(ast.NodeVisitor):
@@ -99,7 +99,7 @@ def _test_dirs(cfg, repo_root: Path) -> list[Path]:  # type: ignore[no-untyped-d
     """Directorios de tests declarados en el config, resueltos a rutas absolutas."""
     return [
         (repo_root / cfg.dirs[key]).resolve()
-        for key in ("tests_unit", "tests_integration")
+        for key in declared_test_dirs()
         if key in cfg.dirs
     ]
 

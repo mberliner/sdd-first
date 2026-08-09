@@ -1,5 +1,63 @@
 # Historial SDD — sdd-first
 
+## 2026-08-09 — C-8: un solo SSOT para los vocabularios del kit
+
+**Scope:** `specs/SPEC-005-desduplicar-ssot.md` (reabierta, iteración 2),
+`core/sdd_config.py`, `core/pipeline.py`, `core/render.py`, `core/sdd_doctor.py`,
+`adapters/python/adapter.py`, `adapters/python/check_naming.py`,
+`adapters/CONTRACT.md`, `tests/unit/test_vocabulario_de_pasos.py` (nuevo),
+`tests/unit/test_sdd_doctor_tests_huerfanos.py`,
+`tests/unit/test_adapter_integration.py`.
+
+**Qué cambió:** los dos vocabularios que el kit tenía escritos dos veces pasan a
+tener un SSOT en `core/sdd_config.py`. `CODE_STEPS` (qué pasos reserva el
+contrato) lo importa `core/pipeline.py`; `TEST_DIRS` (qué carpetas de tests
+existen y qué paso ejecuta cada una) reemplaza a `TEST_DIR_STEP` y a las cuatro
+tuplas `("tests_unit", "tests_integration")` sueltas.
+
+**Por qué ahora:** es prerequisito de K-4. Sin separar "carpeta que los pasos
+estáticos miran" de "carpeta que un paso ejecuta", declarar `tests/e2e` en el
+config la arrastraba a la corrida de `coverage` — el acople exacto que SPEC-018
+US2 nombra como razón para dejar la e2e afuera.
+
+**Decisiones:**
+
+- **`CODE_STEPS` es del núcleo, no del lenguaje.** La idea original suponía lo
+  contrario ("no es un simple merge") y por eso quedó trabada. Lo que reserva los
+  nombres es el contrato (`adapters/CONTRACT.md`); el lenguaje aporta la
+  *implementación* de cada paso.
+- **No se le pregunta al adaptador qué soporta.** Gasta un subproceso por corrida
+  y, peor, haría que un nombre mal escrito en `pipeline.steps` fuera válido o no
+  según el adaptador instalado.
+- **El cruce es bidireccional.** La dirección que ya falló (implementado y no
+  declarado → "paso desconocido" descontado del total en silencio) y la inversa
+  (declarado y no implementado → fallo confuso en vez de la omisión que el
+  contrato promete). Verificado por mutación: romper cada lado pinta la suite.
+
+**Lo que la duplicación tapaba:** los cuatro módulos que repetían la tupla no
+hacían la misma pregunta. El adaptador la usaba para dos cosas distintas —blancos
+estáticos de `naming`/`lint`/`format` vs carpetas que `coverage` le pasa a pytest
+para ejecutar—, `check_naming` para relajar reglas, `render` para los `paths:` de
+CI y `sdd_doctor` para cruzar contra `pipeline.steps`. Una lista plana obligaba a
+que toda carpeta respondiera igual a las cinco: por eso agregar una clase de test
+nueva no era un renglón sino una revisión de cuatro criterios.
+
+**Se borró un test:** `test_el_pipeline_reconoce_todos_los_pasos_del_adaptador`
+era el parche de C-8 ("las dos listas viven separadas, así que se cruzan acá").
+Con un SSOT único, mantenerlo sería la duplicación que la spec vino a cerrar.
+
+**Hallazgo lateral:** la función se llamaba `test_dir_keys` y pytest la
+recolectaba como test al importarla. Renombrada a `declared_test_dirs`.
+
+**Verificación:** pipeline VERDE 10/10, 440 unitarios + 1 skip.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-005-desduplicar-ssot, SPEC-019, SPEC-018
+- SSOTs afectados: core/sdd_config.py (CODE_STEPS, TEST_DIRS), adapters/CONTRACT.md
+- Verificación: python core/pipeline.py → VERDE (10/10); 440 unitarios; sdd-doctor sano
+```
+
 ## 2026-08-09 — K-2: el catálogo de claves del config viaja con la instalación
 
 **Scope:** `specs/SPEC-013-proyecto-derivado-coherente.md` (reabierta, iteración

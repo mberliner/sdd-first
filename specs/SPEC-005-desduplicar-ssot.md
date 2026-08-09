@@ -36,6 +36,36 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
   las entradas de sync son no-op ahí: no tienen `templates/` en su repo, así
   que `render.py` las omite si `(repo_root / "templates")` no existe.
 
+### Session 2026-08-09 (C-8)
+
+- Q: ¿La duplicación de listas de código entra en esta spec o pide una nueva? →
+  A: entra. FR-005 ya trata exactamente este caso —un default declarado como
+  literal en varios módulos— y su Independent Test es sobre `core/sdd_config.py`.
+  Lo que cambia es la clase de dato duplicado: antes un valor, ahora un
+  vocabulario (qué pasos existen, qué carpetas de test existen).
+- Q: ¿El pipeline le pregunta al adaptador qué pasos soporta, o la lista sale del
+  núcleo? → A: del núcleo. Preguntarle al adaptador gasta un subproceso por
+  corrida y, peor, vuelve el vocabulario dependiente del lenguaje: un nombre de
+  paso mal escrito en `pipeline.steps` sería "soportado" o no según el adaptador
+  instalado, cuando lo que decide es el contrato (`adapters/CONTRACT.md`). El
+  contrato es del núcleo; lo que es del lenguaje es la *implementación* de cada
+  paso. Así que `CODE_STEPS` vive en `core/sdd_config.py` y un test cruza el
+  dispatcher del adaptador contra él en las dos direcciones.
+- Q: ¿Alcanza con mover la tupla `("tests_unit", "tests_integration")` a una
+  constante y que los cuatro consumidores la importen? → A: no, y esto es lo que
+  la duplicación tapaba: los cuatro no hacen la misma pregunta. El adaptador la
+  usa para dos cosas distintas (blancos estáticos de `naming`/`lint`/`format` vs
+  carpetas que `coverage` le pasa a pytest para **ejecutar**), `check_naming` para
+  relajar reglas, `render` para los `paths:` de CI y `sdd_doctor` para cruzar
+  contra `pipeline.steps`. Una lista plana obliga a que toda carpeta de test
+  responda igual a las cinco preguntas, que es justo lo que impide agregar una
+  clase de test nueva. El SSOT declara la carpeta **con sus propiedades**, y cada
+  consumidor filtra por la que le toca.
+- Q: ¿Por qué `TEST_DIR_STEP` no alcanzaba si ya era SSOT? → A: era SSOT de una
+  sola de las cinco preguntas (qué paso la corre) y las otras cuatro siguieron
+  con su literal. Se generaliza en vez de sumarle una constante hermana, que
+  reintroduciría el mismo drift un nivel más arriba.
+
 ## Acceptance Scenarios
 
 - **Given** el kit con `docs/SDD-ENFORCEMENT.md` editado a mano y
@@ -60,6 +90,17 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
   se busca el default `"src"` (source_roots) y `"tests/unit"` (tests_unit),
   **Then** ambos existen una sola vez en `core/sdd_config.py` y el resto de
   los módulos los importa (no los repite como literal).
+- **Given** un paso de código implementado en el dispatcher del adaptador pero
+  ausente de `CODE_STEPS`, o al revés, **When** corre la suite unitaria,
+  **Then** falla nombrando el paso que sobra o falta de cada lado.
+- **Given** `core/pipeline.py`, **When** se busca la enumeración de pasos de
+  código, **Then** no hay literal propio: importa el vocabulario de
+  `core/sdd_config.py`.
+- **Given** una clave de carpeta de test declarada en el SSOT, **When** se
+  consultan los cinco consumidores (blancos estáticos del adaptador, corrida de
+  cobertura, relajación de `check_naming`, `paths:` del CI generado y cruce de
+  `sdd-doctor`), **Then** cada uno la deriva de ese SSOT filtrando por la
+  propiedad que le corresponde, sin repetir la tupla de claves.
 
 ## Functional Requirements
 
@@ -84,12 +125,31 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
   `"tests/unit"` (fallback de `tests_unit`) quedan declarados una sola vez
   como constantes en `core/sdd_config.py`, e importados desde `core/sdd_gate.py`
   y `adapters/python/adapter.py` en vez de repetidos como literal.
+- **FR-006** MUST: el vocabulario de pasos de código del contrato de adaptador
+  está declarado una sola vez, en `core/sdd_config.py`. `core/pipeline.py` lo
+  importa en vez de repetirlo, y un test cruza ese vocabulario contra el
+  dispatcher del adaptador en **las dos direcciones**: un paso implementado y no
+  declarado (el pipeline lo reporta "paso desconocido" y lo descuenta del total
+  sin ruido, C-8) y un paso declarado y no implementado fallan la suite.
+- **FR-007** MUST: las claves de carpetas de test de `dirs` están declaradas una
+  sola vez, con las propiedades que distinguen a cada una: qué paso de pipeline
+  la ejecuta y si entra a la corrida de cobertura. Los consumidores derivan de
+  ese SSOT —blancos estáticos y corrida de cobertura del adaptador, relajación de
+  reglas de `check_naming`, `paths:` del workflow que genera `render.py` y cruce
+  de `sdd-doctor` contra `pipeline.steps`— y ninguno enumera las claves por su
+  cuenta.
 
 ## Key Entities
 
 - **Archivo autoritativo**: el que un humano edita a mano (`templates/...`).
 - **Archivo sincronizado**: el que `render.py` genera/verifica, nunca se edita
   a mano (`docs/...`, `specs/SPEC-TEMPLATE.md` en la raíz del kit).
+- **Vocabulario de pasos** (`CODE_STEPS` en `core/sdd_config.py`): qué nombres de
+  paso reserva el contrato para el adaptador. Es del núcleo, no del lenguaje: el
+  lenguaje aporta la implementación de cada paso, no la lista.
+- **Declaración de carpetas de test** (`TEST_DIRS` en `core/sdd_config.py`): por
+  cada clave de `dirs`, qué paso la ejecuta y si entra a la medición de
+  cobertura. Reemplaza a `TEST_DIR_STEP`, que cubría solo la primera pregunta.
 
 ## Success Criteria
 
@@ -103,6 +163,13 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
 - **SC-004** `templates/docs/SPEC-FORMAT.md` ya no contiene el bloque
   markdown completo del template (verificable: el archivo baja de tamaño y
   el bloque ` ```markdown ` de la sección desaparece).
+- **SC-005** Agregar un paso al dispatcher del adaptador sin declararlo en el
+  vocabulario del núcleo (o al revés) pinta la suite en rojo, en vez de terminar
+  como un "paso desconocido" que el pipeline descuenta del total en silencio.
+- **SC-006** Agregar una clase de carpeta de test nueva se hace declarándola una
+  vez con sus propiedades; ningún consumidor necesita editar una tupla propia, y
+  ninguna carpeta queda arrastrada a un paso que no le corresponde por el solo
+  hecho de estar declarada.
 
 ## Assumptions
 
@@ -123,6 +190,8 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
 | FR-003 | tests/unit/test_pipeline_render_step.py |
 | FR-004 | tests/unit/test_spec_format_reference.py |
 | FR-005 | tests/unit/test_sdd_config.py |
+| FR-006 | tests/unit/test_vocabulario_de_pasos.py |
+| FR-007 | tests/unit/test_vocabulario_de_pasos.py |
 
 ## Fuera de alcance
 
@@ -148,3 +217,12 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
   `specs/SPEC-TEMPLATE.md` desde `templates/` (no-op sin carpeta `templates/`);
   `core/pipeline.py` suma el paso `render` (`render.py --check`), declarado en
   `.sdd/config.yaml`. Pipeline 9/9 VERDE, `sdd-doctor` sano, 62 tests.
+- 2026-08-09: reabierta por C-8 de `docs/IDEAS.md`. FR-006/FR-007 extienden lo
+  que FR-005 hizo con dos defaults a los dos vocabularios que el kit tenía
+  repetidos: los pasos de código (`pipeline.CODE_STEPS` vs el dispatcher del
+  adaptador, que ya se habían desincronizado al agregar `integration` en
+  [[SPEC-019-tests-integracion-ejecutados]]) y las claves de carpetas de test
+  (cuatro literales `("tests_unit", "tests_integration")` con criterios
+  distintos). Prerequisito de [[SPEC-018-verificacion-e2e]] US3: sin separar
+  "blancos estáticos" de "carpetas que se ejecutan", declarar `tests/e2e` la
+  arrastraba a la corrida de cobertura.

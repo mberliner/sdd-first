@@ -40,6 +40,7 @@ from sdd_config import (  # noqa: E402
     COVERAGE_BASELINE_PREFIX,
     DEFAULT_TESTS_UNIT,
     EXIT_OMITIDO,
+    declared_test_dirs,
     find_repo_root,
     load,
 )
@@ -59,12 +60,14 @@ def _skip(reason: str) -> int:
     return EXIT_OMITIDO
 
 
+def _test_dirs(cfg) -> list[str]:  # type: ignore[no-untyped-def]
+    """Carpetas de tests declaradas, derivadas del SSOT (SPEC-005 FR-007)."""
+    return [cfg.dirs[k] for k in declared_test_dirs() if k in cfg.dirs] or ["tests"]
+
+
 def _source_and_test_dirs(cfg) -> tuple[list[str], list[str]]:  # type: ignore[no-untyped-def]
-    src = cfg.source_roots
-    tests = [
-        cfg.dirs[k] for k in ("tests_unit", "tests_integration") if k in cfg.dirs
-    ] or ["tests"]
-    return src, tests
+    """Blancos de los pasos estaticos: codigo mas las carpetas de tests."""
+    return cfg.source_roots, _test_dirs(cfg)
 
 
 def _existing_targets(repo_root: Path, dirs: list[str]) -> list[str]:
@@ -195,8 +198,7 @@ def step_coverage(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
             "tool 'pytest-cov' no instalada (pip install pytest-cov), paso 'coverage'"
         )
 
-    _, tests = _source_and_test_dirs(cfg)
-    test_dirs = _existing_targets(repo_root, tests)
+    test_dirs = _existing_targets(repo_root, _test_dirs(cfg))
     if not test_dirs:
         return _skip("sin carpetas de tests todavia, paso 'coverage'")
 
@@ -249,9 +251,8 @@ def query_coverage_baseline(repo_root: Path, cfg) -> int:  # type: ignore[no-unt
     if not _module_available("pytest_cov"):
         return _skip("tool 'pytest-cov' no instalada (pip install pytest-cov)")
 
-    src, tests = _source_and_test_dirs(cfg)
-    src_dirs = _existing_targets(repo_root, src)
-    test_dirs = _existing_targets(repo_root, tests)
+    src_dirs = _existing_targets(repo_root, cfg.source_roots)
+    test_dirs = _existing_targets(repo_root, _test_dirs(cfg))
     if not src_dirs:
         return _skip("sin carpetas de codigo todavia")
     if not test_dirs:

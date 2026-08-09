@@ -2,4 +2,4 @@
 # El gate spec-first (core/sdd_gate.py) exige que cada spec listada aquí
 # exista, esté registrada con estado vigente y tenga sus requisitos (FR) escritos.
 # Vacío = ninguna edición de código fuente permitida.
-SPEC-013-proyecto-derivado-coherente
+SPEC-005-desduplicar-ssot

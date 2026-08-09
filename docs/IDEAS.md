@@ -272,6 +272,17 @@ encontró.
   adaptador qué pasos soporta, o que la lista salga de un SSOT en `sdd_config.py`.
   Ojo con el agnosticismo: `PROCESS_STEPS` es del núcleo y `CODE_STEPS` del
   lenguaje, así que no es un simple merge.
+  **(cerrado el 2026-08-09)** → [[SPEC-005-desduplicar-ssot]] FR-006/FR-007.
+  La premisa del "no es un simple merge" resultó ser el error: `CODE_STEPS` **no**
+  es del lenguaje, es del contrato (`adapters/CONTRACT.md`) —lo que aporta el
+  lenguaje es la implementación de cada paso—, así que vive en `sdd_config.py` y
+  el pipeline lo importa. Preguntarle al adaptador se descartó: gasta un
+  subproceso por corrida y vuelve el vocabulario dependiente del adaptador
+  instalado. Apareció una duplicación hermana que la idea no registraba: la tupla
+  `("tests_unit", "tests_integration")` repetida en cuatro módulos, que tapaba que
+  los cuatro hacen preguntas **distintas** sobre la misma carpeta —por eso agregar
+  una clase de test nueva no era un renglón—. Ahora `TEST_DIRS` declara la
+  carpeta con sus propiedades y cada consumidor filtra por la suya.
 
 ## P2/P3 — Producto y distribución
 

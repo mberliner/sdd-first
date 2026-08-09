@@ -31,20 +31,14 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 KIT_ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
-from sdd_config import EXIT_OMITIDO, find_repo_root, load  # noqa: E402
+from sdd_config import (  # noqa: E402
+    CODE_STEPS,
+    EXIT_OMITIDO,
+    find_repo_root,
+    load,
+)
 
 PROCESS_STEPS = {"hooks", "constitution", "traceability", "skills", "render"}
-CODE_STEPS = {
-    "naming",
-    "layers",
-    "lint",
-    "format",
-    "types",
-    "security",
-    "tests",
-    "integration",
-    "coverage",
-}
 
 
 def _run(cmd: list[str], cwd: Path) -> int:

@@ -9,6 +9,12 @@ python adapters/<language>/adapter.py <step>
 
 ## Pasos que debe soportar
 
+> El vocabulario de esta tabla está declarado en `CODE_STEPS`
+> (`core/sdd_config.py`) — es del núcleo, porque lo que reserva estos nombres es
+> el contrato; el lenguaje aporta la implementación de cada paso, no la lista.
+> `tests/unit/test_vocabulario_de_pasos.py` cruza el dispatcher de cada adaptador
+> contra esa constante en las dos direcciones (SPEC-005 FR-006).
+
 | Paso | Qué valida |
 |------|------------|
 | `naming` | Nomenclatura agnóstica (palabras excluidas de `.sdd/config.yaml`). |
@@ -24,7 +30,7 @@ python adapters/<language>/adapter.py <step>
 ## Consultas que puede soportar
 
 Una **consulta** produce un dato en vez de validar. No es un paso de pipeline: no
-entra a `pipeline.steps`, no entra a `pipeline.CODE_STEPS` del núcleo, y quien la
+entra a `pipeline.steps`, no entra a `CODE_STEPS` del núcleo, y quien la
 invoca es una herramienta puntual, no el pipeline. Se llama igual:
 `python adapters/<language>/adapter.py <consulta>`.
 
