@@ -483,6 +483,11 @@ evidencia que les faltaba:
   `tests/e2e/conftest.py`). Encaja como FR de [[SPEC-014-derivado-dice-la-verdad]]:
   un derivado no puede afirmar que su constitución es la vigente si nada lo
   verifica.
+  **(cerrado el 2026-08-09)** → [[SPEC-014-derivado-dice-la-verdad]] FR-US1-005,
+  tal cual estaba planteado: una línea en `_SEEDED_STEPS`, entre `skills` y
+  `tests`. Se descartó la alternativa de que `check_constitution.py` comparara
+  contra `principles:` — sería una segunda implementación del criterio que
+  `render --check` ya tiene, divergente por construcción (Principio IV).
 - **K-2 · El catálogo de claves del config no viaja con el derivado.** La
   cabecera que siembra `_seed_header` remite a `examples/config/config.yaml`
   "en el kit" — un archivo que el derivado no tiene. Bajo la premisa vieja daba
@@ -544,10 +549,18 @@ evidencia que les faltaba:
   afirmación, el usuario asume una dependencia permanente (y nosotros toleramos
   huecos como K-2, que solo se explican si el kit está siempre a mano). SSOT
   elegido: el `README.md` del kit, que es el autoritativo de "qué es el kit / uso"
-  según `00-INDEX.md`. Falta el reflejo del lado del derivado: una línea en
-  `templates/docs/SDD-OPERACION.md`. Matiz que hay que escribir con cuidado: la
-  única razón legítima para volver al kit es **actualizar** el andamiaje, que es
-  E-2 (`sdd-update`) y hoy no existe.
+  según `00-INDEX.md`. Matiz que hay que escribir con cuidado: la única razón
+  legítima para volver al kit es **actualizar** el andamiaje, que es E-2
+  (`sdd-update`) y hoy no existe.
+  **(cerrado el 2026-08-09)** con la sección "El kit es desechable" del
+  `README.md`. Se evaluó y **descartó** el reflejo que este ítem pedía del lado
+  del derivado (una línea en `templates/docs/SDD-OPERACION.md`): quien corre
+  `sdd-init` ya lo leyó en el README, y quien llega después al proyecto derivado
+  nunca oye hablar del kit —las únicas dos menciones en las plantillas hablan de
+  la copia vendorizada y de E-2, las dos correctas—. Declararlo ahí sería
+  introducir una dependencia en la cabeza del lector solo para negarla. Lo que
+  sí queda del razonamiento es K-2, que se sostiene solo: una referencia colgada
+  es un hueco aunque el clon esté al lado.
 
 ## Descartado explícitamente del proyecto de referencia
 

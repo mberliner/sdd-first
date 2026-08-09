@@ -109,6 +109,37 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   mismo origen que U-4..U-11. Lo encontró la suite e2e (**V-3** de
   `docs/IDEAS.md`), no una campaña manual, pero el defecto es de la misma clase.
 
+### Session 2026-08-09
+
+- Q: El derivado nace sin el paso `render` en `pipeline.steps` (**K-1** de
+  `docs/IDEAS.md`), así que nada vigila el drift de lo generado. ¿Es esta la spec?
+  → A: sí. Es la HU-1 exacta —*ningún reporte de salud sin medición*—: el pipeline
+  del derivado reporta VERDE sobre una constitución que puede estar obsoleta.
+  Ninguna otra spec lo cubre: `check_constitution.py` parsea el **documento** y
+  valida que sus referencias y su enforcement estén cableados, pero nunca lo
+  compara contra `principles:` del config.
+- Q: ¿Por qué no arreglarlo en `check_constitution.py`, que ya corre? → A: porque
+  duplicaría el SSOT de la comparación. `render --check` ya sabe reconstruir cada
+  artefacto desde el config y compararlo; hacerle lo mismo a `check_constitution`
+  sería una segunda implementación del mismo criterio, divergente por
+  construcción (principio IV). El paso existe: lo que falta es sembrarlo.
+- Q: ¿Qué vigila realmente en un derivado, donde no hay `templates/`? → A: los
+  tres artefactos de `_GENERATED`: `CONSTITUTION.md`, `specs/SPEC-000-naming.md` y
+  `.github/workflows/ci.yml`. El bloque `_SYNCED_FROM_TEMPLATES` es no-op ahí
+  (SPEC-005 FR-002). Los tres daños que hoy pasan sin ruido: el agente lee
+  `SPEC-000` mientras `check_naming.py` enforcea desde el config y divergen; la
+  constitución queda congelada; y el `ci.yml` se genera desde `pipeline.steps` y
+  `default_branch`, así que habilitar un paso deja **verde local ≠ verde en CI**.
+- Q: ¿No introduce una precondición nueva para un proyecto recién instalado?
+  → A: no. El paso `constitution`, ya sembrado, exige que `CONSTITUTION.md` exista,
+  y eso lo produce `render` — que es el paso 2 del flujo que imprime el propio
+  instalador, antes del paso 3 (`pipeline.py`). Correr el pipeline sin haber
+  renderizado ya salía ROJO antes de este cambio.
+- Q: ¿Por qué sembrado y no en `_OPTIONAL_STEPS`? → A: el criterio de
+  `_OPTIONAL_STEPS` es "requiere tooling del proyecto" (`lint`, `format`, `types`,
+  `security`). `render --check` es lectura pura sobre el config y los artefactos,
+  con las mismas dependencias que el resto del núcleo.
+
 ## Acceptance Scenarios
 
 - **Given** un proyecto con `.pre-commit-config.yaml` y `.claude/settings.json`
@@ -133,6 +164,11 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   config y se corre `render.py`, **Then** `CONSTITUTION.md` refleja el dominio
   nuevo y ningún otro artefacto instalado afirma el viejo; **When** se cambia sin
   regenerar, **Then** `render --check` reporta el drift.
+- **Given** una instalación fresca, **When** se corre `render.py` y después
+  `pipeline.py`, **Then** el paso `render` figura entre los ejecutados; **When**
+  se edita `principles` en el config sin regenerar y se vuelve a correr el
+  pipeline, **Then** sale ROJO en ese paso en vez de reportar VERDE sobre una
+  constitución obsoleta.
 
 ## Functional Requirements — HU-1 (enforcement)
 
@@ -156,6 +192,11 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   redacción denegaba toda edición sin raíz resoluble.)*
 - **FR-US1-004** SHOULD: la salida de instalación nombra `00-INDEX.md` como
   puerta de entrada a la documentación instalada.
+- **FR-US1-005** MUST: `core/sdd_init.py` siembra el paso `render` en
+  `pipeline.steps` (`_SEEDED_STEPS`), antes de los pasos de código, para que el
+  pipeline del derivado detecte el drift de los artefactos generados en vez de
+  reportar VERDE sobre una constitución, un `SPEC-000` o un `ci.yml` obsoletos.
+  El drift dejaba de ser visible salvo corriendo `sdd-doctor` a mano.
 
 ## Functional Requirements — HU-2 (claridad)
 
@@ -199,6 +240,8 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 - **SC-007**: cambiar `project.domain` en un derivado ya instalado y regenerar
   deja el dominio nuevo en `CONSTITUTION.md`; ningún archivo instalado conserva el
   viejo.
+- **SC-008**: en un derivado recién instalado, el drift de un artefacto generado
+  lo detecta el pipeline, no solo `sdd-doctor` corrido a mano.
 
 ## Key Entities
 
@@ -218,6 +261,7 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 | FR-US1-002 | `tests/unit/test_sdd_doctor_wiring.py` |
 | FR-US1-003 | `tests/unit/test_gate_sin_raiz_sdd.py` |
 | FR-US1-004 | `tests/unit/test_sdd_init_wiring_conservado.py` |
+| FR-US1-005 | `tests/unit/test_sdd_init_seeded_steps.py` |
 | FR-US2-001 | `tests/unit/test_derived_references.py` |
 | FR-US2-002 | `tests/unit/test_mensajes_de_drift.py` |
 | FR-US2-003 | `tests/unit/test_sdd_doctor_wiring.py` |

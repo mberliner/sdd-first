@@ -211,6 +211,11 @@ def _seed_default_branch(config_text: str, target: Path) -> str:
 # `coverage` va sembrado por visibilidad (SPEC-009 FR-002): sin umbrales
 # declarados se omite con aviso, asi que no puede poner en ROJO una instalacion
 # fresca, pero deja el paso a la vista para cuando la suite madure.
+# `render` va sembrado porque es lo unico que vigila el drift de los artefactos
+# generados en un derivado (SPEC-014 FR-US1-005): sin el, el pipeline reporta
+# VERDE sobre una CONSTITUTION.md, un SPEC-000 o un ci.yml que ya no derivan del
+# config. Es lectura pura, no requiere tooling del proyecto, y no agrega
+# precondicion: el paso `constitution` ya exige haber corrido `render`.
 _SEEDED_STEPS = [
     "hooks",
     "constitution",
@@ -218,6 +223,7 @@ _SEEDED_STEPS = [
     "naming",
     "layers",
     "skills",
+    "render",
     "tests",
     "coverage",
 ]

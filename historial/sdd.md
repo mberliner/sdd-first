@@ -1,5 +1,46 @@
 # Historial SDD — sdd-first
 
+## 2026-08-09 — K-1: el derivado nace vigilando el drift de lo generado
+
+**Scope:** `specs/SPEC-014-derivado-dice-la-verdad.md` (reabierta, iteración 6),
+`core/sdd_init.py`, `tests/unit/test_sdd_init_seeded_steps.py`.
+
+**Qué cambió:** `_SEEDED_STEPS` siembra el paso `render`, entre `skills` y
+`tests`. Es una línea, pero cierra un falso verde estructural del derivado: nada
+comparaba los artefactos generados contra el config. `check_constitution.py`
+parsea el **documento** y valida que sus referencias y su enforcement estén
+cableados, pero nunca lo contrasta con `principles:`, así que el paso
+`constitution` salía OK sobre una constitución obsoleta. El único que veía el
+drift era `sdd-doctor`, que se corre a mano.
+
+**Los tres daños que pasaban en silencio:** (a) el agente lee
+`specs/SPEC-000-naming.md` (paso 5 de `AGENTS.md`) mientras `check_naming.py`
+enforcea desde el config — divergen y el asistente sigue reglas que el linter ya
+no aplica; (b) la constitución queda congelada en el primer valor; (c) el
+`ci.yml` se genera desde `pipeline.steps` y `default_branch`, así que habilitar un
+paso dejaba **verde local ≠ verde en CI**, silencioso y cross-máquina.
+
+**Por qué en SPEC-014 y no en una spec nueva:** es la HU-1 textual de esa spec
+—*ningún reporte de salud sin medición*—, la misma clase que G-4 (`sdd-doctor`
+validando existencia y no contenido del wiring). Abrir spec propia habría
+fragmentado el invariante.
+
+**Por qué sembrado y no opcional:** el criterio de `_OPTIONAL_STEPS` es "requiere
+tooling del proyecto" (`lint`, `format`, `types`, `security`). `render --check` es
+lectura pura sobre el config y los artefactos. Y no agrega precondición: el paso
+`constitution`, ya sembrado, exige que `CONSTITUTION.md` exista, y eso lo produce
+`render` — el paso 2 del flujo que imprime el propio instalador, antes del paso 3
+(`pipeline.py`).
+
+**Descartado:** hacer que `check_constitution.py` compare contra `principles:`.
+Sería una segunda implementación del criterio que `render --check` ya tiene,
+divergente por construcción (Principio IV). El paso existía; lo que faltaba era
+sembrarlo.
+
+**Verificación:** pipeline VERDE 10/10, 397 unitarios + 17 e2e en verde.
+
+**[SDD-Check]** SPEC-014 · FR-US1-005 · SC-008 · pipeline VERDE 10/10
+
 ## 2026-08-08 — K-3 cerrado: Principio V y cobertura al 90% (con SPEC-021 de yapa)
 
 **Scope:** `.sdd/config.yaml` (Principio V, `constitution.version` 0.3.0 → 0.4.0,
