@@ -303,6 +303,13 @@ encontró.
   `check_constitution.py` es un mapa hardcodeado tool→paso: un enforcement
   propio (`mi_check.py`) no obtiene verificación de cableado ni error. Mover
   el mapeo al config (`enforcement: {tool, step}`).
+  **(ya con spec) → [[SPEC-020-enforcement-declarado-en-config]]** — implementado
+  el 2026-08-08. La forma final fue una clave `step` **por principio**, no un mapa
+  de nivel superior (el principio es la unidad; un mapa aparte duplicaba SSOT
+  dentro del config). Lo promovió K-3: al ir a declarar el principio de cobertura
+  se vio que no obtendría verificación, y un enforcement decorativo en la
+  constitución del propio kit era inaceptable. Se aprovechó el viaje para pagar la
+  primera cuota de K-3: `check_constitution.py` de 0% a 99%.
 - **E-5 · Ajustes de doc del README.** El claim de skills para "Cursor…" no
   tiene soporte real (hoy: `.agents/` + Claude + opencode); precisar. Aclarar
   qué tooling requieren los pasos de código del adaptador python.
@@ -434,6 +441,105 @@ evidencia que les faltaba:
 - **E-2** (ruta de actualización del kit vendorizado): confirmado que ningún
   documento del derivado lo explica, aunque `SDD-OPERACION` hable de "después de
   actualizar el kit".
+
+## P1/P2 — Reevaluación kit vs derivado (2026-08-08)
+
+> Salió de comparar el SDD del propio kit contra el que siembra `sdd-init`, y
+> después filtrar esa lista con la premisa correcta: **el kit casi no tiene
+> código de producto** (todo lo que tiene es código de palanca que se ejecuta
+> dentro de N proyectos ajenos), mientras que el derivado **sí** es un proyecto
+> de IT con desarrollo real. Con eso, la simetría kit↔derivado deja de ser el
+> criterio: valen solo dos preguntas — *¿lo que el kit genera es correcto?* y
+> *¿el derivado se sostiene solo, sin el clon del kit al lado?*
+>
+> Asimetrías que el filtro **descartó** como legítimas, para no volver a
+> levantarlas: `tools/sdd/` fuera del gate del derivado (es infra vendorizada,
+> no su producto); que el kit no tenga `ARCHITECTURE.md`/`SPEC-FORMAT.md` propios
+> (no tiene capas ni producto, y su `00-INDEX` referencia el SSOT en
+> `templates/`); que el kit no corra el paso `layers` (un contrato de capas sobre
+> `core/`+`adapters/` sería ceremonial); principios mínimos sembrados, exenciones
+> de `naming` y `AGENTS.md` divergente (todos son "el derivado elige lo suyo").
+
+- **K-1 · El derivado nace sin el paso `render`, así que nada vigila el drift de
+  lo generado.** `_SEEDED_STEPS` (`core/sdd_init.py`) no lo incluye; el kit sí lo
+  corre. En un derivado `render --check` compara tres artefactos (`_GENERATED`,
+  `render.py:256`): `CONSTITUTION.md`, `specs/SPEC-000-naming.md` y
+  `.github/workflows/ci.yml` — el bloque `_SYNCED_FROM_TEMPLATES` es no-op ahí
+  (no hay `templates/`). No lo cubre ningún otro paso: `check_constitution.py`
+  parsea el **documento** y valida que sus referencias y su enforcement estén
+  cableados, pero **nunca lo compara contra `principles:` del config**, así que
+  el paso `constitution` sale verde sobre una constitución obsoleta. Hoy el único
+  que ve el drift es `sdd-doctor`, que se corre a mano. Tres daños concretos:
+  (a) `SPEC-000` es lo que lee el agente (paso 5 de `AGENTS.md`) mientras
+  `check_naming.py` enforcea desde el config — divergen y el asistente sigue
+  reglas que el linter ya no aplica; (b) la constitución queda congelada; (c) el
+  `ci.yml` se genera desde `pipeline.steps` y `default_branch`, así que habilitar
+  un paso deja **verde local ≠ verde en CI**, silencioso y cross-máquina. Fix:
+  una línea en `_SEEDED_STEPS`, entre `skills` y `tests`. Es seguro: `--check`
+  es lectura pura, stdlib, sin tooling (por eso va en la lista sembrada y no en
+  `_OPTIONAL_STEPS`, cuyo criterio es "requiere tooling del proyecto"), y no
+  introduce precondición nueva — el paso `constitution` ya exige haber corrido
+  `render` (paso 2 de `_next_steps`, y así lo hace la e2e en
+  `tests/e2e/conftest.py`). Encaja como FR de [[SPEC-014-derivado-dice-la-verdad]]:
+  un derivado no puede afirmar que su constitución es la vigente si nada lo
+  verifica.
+- **K-2 · El catálogo de claves del config no viaja con el derivado.** La
+  cabecera que siembra `_seed_header` remite a `examples/config/config.yaml`
+  "en el kit" — un archivo que el derivado no tiene. Bajo la premisa vieja daba
+  igual (siempre había un clon a mano); bajo la nueva, no: quien mantiene el
+  derivado nunca ve el kit, y `.sdd/config.yaml` es justo el archivo que más va
+  a editar. Fix: instalar el catálogo como `docs/CONFIG-REFERENCE.md` (o
+  `.sdd/config.example.yaml`) y que la cabecera apunte ahí. Emparejado con K-6:
+  si el kit es desechable, su documentación de referencia tiene que viajar.
+- **K-3 · La cobertura del kit está mal calibrada — y es el punto de mayor
+  palanca.** Medido el 2026-08-08: total **75%** contra un umbral declarado de
+  **50** (el trinquete quedó 25 puntos por debajo del piso real y no protege
+  nada), y el comentario del config que justifica ese 50 nombra módulos que hoy
+  están en 74% y 85%. Lo grave es la distribución: `check_constitution.py` sigue
+  en **0%** (97 stmts) siendo un gate que se ejecuta en **cada** proyecto
+  instalado; después `sdd_spec.py` 44%, `adapters/python/adapter.py` 51%,
+  `check_naming.py` 59%, `bootstrap_hooks.py` 59%, `gen_import_linter.py` 69%.
+  Si el kit casi no tiene código propio, cada línea que sí tiene está
+  multiplicada por N: el kit debe exigirse **más** que lo que reparte, no menos.
+  **Objetivo: 90%** sobre `core`+`adapters`. Son ~247 stmts a cubrir sobre los
+  409 sin cubrir hoy; conviene subir el umbral por escalones (75 → 85 → 90) para
+  que el trinquete muerda desde la primera iteración, empezando por
+  `check_constitution`. Supersede a F-7, que se conformaba con "fijar el piso".
+- **K-4 · La suite e2e tiene que ser un paso del pipeline local.** El dogfooding
+  es estructuralmente incapaz de cubrir lo que el kit genera *para otros*: el
+  config del kit ejercita rutas distintas de las sembradas — por ahí entró el bug
+  de sintaxis INI de `gen_import_linter` (el kit no corre `layers`, ver el
+  descarte de arriba), que solo apareció al correr la e2e. Para un proyecto
+  generador, **el test de instalación es el nivel de test primario**, no un
+  extra que se corre a mano ni solo en un workflow aparte. Fix: sumar un paso
+  `e2e` al pipeline y a `pipeline.steps` del kit. La forma ya está resuelta por
+  precedente: replicar lo que SPEC-019 hizo con `integration` (clave
+  `dirs.tests_e2e` + paso propio en el adaptador + omisión con aviso si la
+  carpeta no existe), lo que además lo deja disponible para cualquier derivado
+  que tenga su propia e2e, sin acoplar el núcleo. Ojo con C-8: agregar un paso
+  de código exige tocar `pipeline.CODE_STEPS` **y** el dispatcher del adaptador.
+  Y con el costo: el paso es caro comparado con el resto, así que hay que decidir
+  si va en el pipeline completo o detrás de un flag/orden (al final, después de
+  `coverage`).
+- **K-5 · El paso `coverage` se siembra sin umbrales, o sea inerte.** En el kit
+  es una elección deliberada; en un proyecto de IT real con código creciendo, un
+  paso que se omite con aviso en cada corrida enseña que el verde no significa
+  nada — la misma familia que U-3 y C-1. Fix: que `sdd-configure` (o `sdd-init`,
+  si ya hay tests) mida el piso real del proyecto y lo escriba como trinquete,
+  en vez de dejar la clave comentada.
+- **K-6 · No está dicho en ninguna parte que el kit es desechable.** Es la
+  propiedad de producto que ordena todo lo anterior: una vez instalado, el
+  derivado **se sostiene solo** — el andamiaje vendorizado en `tools/sdd/`, las
+  skills, las plantillas ya resueltas y los docs no requieren el clon del kit
+  para nada del día a día. Nadie lo afirma: ni el README del kit, ni
+  `templates/docs/SDD-OPERACION.md`, ni la salida de `sdd-init`. Sin esa
+  afirmación, el usuario asume una dependencia permanente (y nosotros toleramos
+  huecos como K-2, que solo se explican si el kit está siempre a mano). SSOT
+  elegido: el `README.md` del kit, que es el autoritativo de "qué es el kit / uso"
+  según `00-INDEX.md`. Falta el reflejo del lado del derivado: una línea en
+  `templates/docs/SDD-OPERACION.md`. Matiz que hay que escribir con cuidado: la
+  única razón legítima para volver al kit es **actualizar** el andamiaje, que es
+  E-2 (`sdd-update`) y hoy no existe.
 
 ## Descartado explícitamente del proyecto de referencia
 

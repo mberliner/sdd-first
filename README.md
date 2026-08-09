@@ -37,6 +37,25 @@ Todo se parametriza en `.sdd/config.yaml` (nombre, dominio, palabras excluidas
 de la nomenclatura, capas, principios, pasos del pipeline). No hay listas
 escondidas en el código.
 
+## El kit es desechable
+
+Una vez instalado, **tu proyecto se sostiene solo**: no necesitás este repo para
+nada del día a día. `sdd-init` no deja un enlace ni una dependencia — copia el
+andamiaje dentro de tu proyecto (`tools/sdd/`), resuelve las plantillas y genera
+las skills ahí mismo. El pipeline, el gate, las skills de tu asistente y la
+documentación corren contra esa copia, con las rutas de tu proyecto.
+
+Eso es deliberado, y define qué es este kit: **una herramienta de bootstrap, no
+un framework del que quedás colgado.** Podés borrar el clon después de instalar.
+La única razón para volver es traer una versión nueva del andamiaje a un proyecto
+ya instalado — hoy eso es reinstalar con `--force`; una ruta de actualización
+propia está pendiente (ver `docs/IDEAS.md`, E-2).
+
+Corolario para quien contribuye al kit: todo lo que el usuario del proyecto
+derivado vaya a necesitar tiene que **viajar con la instalación**. Un documento,
+un ejemplo o un comando que solo exista en este repo es un hueco, no una
+referencia.
+
 ## Requisitos
 
 > **Importante:** el andamiaje del kit está escrito en **Python** y necesita
