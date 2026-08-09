@@ -30,9 +30,9 @@ naming:
 constitution:
   # Metadatos de CONSTITUTION.md. Bumpear al enmendar un principio y regenerar
   # con render.py (SPEC-010 FR-003); antes estaban hardcodeados en render.py.
-  version: "0.3.0"
+  version: "0.4.0"
   ratified: 2026-08-02
-  amended: 2026-08-05
+  amended: 2026-08-08
 
 principles:
   # `step` (opcional) nombra el paso de pipeline.steps que activa el enforcement:
@@ -68,6 +68,17 @@ principles:
       declara una vez y las secciones lo referencian.
     enforcement: AGENTS.md
     detail: 00-INDEX.md
+  - id: V
+    title: El kit se exige mas verificacion que la que reparte
+    invariant: >-
+      El kit no tiene codigo de producto: todo lo que contiene es codigo de
+      palanca que se ejecuta dentro de proyectos ajenos, asi que un defecto suyo
+      se multiplica por cada instalacion. Su cobertura de tests se mantiene por
+      encima del piso que el kit le pide a un proyecto derivado, y el umbral solo
+      sube: bajarlo es enmendar la constitucion, no ajustar una metrica.
+    enforcement: pytest-cov
+    step: coverage
+    detail: .sdd/config.yaml
 
 layers: {}
 
@@ -85,13 +96,10 @@ pipeline:
     - tests
     - coverage
 
-  # Umbrales de cobertura del propio kit (SPEC-009). Trinquete: se fijan en el
-  # piso medido, no en un ideal, y se suben a medida que se cubren modulos.
-  # Objetivo declarado: 90% (K-3 de docs/IDEAS.md) — todo lo que el kit tiene es
-  # codigo de palanca que corre dentro de proyectos ajenos, asi que se exige mas
-  # que lo que reparte. Escalon actual: 80% (medido 81% al cubrir
-  # check_constitution en SPEC-020). Falta cubrir sdd_spec (44%), el adaptador
-  # python (51%) y check_naming (59%).
+  # Umbral de cobertura del propio kit: es el enforcement del Principio V, asi
+  # que bajarlo no es aflojar una metrica sino enmendar la constitucion.
+  # Medido 91% al cerrar K-3 (docs/IDEAS.md); el objetivo 90% se alcanzo
+  # cubriendo los main() que la suite nunca ejecutaba.
   coverage:
     - paths: [core, adapters]
-      min: 80
+      min: 90

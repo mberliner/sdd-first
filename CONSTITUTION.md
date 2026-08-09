@@ -2,7 +2,7 @@
 
 **Proyecto:** sdd-first | **Dominio:** andamiaje SDD universal, agnostico y personalizable para otros proyectos
 
-**Versión:** 0.3.0 | Ratificada: 2026-08-02 | Última enmienda: 2026-08-05
+**Versión:** 0.4.0 | Ratificada: 2026-08-02 | Última enmienda: 2026-08-08
 
 > Generado por `core/render.py` desde `.sdd/config.yaml`. La forma de cada
 > principio (invariante + Enforcement + Detalle) es lo que valida
@@ -50,6 +50,13 @@ Toda pieza de informacion normativa —regla, definicion, cifra, tabla, convenci
 
 - **Enforcement:** `AGENTS.md`
 - **Detalle:** `00-INDEX.md`
+
+### V. El kit se exige mas verificacion que la que reparte
+
+El kit no tiene codigo de producto: todo lo que contiene es codigo de palanca que se ejecuta dentro de proyectos ajenos, asi que un defecto suyo se multiplica por cada instalacion. Su cobertura de tests se mantiene por encima del piso que el kit le pide a un proyecto derivado, y el umbral solo sube: bajarlo es enmendar la constitucion, no ajustar una metrica.
+
+- **Enforcement:** `pytest-cov`
+- **Detalle:** `.sdd/config.yaml`
 
 ## Governance
 

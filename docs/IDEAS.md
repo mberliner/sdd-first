@@ -505,6 +505,14 @@ evidencia que les faltaba:
   409 sin cubrir hoy; conviene subir el umbral por escalones (75 → 85 → 90) para
   que el trinquete muerda desde la primera iteración, empezando por
   `check_constitution`. Supersede a F-7, que se conformaba con "fijar el piso".
+  **(cerrado el 2026-08-08)** — 75% → **91%**, umbral 50 → 90. El invariante se
+  declaró como **Principio V** de la constitución (enmienda 0.3.0 → 0.4.0), con
+  enforcement `pytest-cov` + paso `coverage`, que es verificable recién desde
+  [[SPEC-020-enforcement-declarado-en-config]]; el número quedó en su SSOT
+  (`pipeline.coverage`), no en la constitución ni en una spec. La deuda era un
+  patrón único: la suite cubría helpers y **nunca los `main()`** — los
+  entrypoints que corren en un proyecto instalado. Destapó un bug real,
+  [[SPEC-021-config-vacio-no-rompe]].
 - **K-4 · La suite e2e tiene que ser un paso del pipeline local.** El dogfooding
   es estructuralmente incapaz de cubrir lo que el kit genera *para otros*: el
   config del kit ejercita rutas distintas de las sembradas — por ahí entró el bug

@@ -1,5 +1,56 @@
 # Historial SDD — sdd-first
 
+## 2026-08-08 — K-3 cerrado: Principio V y cobertura al 90% (con SPEC-021 de yapa)
+
+**Scope:** `.sdd/config.yaml` (Principio V, `constitution.version` 0.3.0 → 0.4.0,
+umbral 80 → 90), `CONSTITUTION.md` (regenerado), `core/sdd_config.py`,
+`specs/SPEC-021-config-vacio-no-rompe.md` (nueva), y tests de `sdd_spec`,
+`check_naming`, el adaptador python y `bootstrap_hooks`.
+
+**Qué cambió:** se declaró el **Principio V** — el kit no tiene código de
+producto, todo lo que contiene es código de palanca que corre dentro de proyectos
+ajenos, así que su cobertura se mantiene por encima del piso que le pide a un
+derivado y el umbral **solo sube**. Enforcement `pytest-cov` / paso `coverage`,
+detalle `.sdd/config.yaml`. Es la primera vez que se usa el mecanismo de SPEC-020:
+se verificó sacando `coverage` de `pipeline.steps` y confirmando que la
+constitución sale ROJO nombrando el principio. Con el mapa hardcodeado de antes,
+ese principio habría pasado en silencio.
+
+Enmienda de constitución, no cambio de código: la versión sube a **0.4.0** (MINOR
+pre-1.0 = agrega un principio) y `amended` a 2026-08-08.
+
+**Cobertura:** 81% → **91%**, umbral 80 → 90.
+
+| Módulo | Antes | Ahora |
+|--------|-------|-------|
+| `core/sdd_spec.py` | 44% | 96% |
+| `adapters/python/check_naming.py` | 59% | 99% |
+| `adapters/python/adapter.py` | 51% | 98% |
+| `core/bootstrap_hooks.py` | 59% | 97% |
+
+**El patrón que explicaba la deuda:** la suite cubría helpers y **nunca los
+`main()`**. Todos los bloques sin ejecutar eran entrypoints — justo lo que corre
+en la línea de comandos de un proyecto instalado. En el adaptador la asimetría
+era más fina: estaban cubiertas las omisiones (la mitad interesante de SPEC-003)
+y casi ninguna rama donde el paso sí ejecuta la tool.
+
+**Lo que destapó (SPEC-021):** cubrir `check_naming.main()` reventó con
+`TypeError: 'NoneType' object is not iterable`. Un `naming.prohibited:` sin ítems
+—YAML lo carga como `None`, y vaciar la lista es la forma natural de desactivar
+la regla sin borrar la clave— abortaba el paso `naming` con un traceback,
+tapando el mensaje "sin palabras excluidas (nada que verificar)" que el propio
+consumidor ya tenía escrito. Eran las tres propiedades de `naming`, las únicas
+del loader que iteraban un `.get(clave, [])` sin verificar el tipo; el resto ya
+guardaba. La regla estaba declarada desde antes en el docstring de
+`pipeline_coverage` ("un typo no debe volver ilegible el proyecto"): esta spec la
+extiende a las claves que se la saltaban, con la guarda en un helper único para
+que una lista nueva la herede.
+
+Confirma la hipótesis con la que se encaró K-3: cubrir un módulo nunca ejecutado
+destapa defectos, no solo sube un número.
+
+**Estado:** pipeline 10/10 VERDE, 394 tests + 1 skip, doctor sano.
+
 ## 2026-08-08 — SPEC-020: el enforcement de un principio lo declara el config
 
 **Scope:** `core/sdd_config.py` (`Principle.step`, `enforcement_steps`),
