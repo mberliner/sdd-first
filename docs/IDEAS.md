@@ -540,6 +540,14 @@ evidencia que les faltaba:
   nada — la misma familia que U-3 y C-1. Fix: que `sdd-configure` (o `sdd-init`,
   si ya hay tests) mida el piso real del proyecto y lo escriba como trinquete,
   en vez de dejar la clave comentada.
+  **(cerrado el 2026-08-09)** → [[SPEC-009-coverage-y-ci]] US2 (FR-US2-001..007).
+  `core/sdd_coverage_baseline.py` mide y escribe; la medición la hace el adaptador
+  vía `coverage-baseline`, categoría nueva del contrato —una **consulta**: produce
+  un dato en vez de validar, y por eso no entra a `STEPS` ni a
+  `pipeline.CODE_STEPS`, evitando repetir C-8—. **No** lo hace `sdd-init`: correr
+  la suite ajena durante la instalación es una sorpresa cara. **No** pisa umbrales
+  ya declarados: informa medido vs declarado y avisa cuando el trinquete dejó de
+  morder, que es el defecto que K-3 encontró en el propio kit.
 - **K-6 · No está dicho en ninguna parte que el kit es desechable.** Es la
   propiedad de producto que ordena todo lo anterior: una vez instalado, el
   derivado **se sostiene solo** — el andamiaje vendorizado en `tools/sdd/`, las

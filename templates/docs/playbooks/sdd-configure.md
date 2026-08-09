@@ -63,6 +63,13 @@ asumas que ya lo sabe.
      commit (naming, capas, tests, cobertura, etc.). Cada paso que se activa
      acá es una verificación real que puede bloquear un commit si falla; los
      que no apliquen a este proyecto se dejan afuera.
+   - **pipeline.coverage**: cuánta cobertura de tests se exige, por carpeta. Es
+     opcional, y mientras esté vacío el paso `coverage` se omite en cada corrida
+     sin verificar nada. No le pidas al usuario que invente el número: si el
+     proyecto ya tiene tests, ofrecé medir el piso real con
+     `python tools/sdd/core/sdd_coverage_baseline.py`, que lo escribe como
+     trinquete. Si ya hay umbrales declarados, la misma herramienta dice si
+     quedaron por debajo del piso — o sea, si dejaron de morder.
 3. Guardá el config editado (es el SSOT; queda editable a mano después).
 4. Regenerá artefactos derivados y verificá:
 

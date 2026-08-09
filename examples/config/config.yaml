@@ -144,7 +144,14 @@ pipeline:
   # Umbrales de cobertura (OPCIONAL). Cada entrada mide sus `paths` juntas
   # contra `min`. Sin esta clave, el paso `coverage` se omite con aviso: un
   # proyecto recien instalado no arranca en ROJO por una metrica que todavia no
-  # tiene sentido medir. Descomentar cuando la suite este madura.
+  # tiene sentido medir.
+  #
+  # No hace falta inventar el numero: en cuanto tengas suite, corre
+  #   python tools/sdd/core/sdd_coverage_baseline.py
+  # que mide el piso real y lo escribe aca como trinquete (SPEC-009 FR-US2-003).
+  # Si ya declaraste umbrales, no los toca: te dice si quedaron por debajo del
+  # piso, o sea si dejaron de morder.
+  #
   # El patron util es exigirle mas al nucleo que al resto:
   # coverage:
   #   - paths: [src]

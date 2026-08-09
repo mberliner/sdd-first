@@ -9,6 +9,7 @@ exit 0 = OK / exit 3 = omitido (no se pudo verificar) / otro = falla.
 
 Pasos: naming | layers | lint | format | types | security | tests | integration |
 coverage
+Consultas (producen un dato, no validan): coverage-baseline
 
 El pipeline agnostico (core/pipeline.py) invoca `adapter.py <step>` para cada paso
 de codigo declarado en pipeline.steps. Los pasos de proceso (constitution,
@@ -26,14 +27,17 @@ arranque en ROJO sin por eso hacer pasar por verificado lo que no se miro
 from __future__ import annotations
 
 import importlib.util
+import json
 import shutil
 import subprocess  # nosec B404 - orquesta linters del proyecto, sin input externo
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / "core"))
 from sdd_config import (  # noqa: E402
+    COVERAGE_BASELINE_PREFIX,
     DEFAULT_TESTS_UNIT,
     EXIT_OMITIDO,
     find_repo_root,
@@ -230,6 +234,57 @@ def step_coverage(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
     return 0
 
 
+def query_coverage_baseline(repo_root: Path, cfg) -> int:  # type: ignore[no-untyped-def]
+    """Mide la cobertura real del codigo y la imprime (SPEC-009 FR-US2-001).
+
+    No es un paso de pipeline: no valida nada, produce un dato para que
+    `core/sdd_coverage_baseline.py` escriba el primer umbral de un proyecto que
+    todavia no tiene ninguno. Por eso vive en QUERIES y no en STEPS.
+
+    Contrato de salida (adapters/CONTRACT.md): una linea
+    `SDD-COVERAGE-BASELINE <porcentaje> <paths separados por coma>`.
+    """
+    if not _module_available("pytest"):
+        return _skip("tool 'pytest' no instalada (pip install pytest)")
+    if not _module_available("pytest_cov"):
+        return _skip("tool 'pytest-cov' no instalada (pip install pytest-cov)")
+
+    src, tests = _source_and_test_dirs(cfg)
+    src_dirs = _existing_targets(repo_root, src)
+    test_dirs = _existing_targets(repo_root, tests)
+    if not src_dirs:
+        return _skip("sin carpetas de codigo todavia")
+    if not test_dirs:
+        return _skip("sin carpetas de tests todavia")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        reporte = Path(tmp) / "coverage.json"
+        # Un exit != 0 aca puede ser "la suite esta roja", que no invalida la
+        # medicion: lo que decide es si hubo reporte.
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                *test_dirs,
+                *(f"--cov={d}" for d in src_dirs),
+                f"--cov-report=json:{reporte}",
+                "-q",
+            ],
+            repo_root,
+        )
+        if not reporte.exists():
+            return _skip("pytest no produjo reporte de cobertura")
+        try:
+            datos = json.loads(reporte.read_text(encoding="utf-8"))
+            porcentaje = float(datos["totals"]["percent_covered"])
+        except (OSError, ValueError, KeyError) as exc:
+            return _skip(f"reporte de cobertura ilegible ({exc})")
+
+    print(f"{COVERAGE_BASELINE_PREFIX} {porcentaje:.2f} {','.join(src_dirs)}")
+    return 0
+
+
 STEPS = {
     "naming": step_naming,
     "layers": step_layers,
@@ -242,14 +297,21 @@ STEPS = {
     "coverage": step_coverage,
 }
 
+# Consultas: verbos que producen un dato en vez de validar. No son pasos de
+# pipeline y no deben entrar a `pipeline.CODE_STEPS` (SPEC-009 FR-US2-001).
+QUERIES = {
+    "coverage-baseline": query_coverage_baseline,
+}
+
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 1 or argv[0] not in STEPS:
-        print(f"Uso: adapter.py <{' | '.join(STEPS)}>", file=sys.stderr)
+    verbos = {**STEPS, **QUERIES}
+    if len(argv) != 1 or argv[0] not in verbos:
+        print(f"Uso: adapter.py <{' | '.join(verbos)}>", file=sys.stderr)
         return 2
     repo_root = find_repo_root()
     cfg = load(repo_root)
-    return STEPS[argv[0]](repo_root, cfg)
+    return verbos[argv[0]](repo_root, cfg)
 
 
 if __name__ == "__main__":

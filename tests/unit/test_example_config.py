@@ -115,3 +115,11 @@ def test_los_umbrales_de_cobertura_vienen_comentados():
     # instalación fresca midiera cobertura de un proyecto todavía vacío.
     assert _cargado()["pipeline"].get("coverage") is None
     assert "# coverage:" in EXAMPLE.read_text(encoding="utf-8")
+
+
+def test_el_comentario_de_cobertura_nombra_la_herramienta_de_piso():
+    # SPEC-009 FR-US2-007: "descomentar cuando la suite esté madura" deja al
+    # dueño con la pregunta que no sabe contestar (qué número poner) y el paso
+    # se omite para siempre. El kit puede medirlo: hay que decirlo acá, que es
+    # el archivo donde el dueño se topa con la clave vacía.
+    assert "sdd_coverage_baseline.py" in EXAMPLE.read_text(encoding="utf-8")

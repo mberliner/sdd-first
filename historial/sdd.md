@@ -1,5 +1,61 @@
 # Historial SDD — sdd-first
 
+## 2026-08-09 — K-5: el paso `coverage` sembrado deja de nacer inerte
+
+**Scope:** `specs/SPEC-009-coverage-y-ci.md` (reabierta con US2, iteración 6),
+`core/sdd_coverage_baseline.py` (nuevo), `adapters/python/adapter.py`,
+`core/sdd_config.py`, `core/sdd_doctor.py`, `adapters/CONTRACT.md`,
+`examples/config/config.yaml`, `templates/docs/playbooks/sdd-configure.md`, y
+cuatro archivos de test.
+
+**El problema:** `sdd-init` siembra `coverage` en `pipeline.steps` pero no puede
+sembrar un umbral —no sabe cuánto cubre un proyecto que todavía no existe—, así
+que el paso se omite con aviso en **cada** corrida. En el kit fue una elección
+deliberada mientras no hubo suite; en un proyecto real es deuda que nadie paga,
+porque nadie sabe qué número poner. Un paso que nunca verifica nada enseña que el
+VERDE es ruido: la familia de U-3 y C-1.
+
+**La solución:** el kit sí sabe medirlo. `core/sdd_coverage_baseline.py` mide el
+piso real y lo escribe como trinquete. Reparto de responsabilidades: la medición
+es del adaptador (consulta `coverage-baseline`, contrato en
+`adapters/CONTRACT.md`), porque medir cobertura es específico del ecosistema; el
+núcleo orquesta y aplica la política.
+
+**Decisiones:**
+
+- **No lo mide `sdd-init`.** Medir es correr la suite del proyecto destino:
+  arbitrariamente lenta, con efectos posibles, y sobre un brownfield que el
+  instalador acaba de tocar. Un instalador que ejecuta los tests ajenos sin
+  pedirlo es una sorpresa cara. Va como comando, que el playbook de
+  `sdd-configure` ofrece y el catálogo del config nombra.
+- **No pisa un umbral ya declarado.** Informa medido vs declarado y avisa si el
+  declarado quedó **por debajo** del piso real —el trinquete dejó de morder, que
+  es exactamente el defecto que K-3 encontró en el propio kit: umbral 50 con
+  cobertura 75—. Subir un umbral es decisión de política, no algo que una corrida
+  afortunada haga a espaldas de quien lo declaró.
+- **Redondeo hacia abajo.** Un piso con decimales que no se puede volver a
+  alcanzar no es un trinquete.
+- **Escritura por líneas, no volcado de YAML.** El config es un documento que su
+  dueño edita a mano; un dumper le borraría todos los comentarios.
+- **`sdd-doctor` lo informa como nota, no como problema.** Un proyecto recién
+  instalado sin suite todavía es sano; un doctor que sale 1 sobre una instalación
+  fresca reintroduce el falso negativo que SPEC-014 cerró del otro lado.
+- **La consulta no es un paso.** Produce un dato, no valida, así que va en un
+  dispatcher `QUERIES` aparte y **no** en `STEPS` ni en `pipeline.CODE_STEPS`.
+  Meterla ahí habría repetido C-8: dos listas de pasos que divergen en silencio.
+  Hay un test que fija ese límite.
+
+**Verificación:** pipeline VERDE 10/10, 434 unitarios + 17 e2e, cobertura del kit
+92% (umbral 90, Principio V). La integración real —el núcleo invocando al
+adaptador por subproceso y parseando su línea— se ejercitó corriendo la
+herramienta sobre el propio kit, que tomó la rama de "ya declarado".
+
+**Deuda:** sin escenario e2e propio. El testigo de instalación no tiene suite,
+así que la consulta se omitiría; cubrirlo pide un testigo con tests, que es
+trabajo de la infraestructura e2e (SPEC-018), no de esta spec.
+
+**[SDD-Check]** SPEC-009 · FR-US2-001..007 · SC-005, SC-006 · pipeline VERDE 10/10
+
 ## 2026-08-09 — K-1: el derivado nace vigilando el drift de lo generado
 
 **Scope:** `specs/SPEC-014-derivado-dice-la-verdad.md` (reabierta, iteración 6),

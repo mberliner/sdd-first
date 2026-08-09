@@ -115,6 +115,24 @@ def _tests_sin_ejecutor(cfg) -> list[str]:  # type: ignore[no-untyped-def]
     return problemas
 
 
+def _coverage_inerte(cfg, repo_root: Path) -> list[str]:  # type: ignore[no-untyped-def]
+    """Paso `coverage` declarado sin umbrales: se omite en cada corrida.
+
+    Nota y no problema (SPEC-009 FR-US2-006): un proyecto recien instalado que
+    todavia no tiene suite es sano, y un doctor que sale 1 sobre una instalacion
+    fresca reintroduce el falso negativo que SPEC-014 cerro del otro lado. Pero
+    el silencio tampoco sirve: un paso que nunca verifica nada ensena que el
+    VERDE es ruido (K-5 de docs/IDEAS.md).
+    """
+    if "coverage" not in cfg.pipeline_steps or cfg.pipeline_coverage:
+        return []
+    script = HERE / "sdd_coverage_baseline.py"
+    return [
+        "paso 'coverage' declarado sin umbrales en pipeline.coverage: se omite en "
+        f"cada corrida. Medí el piso real con: python {script_hint(script, repo_root)}"
+    ]
+
+
 def main(argv: list[str]) -> int:
     fix = "--fix" in argv
     repo_root = find_repo_root()
@@ -140,6 +158,9 @@ def main(argv: list[str]) -> int:
 
     # 3b. Carpetas de tests declaradas sin paso que las ejecute.
     problems.extend(_tests_sin_ejecutor(cfg))
+
+    # 3c. Paso `coverage` sin umbrales: nota, no problema.
+    notes.extend(_coverage_inerte(cfg, repo_root))
 
     # 4. Drift de artefactos generados.
     core = repo_root / "tools" / "sdd" / "core"

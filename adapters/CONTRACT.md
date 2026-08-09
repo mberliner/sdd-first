@@ -19,6 +19,22 @@ python adapters/<language>/adapter.py <step>
 | `security` | Análisis de seguridad estático. |
 | `tests` | Suite de tests unitarios (`dirs.tests_unit`). |
 | `integration` | Suite de tests de integración (`dirs.tests_integration`). |
+| `coverage` | Umbrales de `pipeline.coverage` (SPEC-009 FR-001). |
+
+## Consultas que puede soportar
+
+Una **consulta** produce un dato en vez de validar. No es un paso de pipeline: no
+entra a `pipeline.steps`, no entra a `pipeline.CODE_STEPS` del núcleo, y quien la
+invoca es una herramienta puntual, no el pipeline. Se llama igual:
+`python adapters/<language>/adapter.py <consulta>`.
+
+| Consulta | Qué produce | Salida |
+|----------|-------------|--------|
+| `coverage-baseline` | Cobertura real de las carpetas de código, medida sobre las carpetas de tests declaradas. La consume `core/sdd_coverage_baseline.py` para escribir el primer umbral de un proyecto que no tiene ninguno (SPEC-009 FR-US2-001). | Una línea `SDD-COVERAGE-BASELINE <porcentaje> <paths separados por coma>`. El prefijo es `COVERAGE_BASELINE_PREFIX` en `core/sdd_config.py` (SSOT). |
+
+Los mismos tres estados de salida que un paso: `0` produjo el dato, `3` no se pudo
+medir (sin la tool, sin código o sin tests todavía), otro = falló. Un adaptador
+puede no ofrecer una consulta: el núcleo lo trata como omisión, no como error.
 
 ## Contrato
 
@@ -46,6 +62,6 @@ python adapters/<language>/adapter.py <step>
 
 ## Adaptadores
 
-- **`python/`** — referencia completa (ruff, mypy, bandit, pytest, import-linter,
-  `check_naming.py` AST, `gen_import_linter.py`).
+- **`python/`** — referencia completa (ruff, mypy, bandit, pytest, pytest-cov,
+  import-linter, `check_naming.py` AST, `gen_import_linter.py`).
 - **`node/`, `go/`** — roadmap. Implementar el mismo `adapter.py <step>`.

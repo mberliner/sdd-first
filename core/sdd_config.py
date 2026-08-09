@@ -48,6 +48,12 @@ DEFAULT_BRANCH = "main"
 # Contrato completo en adapters/CONTRACT.md.
 EXIT_OMITIDO = 3
 
+# Prefijo de la linea con que un adaptador reporta la cobertura medida en la
+# consulta `coverage-baseline` (SPEC-009 FR-US2-001). Igual que EXIT_OMITIDO,
+# vive aca porque lo comparten los dos lados del contrato: el adaptador que la
+# imprime y `core/sdd_coverage_baseline.py` que la lee.
+COVERAGE_BASELINE_PREFIX = "SDD-COVERAGE-BASELINE"
+
 # Marcadores que identifican la raiz de un proyecto con SDD instalado.
 _ROOT_MARKERS = (
     CONFIG_RELPATH,
