@@ -40,12 +40,19 @@ def _spec_files(specs_dir: Path) -> list[Path]:
 
 
 _FR_DECL = re.compile(r"\*\*(FR-[A-Za-z0-9-]+)\*\*")
+_FR_DECL_LINE = re.compile(r"\*\*FR-[A-Za-z0-9-]+\*\*(.*)")
 _FR_ANY = re.compile(r"\bFR-[A-Za-z0-9-]+\b")
 _SC_ANY = re.compile(r"\bSC-[A-Za-z0-9-]+\b")
 _LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 # Referencia a un archivo de test: acepta prefijos comunes de varios ecosistemas.
 _TEST_REF = re.compile(r"(?:tests?|spec)/[\w./-]+\.(?:py|js|ts|go|rs|java|rb)")
 _COVERAGE_HEADING = re.compile(r"(?i)^#+\s+.*coverage mapping")
+
+
+def iter_fr_declarations(text: str):
+    """Devuelve el resto de la linea para cada FR declarado en el texto."""
+    for match in _FR_DECL_LINE.finditer(text):
+        yield match.group(1)
 
 
 class _RegistryRow:

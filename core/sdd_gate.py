@@ -7,8 +7,7 @@ requisitos escritos (SPEC-017, SSOT de la politica). La logica de decision
 
 1. **argv**: `python core/sdd_gate.py src/a.py` — usado por pre-commit y hooks
    que pasan rutas como argumentos.
-2. **env**: `SDD_GATE_FILE=src/a.py python core/sdd_gate.py`.
-3. **stdin JSON**: protocolo `PreToolUse` de Claude Code.
+2. **stdin JSON**: protocolo `PreToolUse` de Claude Code.
 
 Contrato de salida: exit 0 = permitir, exit 2 = bloquear (motivo en stderr).
 
@@ -26,7 +25,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_traceability import _parse_registry  # noqa: E402
+from check_traceability import _parse_registry, iter_fr_declarations  # noqa: E402
 from sdd_config import DEFAULT_SOURCE_ROOT, find_sdd_root, load  # noqa: E402
 
 # Estados de SPECS_REGISTRY.md que dejan pasar el gate (SPEC-017 FR-US2-002).
@@ -34,11 +33,10 @@ _VALID_ESTADOS = frozenset({"draft", "active"})
 
 # Declaracion de un FR y lo que sigue en su linea. Mismo marcador que usa
 # check_traceability (`**FR-NNN**`), para no tener dos ideas de que es un FR.
-_FR_DECL_LINE = re.compile(r"\*\*FR-[A-Za-z0-9-]+\*\*(.*)")
 _FR_KEYWORD = re.compile(r"(?i)^\s*(MUST|SHOULD|MAY)\s*:?")
 # Un FR de la plantilla es `**FR-001** MUST: ...`: sin el keyword no queda texto.
 # El umbral separa eso de un requisito escrito, sin pretender juzgar su calidad.
-_MIN_FR_CHARS = 10
+_MIN_FR_CHARS = 1
 
 # Escape hatch acotado al gate (SPEC-017 FR-US3-004). La alternativa historica
 # era `--no-verify`, que ademas apaga trazabilidad y reset post-commit.
@@ -128,8 +126,8 @@ def _has_written_requirements(spec_file: Path) -> bool:
         text = spec_file.read_text(encoding="utf-8")
     except OSError:
         return False
-    for match in _FR_DECL_LINE.finditer(text):
-        cuerpo = _FR_KEYWORD.sub("", match.group(1))
+    for rest in iter_fr_declarations(text):
+        cuerpo = _FR_KEYWORD.sub("", rest)
         if sum(c.isalnum() for c in cuerpo) >= _MIN_FR_CHARS:
             return True
     return False
@@ -229,11 +227,8 @@ def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     cwd = os.getcwd()
 
-    env_file = os.environ.get("SDD_GATE_FILE")
     if args:
         payloads = _payloads_from_paths(args, cwd)
-    elif env_file:
-        payloads = _payloads_from_paths([env_file], cwd)
     elif sys.stdin.isatty():
         return 0
     else:

@@ -31,12 +31,19 @@ def _seed_config(root: Path, cuerpo: str) -> Path:
 
 
 def _run_hook(
-    script: Path, project_dir: Path, file_path: str, *, path: str | None
+    script: Path,
+    project_dir: Path,
+    file_path: str,
+    *,
+    path: str | None,
+    bypass: str | None = None,
 ) -> subprocess.CompletedProcess:
     payload = json.dumps({"tool_input": {"file_path": file_path}})
     env = {"CLAUDE_PROJECT_DIR": str(project_dir)}
     if path is not None:
         env["PATH"] = path
+    if bypass is not None:
+        env["SDD_GATE_BYPASS"] = bypass
     sh = shutil.which("sh") or "/bin/sh"
     return subprocess.run(
         [sh, str(script)],
@@ -83,6 +90,23 @@ def test_kit_hook_fail_closed_bloquea_bajo_los_roots_del_kit(kit_sin_venv):
 def test_kit_hook_fail_closed_permite_fuera_de_los_roots(kit_sin_venv):
     res = _run_hook(KIT_HOOK, kit_sin_venv, "README.md", path="/nonexistent")
     assert res.returncode == 0, res.stderr
+
+
+def test_kit_hook_fail_closed_respeta_bypass(kit_sin_venv):
+    res = _run_hook(
+        KIT_HOOK, kit_sin_venv, "core/foo.py", path="/nonexistent", bypass="urgente"
+    )
+    assert res.returncode == 0
+    assert "urgente" in res.stderr
+
+
+@pytest.mark.parametrize("bypass_val", ["", "   ", "\t", " \t "])
+def test_kit_hook_fail_closed_el_bypass_vacio_no_habilita(kit_sin_venv, bypass_val):
+    res = _run_hook(
+        KIT_HOOK, kit_sin_venv, "core/foo.py", path="/nonexistent", bypass=bypass_val
+    )
+    assert res.returncode == 2
+    assert "no se encontro un interprete" in res.stderr
 
 
 def test_template_hook_fail_closed_bloquea_el_root_declarado(tmp_path):

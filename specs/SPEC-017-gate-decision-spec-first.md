@@ -170,8 +170,8 @@ solo tiene los placeholders de la plantilla bloquea.
 - **FR-US1-002** MUST: sin ninguna spec declarada en `.sdd/current-spec`, bloquea
   con un motivo que nombra el archivo de declaración y la vía para crear la spec.
 - **FR-US1-003** MUST: el contrato de salida es exit 0 permite / exit 2 bloquea,
-  con los motivos en stderr, para los tres transportes (argv, `SDD_GATE_FILE`,
-  stdin JSON) y sin depender del asistente que lo invoque.
+  con los motivos en stderr, para los dos transportes (argv, stdin JSON) y sin
+  depender del asistente que lo invoque.
 
 ### US2
 
@@ -254,7 +254,7 @@ solo tiene los placeholders de la plantilla bloquea.
 | FR-US3-003 | tests/unit/test_gate_evidencia_contenido.py |
 | FR-US3-004 | tests/unit/test_gate_evidencia_contenido.py |
 | FR-US3-005 | tests/unit/test_gate_evidencia_contenido.py |
-| FR-US3-006 | tests/unit/test_derived_references.py |
+| FR-US3-006 | tests/unit/test_sdd_enforcement_ssot.py |
 | FR-US3-007 | tests/unit/test_wiring_precommit_verbose.py, tests/e2e/escenarios/test_ciclo_spec_first.py |
 
 ## Fuera de alcance

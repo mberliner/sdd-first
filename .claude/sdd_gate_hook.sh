@@ -156,6 +156,12 @@ if [ -z "$PYBIN" ]; then
   for _root in $(sdd_source_roots "$ROOT"); do
     case "$INPUT" in
       *"\"$_root/"* | *"/$_root/"*)
+        case "${SDD_GATE_BYPASS:-}" in
+          *[![:space:]]*)
+            echo "sdd-gate fail-closed bypass activo - se permite igual. Motivo: $SDD_GATE_BYPASS" >&2
+            exit 0
+            ;;
+        esac
         echo "sdd-gate: no se encontro un interprete Python capaz de correr core/sdd_gate.py." >&2
         echo "Se BLOQUEA la edicion bajo $_root/ (fail-closed). Crea el .venv del proyecto o instala python3." >&2
         exit 2
