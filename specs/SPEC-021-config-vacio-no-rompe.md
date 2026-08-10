@@ -4,6 +4,11 @@
 > de K-3 (`docs/IDEAS.md`). Es la confirmación de la hipótesis con la que se
 > encaró la deuda de cobertura: cubrir un módulo nunca ejecutado destapa defectos,
 > no solo sube un número.
+>
+> No abre un invariante nuevo: concreta el "defaults tolerantes para configs
+> parciales" que [[SPEC-001-agnostic-core]] ya exige en su FR-001, para las
+> claves que se lo salteaban. Aquella es el SSOT de la regla general; esta, el
+> del caso límite de la clave vacía.
 
 ## User Story (Priority P1)
 
@@ -103,3 +108,8 @@ que verificar", en vez de propagar una excepción.
 - 2026-08-08: implementada y promovida a `active` (iteración 5). La guarda quedó
   en un helper único (`_naming_list`), así que una lista nueva del bloque `naming`
   la hereda por construcción (FR-003).
+- 2026-08-10: enlazada con [[SPEC-001-agnostic-core]] en ambas direcciones, tras
+  revisar si esta spec debía haber sido una enmienda de aquel FR-001. Se mantiene
+  separada (tiene Independent Test propio y origen distinto: un bug destapado, no
+  un diseño), pero la relación queda escrita para que no queden dos SSOTs sueltos
+  sobre el mismo comportamiento.

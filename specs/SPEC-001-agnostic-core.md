@@ -41,6 +41,9 @@ y sale VERDE/ROJO según el resultado agregado.
 - **FR-001** MUST: toda parametrización (naming, dirs, capas, principios,
   pasos) se lee de `.sdd/config.yaml` vía `core/sdd_config.py`, con defaults
   tolerantes para configs parciales; nada de listas hardcodeadas en `core/`.
+  "Tolerante" incluye el caso límite de la clave declarada pero vacía o
+  malformada, que colapsa al mismo resultado que la clave ausente: su SSOT es
+  [[SPEC-021-config-vacio-no-rompe]].
 - **FR-002** MUST: `core/sdd_gate.py` decide sobre las ediciones de archivos
   bajo `dirs.source_roots` con el contrato exit 0 permite / exit 2 bloquea,
   agnóstico del asistente que lo invoque. La política —qué hace falta para
@@ -115,3 +118,6 @@ y sale VERDE/ROJO según el resultado agregado.
   tres estados (`0` OK, `3` omitido, otro falla). Lo exige SPEC-003 FR-009: con
   dos estados, un paso omitido era indistinguible de un paso verificado. El
   detalle del contrato vive en `adapters/CONTRACT.md` (SSOT).
+- 2026-08-10: FR-001 enlazado a [[SPEC-021-config-vacio-no-rompe]]. No cambia el
+  requisito: le da destino explícito al caso límite de la clave vacía, que
+  quedaba descrito en dos specs sin referencia entre sí (Principio de SSOT único).
