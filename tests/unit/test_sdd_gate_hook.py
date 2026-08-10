@@ -197,8 +197,10 @@ def test_antigravity_hook_bloquea_json(tmp_path):
         "import sys\nprint('Edicion de codigo fuente bloqueada', file=sys.stderr)\nsys.exit(2)",
         encoding="utf-8",
     )
-    # Forzar un fallo (no spec)
-    res = _run_hook_antigravity(TEMPLATE_HOOK, tmp_path, "src/foo.py")
+    # Forzar un fallo (no spec). PATH real: el hook debe encontrar python y
+    # correr el gate de verdad, no caer en la rama fail-closed.
+    real_path = shutil.os.environ.get("PATH", "")
+    res = _run_hook_antigravity(TEMPLATE_HOOK, tmp_path, "src/foo.py", path=real_path)
     assert res.returncode == 0
     data = json.loads(res.stdout)
     assert data["decision"] == "deny"
