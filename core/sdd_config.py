@@ -93,6 +93,7 @@ def find_repo_root(start: Path | None = None) -> Path:
 # `.pre-commit-config.yaml` propio con solo `ruff` y el doctor lo daba por bueno.
 GATE_WIRING = {
     ".claude/settings.json": "sdd_gate_hook.sh",
+    ".agents/hooks.json": "sdd_gate_hook.sh",
     ".pre-commit-config.yaml": "sdd_gate.py",
 }
 

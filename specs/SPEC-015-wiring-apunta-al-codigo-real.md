@@ -1,4 +1,4 @@
-# SPEC-015-wiring-apunta-al-codigo-real: El wiring del gate apunta al codigo real del proyecto
+# SPEC-015-wiring-apunta-al-codigo-real: El wiring del gate apunta al codigo real, en toda superficie que el kit soporta
 
 > Origen: G-1 y G-3 de `docs/IDEAS.md`, reproducidos en un proyecto real por la
 > campaña de usabilidad del 2026-08-05 (testigo con código en `pkg/`, que no
@@ -27,6 +27,13 @@ propio `AGENTS.md`.
 `[pkg]`, un `git commit` que toca `pkg/x.py` sin spec vigente es **bloqueado**
 por pre-commit; y con Python inaccesible, la rama fail-closed del hook de Claude
 también bloquea una edición de `pkg/x.py` (hoy ambas la permiten).
+
+
+## User Story 2: Soporte para asistentes IA (Antigravity)
+
+Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte para Antigravity CLI quede unificado con el de Claude Code y con las capas de enforcement, para tener el mismo nivel de proteccion sin tener que duplicar logica de hooks.
+
+**Why this priority:** Antigravity CLI soporta pre-tool hooks via `.agents/hooks.json`, lo que permite replicar la contencion exacta del gate antes de editar. Expandir el soporte asegura que proyectos usando Antigravity tengan el mismo enforcement que los de Claude.
 
 ## Clarifications
 
@@ -112,6 +119,13 @@ también bloquea una edición de `pkg/x.py` (hoy ambas la permiten).
   límite conocido del hook de Claude, con pre-commit y el pipeline como
   backstop.
 
+
+- **FR-US2-001** MUST: `sdd_init` debe instalar el wiring de Antigravity en proyectos derivados. El archivo `templates/wiring/hooks.json` debe agregarse a la constante `_WIRING` en `core/sdd_init.py` (copiándolo a `.agents/hooks.json`).
+- **FR-US2-002** MUST: La ruta del script del gate en `hooks.json` debe ser `CLAUDE_PROJECT_DIR=$(pwd) sh .claude/sdd_gate_hook.sh`, apuntando a la ubicación real donde `sdd_init` deposita el hook unificado.
+- **FR-US2-003** MUST: El soporte de Antigravity en `core/sdd_gate.py` (extraer `toolCall.args.TargetFile`) y `sdd_gate_hook.sh` (emitir JSON `{"decision": "allow"|"deny"}` al stdout) debe estar cubierto por tests en `tests/unit/`.
+- **FR-US2-004** MUST: El hook de shell debe ejecutar `cd "$ROOT" || exit 1` antes de la lógica principal para que el fallback de `find_sdd_root` (CWD) resuelva correctamente en Antigravity, que provee rutas relativas sin el context-dir en el payload.
+- **FR-US2-005** MUST: `sdd_doctor` debe conocer `.agents/hooks.json` en `GATE_WIRING` dentro de `core/sdd_config.py` para reportar que está cableado en la instalación.
+
 ## Key Entities
 
 - `dirs.source_roots` (`.sdd/config.yaml`) — SSOT de qué es código fuente para
@@ -154,6 +168,11 @@ también bloquea una edición de `pkg/x.py` (hoy ambas la permiten).
 | FR-004, FR-005 | tests/unit/test_prefilter_source_roots.py |
 | FR-006 | tests/unit/test_wiring_prefiltros.py |
 | FR-007 | tests/unit/test_wiring_prefiltros.py |
+| FR-US2-001 | tests/unit/test_wiring_prefiltros.py |
+| FR-US2-002 | tests/unit/test_wiring_prefiltros.py |
+| FR-US2-003 | tests/unit/test_sdd_gate.py, tests/unit/test_sdd_gate_hook.py |
+| FR-US2-004 | tests/unit/test_sdd_gate_hook.py |
+| FR-US2-005 | tests/unit/test_wiring_prefiltros.py |
 | SC-002 | tests/unit/test_wiring_prefiltros.py |
 
 ## Fuera de alcance
@@ -161,11 +180,10 @@ también bloquea una edición de `pkg/x.py` (hoy ambas la permiten).
 - Interceptar `Bash` en el hook de Claude Code (payload sin `file_path`; exige
   parsear la línea de comando). Queda documentado como límite conocido por
   FR-007.
-- Sincronizar el wiring del kit desde `templates/wiring/` con `render.py` —hoy
-  son copias manuales que difieren solo en el prefijo de rutas (`core/` vs
-  `tools/sdd/core/`), y esta spec vuelve a editarlas de a pares. Es la misma
-  clase de duplicación que R-1 en otra superficie; se registra como idea nueva
-  en `docs/IDEAS.md` en vez de ampliar esta spec.
+- Sincronizar el wiring del kit desde `templates/wiring/` con `render.py`. Los
+  hooks shell se unificaron y ahora son byte-idénticos (US2 resuelve dinámicamente
+  la ruta del script), pero la automatización de la copia queda diferida. Se
+  registra como idea nueva en `docs/IDEAS.md` en vez de ampliar esta spec.
 - El resto de los ítems `G-*` abiertos (G-5..G-9).
 
 ## Historial
@@ -183,3 +201,6 @@ también bloquea una edición de `pkg/x.py` (hoy ambas la permiten).
   16 de wiring, 8 del hook), pipeline 10/10 VERDE, `sdd-doctor` sano, y un
   testigo real con el código en `pkg/`: el commit sin spec quedó **bloqueado**
   y un `NOTA.md` en la misma raíz commiteó sin fricción.
+- 2026-08-09: agregada User Story 2 para unificar el soporte de Antigravity CLI
+  y Claude Code. Los hooks shell ahora emiten JSON o texto según el payload y son
+  idénticos entre el kit y las plantillas.

@@ -136,9 +136,81 @@ def test_template_hook_fail_closed_sin_config_cae_al_default_src(tmp_path):
     res = _run_hook(TEMPLATE_HOOK, tmp_path, "src/foo.py", path="/nonexistent")
     assert res.returncode == 2
     assert "no se encontro un interprete" in res.stderr
+    assert "$GATE_SCRIPT" not in res.stderr
+    assert "sdd_gate.py" in res.stderr
 
 
 def test_template_hook_fail_closed_permite_fuera_de_los_roots(tmp_path):
     _seed_config(tmp_path, "dirs:\n  source_roots: [pkg]\n")
     res = _run_hook(TEMPLATE_HOOK, tmp_path, "README.md", path="/nonexistent")
     assert res.returncode == 0
+
+
+def _run_hook_antigravity(
+    script: Path,
+    project_dir: Path,
+    target_file: str,
+    *,
+    path: str | None = None,
+    bypass: str | None = None,
+) -> subprocess.CompletedProcess:
+    payload = json.dumps(
+        {
+            "toolCall": {
+                "name": "replace_file_content",
+                "args": {"TargetFile": target_file},
+            }
+        }
+    )
+    env = {"CLAUDE_PROJECT_DIR": str(project_dir)}
+    if path is not None:
+        env["PATH"] = path
+    if bypass is not None:
+        env["SDD_GATE_BYPASS"] = bypass
+    sh = shutil.which("sh") or "/bin/sh"
+    return subprocess.run(
+        [sh, str(script)],
+        input=payload,
+        text=True,
+        capture_output=True,
+        env=env,
+        cwd=str(project_dir),
+    )
+
+
+def test_antigravity_hook_permite_salida_json(tmp_path):
+    _seed_config(tmp_path, "dirs:\n  source_roots: [src]\n")
+    (tmp_path / "core").mkdir()
+    (tmp_path / "core" / "sdd_gate.py").write_text(
+        "import sys\nsys.exit(0)", encoding="utf-8"
+    )
+    res = _run_hook_antigravity(TEMPLATE_HOOK, tmp_path, "README.md")
+    assert res.returncode == 0
+    data = json.loads(res.stdout)
+    assert data["decision"] == "allow"
+
+
+def test_antigravity_hook_bloquea_json(tmp_path):
+    _seed_config(tmp_path, "dirs:\n  source_roots: [src]\n")
+    (tmp_path / "core").mkdir()
+    (tmp_path / "core" / "sdd_gate.py").write_text(
+        "import sys\nprint('Edicion de codigo fuente bloqueada', file=sys.stderr)\nsys.exit(2)",
+        encoding="utf-8",
+    )
+    # Forzar un fallo (no spec)
+    res = _run_hook_antigravity(TEMPLATE_HOOK, tmp_path, "src/foo.py")
+    assert res.returncode == 0
+    data = json.loads(res.stdout)
+    assert data["decision"] == "deny"
+    assert "Edicion de codigo fuente bloqueada" in data["reason"]
+
+
+def test_antigravity_hook_fail_closed_json(tmp_path):
+    _seed_config(tmp_path, "dirs:\n  source_roots: [src]\n")
+    res = _run_hook_antigravity(
+        TEMPLATE_HOOK, tmp_path, "src/foo.py", path="/nonexistent"
+    )
+    assert res.returncode == 0
+    data = json.loads(res.stdout)
+    assert data["decision"] == "deny"
+    assert data["reason"] == "No se encontro python"

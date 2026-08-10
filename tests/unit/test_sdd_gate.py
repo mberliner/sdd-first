@@ -136,3 +136,13 @@ def test_permite_spec_con_estado_active(tmp_path):
     allow, reason = sdd_gate.decide(_payload(str(repo / "src" / "a.py")), repo)
 
     assert allow, reason
+
+
+def test_extrae_ruta_de_antigravity_payload():
+    payload = {
+        "toolCall": {
+            "name": "replace_file_content",
+            "args": {"TargetFile": "/some/path/file.py"},
+        }
+    }
+    assert sdd_gate._declared_file_path(payload) == "/some/path/file.py"

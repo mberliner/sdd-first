@@ -1,0 +1,15 @@
+{
+  "sdd-gate": {
+    "PreToolUse": [
+      {
+        "matcher": "replace_file_content|multi_replace_file_content|write_to_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PROJECT_DIR=$(pwd) sh .claude/sdd_gate_hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -137,7 +137,25 @@ while IFS= read -r _line || [ -n "$_line" ]; do
   INPUT="$INPUT$_line
 "
 done
+
+# Detectar formato de Antigravity (Payload PreToolUse)
+IS_ANTIGRAVITY=0
+case "$INPUT" in
+  *\"TargetFile\"*|*\"TargetLine\"*) IS_ANTIGRAVITY=1 ;;
+esac
+
 ROOT="${CLAUDE_PROJECT_DIR:-.}"
+
+GATE_SCRIPT="$ROOT/tools/sdd/core/sdd_gate.py"
+[ ! -f "$GATE_SCRIPT" ] && GATE_SCRIPT="$ROOT/core/sdd_gate.py"
+
+if [ "$IS_ANTIGRAVITY" = 1 ]; then
+  # AGY envia rutas relativas cuando se corre en subcarpetas. cd garantiza que el
+  # fallback a CWD en find_sdd_root resuelva al root real (FR-007).
+  cd "$ROOT" || exit 1
+  ROOT="."
+fi
+
 
 # 1) .venv del proyecto (Windows y POSIX), 2) python3, 3) python.
 PYBIN="$ROOT/.venv/Scripts/python.exe"
@@ -158,16 +176,42 @@ if [ -z "$PYBIN" ]; then
         case "${SDD_GATE_BYPASS:-}" in
           *[![:space:]]*)
             echo "sdd-gate fail-closed bypass activo - se permite igual. Motivo: $SDD_GATE_BYPASS" >&2
+            if [ "$IS_ANTIGRAVITY" = 1 ]; then
+              printf '{"decision": "allow", "reason": "Bypass fail-closed activo"}'
+            fi
             exit 0
             ;;
         esac
-        echo "sdd-gate: no se encontro un interprete Python capaz de correr tools/sdd/core/sdd_gate.py." >&2
+        echo "sdd-gate: no se encontro un interprete Python capaz de correr $GATE_SCRIPT" >&2
         echo "Se BLOQUEA la edicion bajo $_root/ (fail-closed). Crea el .venv del proyecto o instala python3." >&2
+        if [ "$IS_ANTIGRAVITY" = 1 ]; then
+           printf '{"decision": "deny", "reason": "No se encontro python"}'
+           exit 0
+        fi
         exit 2
         ;;
     esac
   done
+  if [ "$IS_ANTIGRAVITY" = 1 ]; then
+    printf '{"decision": "allow"}'
+  fi
   exit 0
 fi
 
-printf '%s' "$INPUT" | "$PYBIN" "$ROOT/tools/sdd/core/sdd_gate.py"
+# Ejecutar el gate y capturar stderr en una variable sin usar comandos externos (FR-005)
+ERR=$(printf '%s' "$INPUT" | "$PYBIN" "$GATE_SCRIPT" 2>&1 >/dev/null)
+RC=$?
+
+if [ "$IS_ANTIGRAVITY" = 1 ]; then
+   if [ $RC -eq 0 ]; then
+       printf '{"decision": "allow"}'
+   else
+       printf '{"decision": "deny", "reason": '
+       printf '%s' "$ERR" | "$PYBIN" -c 'import json, sys; print(json.dumps(sys.stdin.read()))'
+       printf '}'
+       RC=0
+   fi
+else
+   [ -n "$ERR" ] && printf '%s\n' "$ERR" >&2
+fi
+exit $RC

@@ -151,7 +151,17 @@ def _declared_file_path(payload: dict[str, object]) -> str:
     """Ruta que el payload declara editar ("" si no declara ninguna)."""
     tool_input = payload.get("tool_input")
     tinput = tool_input if isinstance(tool_input, dict) else {}
-    return str(tinput.get("file_path") or tinput.get("path") or "")
+    if tinput:
+        return str(tinput.get("file_path") or tinput.get("path") or "")
+
+    # Antigravity hook format (PreToolUse)
+    tool_call = payload.get("toolCall")
+    if isinstance(tool_call, dict):
+        args = tool_call.get("args")
+        if isinstance(args, dict):
+            return str(args.get("TargetFile") or "")
+
+    return ""
 
 
 def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:

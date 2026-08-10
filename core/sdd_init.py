@@ -67,6 +67,7 @@ WIRING = [
     ("wiring/opencode-sdd-gate.js", ".opencode/plugin/sdd-gate.js"),
     ("wiring/.gitattributes", ".gitattributes"),
     ("wiring/.gitignore", ".gitignore"),
+    ("wiring/hooks.json", ".agents/hooks.json"),
     ("wiring/current-spec", ".sdd/current-spec"),
 ]
 

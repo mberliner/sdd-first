@@ -1,5 +1,15 @@
 # Historial SDD — sdd-first
 
+## 2026-08-09 — Soporte para Antigravity CLI unificado (Iteración 7)
+
+**Scope:** `specs/SPEC-015-wiring-apunta-al-codigo-real.md` (ampliada con User Story 2),
+`templates/wiring/sdd_gate_hook.sh`, `.claude/sdd_gate_hook.sh`,
+`templates/wiring/hooks.json` (nuevo), `.agents/hooks.json` (wiring),
+`core/sdd_gate.py`, `core/sdd_init.py`, `core/sdd_config.py`,
+`tests/unit/test_sdd_gate_hook.py`, `tests/unit/test_sdd_gate.py`.
+
+**Qué cambió:** Se agregó soporte completo para Antigravity CLI al gate, procesando su formato de payload (`toolCall.args.TargetFile`) y emitiendo JSON por `stdout`. El wiring de Antigravity (`hooks.json`) ahora se instala en los repositorios derivados de forma análoga a `.claude/settings.json`, y el doctor verifica su existencia. Los scripts de pre-filtro shell se unificaron para ambos asistentes (eliminando dependencias de herramientas externas como `tr` y arreglando el mensaje de `fail-closed` para que expanda correctamente la ruta del script del gate a reportar). Se expandió `SPEC-015` para declarar este soporte, cubriendo Antigravity bajo la misma iteración del "wiring".
+
 ## 2026-08-09 — K-4: la suite e2e entra al pipeline
 
 **Scope:** `specs/SPEC-018-verificacion-e2e.md` (reabierta, iteración 5),
