@@ -637,6 +637,16 @@ evaluó y se dejó afuera:
   existencia sobre él. Un principio con dos SSOTs de detalle (o con enforcement
   mixto tool + revisión) no se puede expresar. Aceptar listas sería cambio de
   núcleo (config + render + check) y necesita spec propia.
+- **El Coverage mapping mapea archivos, no casos**. `check_traceability` da por
+  cubierto un FR cuando el archivo de test referenciado existe, sin mirar si
+  contiene alguna aserción sobre ese requisito. Un FR nuevo que reusa un archivo
+  ya presente por otros FR nace verde. Cubrirlo de verdad exigiría convención de
+  nombres de test o parsear la suite; medir antes de cablear.
+- **Índice de ámbitos de las specs**. Generar un índice (User Story +
+  *Independent Test* de cada spec) para que el triage de reutilización sea
+  semántico y no dependa solo del título. Sale de SPEC-022, que compara títulos:
+  el solape real suele vivir en los FR. Necesita spec propia porque implica un
+  extractor y un artefacto generado más en el pipeline.
 - **Omitido no es VERDE**. Un principio cuyo `step` de enforcement está declarado
   en el config pero se omite en runtime (por falta de adaptador o tool) deja a
   la constitución en verde pero sin ejecución real. Hacer que `check_constitution`

@@ -35,3 +35,5 @@
 | SPEC-019 | Los tests declarados se ejecutan o el proyecto se entera | active | 4 | hibrido | [SPEC-019-tests-integracion-ejecutados.md](SPEC-019-tests-integracion-ejecutados.md) |
 | SPEC-020 | El enforcement de un principio se declara en el config, no en un mapa hardcodeado | active | 5 | hibrido | [SPEC-020-enforcement-declarado-en-config.md](SPEC-020-enforcement-declarado-en-config.md) |
 | SPEC-021 | Una clave del config declarada pero vacía no rompe el pipeline | active | 5 | hibrido | [SPEC-021-config-vacio-no-rompe.md](SPEC-021-config-vacio-no-rompe.md) |
+| SPEC-022 | Antes de crear una spec, reusar la existente que ya cubre la capacidad | draft | - | hibrido | [SPEC-022-reusar-specs-existentes.md](SPEC-022-reusar-specs-existentes.md) |
+| SPEC-023 | La relación entre specs se declara al crearlas y se verifica sola | draft | - | hibrido | [SPEC-023-relacion-entre-specs.md](SPEC-023-relacion-entre-specs.md) |
