@@ -17,6 +17,21 @@ dirs:
   tests_e2e: tests/e2e
   source_roots: [core, adapters]
 
+specs:
+  # Triage de solape entre specs (SPEC-022 US2). Las stopwords son el
+  # vocabulario propio de este dominio: aparece en casi todo titulo del kit, asi
+  # que por si solo no dice nada sobre si dos specs se pisan.
+  triage:
+    stopwords:
+      - spec
+      - specs
+      - sdd
+      - first
+      - proyecto
+      - kit
+    min_word_len: 4
+    min_matches: 2
+
 naming:
   # El kit maneja formatos (yaml/json) por diseno: no se prohiben esas palabras.
   # Se veta acoplamiento a proveedores/UI concretos en la propia herramienta.

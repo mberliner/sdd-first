@@ -18,6 +18,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import spec_index  # noqa: E402
 from check_traceability import (  # noqa: E402
     _parse_registry,
     has_written_requirements,
@@ -64,6 +65,9 @@ def _build_parser() -> _Parser:
     parser.add_argument("--title", default=None)
     parser.add_argument("--reuse", default=None, metavar="SPEC-NNN")
     parser.add_argument("--fr", default=None, metavar="FR-NNN")
+    parser.add_argument("--touches", action="append", default=[], metavar="RUTA")
+    parser.add_argument("--new", action="store_true")
+    parser.add_argument("--rationale", default=None)
     return parser
 
 
@@ -118,6 +122,40 @@ def _insert_registry_row(text: str, row: str) -> str:
         return text.rstrip() + "\n" + row + "\n"
     lines.insert(last_row_index + 1, row)
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _triage_bloquea(
+    title: str, repo_root: Path, touches: tuple[str, ...], *, resuelto: bool
+) -> bool:
+    """Imprime las candidatas al solape y dice si hay que abortar (FR-US2-008).
+
+    Es red de seguridad, no arbitro: el script no decide si hay duplicacion, la
+    expone y exige que alguien la resuelva explicitamente --adoptando la spec
+    con `--reuse` o declarando por que no cabe con `--new --rationale`--. Asi la
+    decision de duplicar queda escrita en vez de ser un descuido.
+    """
+    try:
+        candidatas = spec_index.triage(title, repo_root, touches=touches)
+    except Exception:  # pragma: no cover - el triage nunca puede romper el flujo
+        return False
+    if not candidatas:
+        return False
+
+    destino = sys.stdout if resuelto else sys.stderr
+    print("Specs vigentes que podrian cubrir ya esta capacidad:", file=destino)
+    for candidata in candidatas:
+        print(candidata.linea(), file=destino)
+    if resuelto:
+        print("Se crea una spec nueva igual (--new).", file=destino)
+        return False
+    print(
+        "\nResolvé el solape antes de crear: adoptá una con\n"
+        "  sdd_spec.py --reuse SPEC-NNN --fr FR-NNN\n"
+        "o, si de verdad no cabe en ninguna, dejá escrito por qué con\n"
+        '  sdd_spec.py "<slug>" --new --rationale="<por qué no cabe>"',
+        file=destino,
+    )
+    return True
 
 
 def _registry_rows(repo_root: Path):  # type: ignore[no-untyped-def]
@@ -304,6 +342,18 @@ def main(argv: list[str]) -> int:
     if ns.fr:
         print("--fr solo tiene sentido junto a --reuse.", file=sys.stderr)
         return 2
+    if ns.new and not ns.rationale:
+        # Sin el texto, `--new` seria un "sí, dale" que no deja rastro: la
+        # decision de duplicar tiene que quedar escrita (FR-US2-008).
+        print(
+            '--new exige --rationale="<por qué la capacidad no cabe en ninguna '
+            'spec vigente>".',
+            file=sys.stderr,
+        )
+        return 2
+    if ns.rationale and not ns.new:
+        print("--rationale solo tiene sentido junto a --new.", file=sys.stderr)
+        return 2
     if not ns.slug:
         print(_USO, file=sys.stderr)
         return 2
@@ -311,6 +361,8 @@ def main(argv: list[str]) -> int:
     title = ns.title or ns.slug
 
     repo_root = find_repo_root()
+    if _triage_bloquea(title, repo_root, tuple(ns.touches), resuelto=ns.new):
+        return 1
     specs_dir = repo_root / "specs"
     specs_dir.mkdir(exist_ok=True)
     number = _next_number(specs_dir)

@@ -41,6 +41,14 @@ DEFAULT_TESTS_UNIT = "tests/unit"
 DEFAULT_CONSTITUTION_VERSION = "0.1.0"
 DEFAULT_BRANCH = "main"
 
+# Defaults del triage de solape entre specs (SPEC-022 FR-US2-006/009). Son
+# estructurales y neutros a proposito: el vocabulario que hay que ignorar
+# depende del dominio, asi que `stopwords` nace vacia y cada proyecto --el kit
+# incluido-- siembra la suya en `.sdd/config.yaml`. Hardcodear aca las palabras
+# del dominio del kit seria la clase de lista que el Principio I manda al config.
+DEFAULT_TRIAGE_MIN_WORD_LEN = 4
+DEFAULT_TRIAGE_MIN_MATCHES = 2
+
 # Tercer estado del contrato de adaptador (SPEC-003 FR-009, SPEC-001 FR-005):
 # el paso no se pudo verificar (sin targets, sin tool, sin umbrales) y eso NO es
 # ni un pase ni una falla. Vive aca porque lo comparten los dos lados del
@@ -236,6 +244,34 @@ class Principle:
     step: str = ""
 
 
+def _entero(valor: Any, default: int) -> int:
+    """`valor` como entero positivo, o `default` si no lo es.
+
+    Un umbral con typo no puede volver ilegible el proyecto: mismo criterio que
+    `pipeline_coverage` con sus entradas malformadas.
+    """
+    try:
+        entero = int(valor)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+    return entero if entero > 0 else default
+
+
+@dataclass(frozen=True)
+class TriageConfig:
+    """Parametros del triage de solape entre specs (SPEC-022 FR-US2-006).
+
+    `stopwords` son las palabras que no señalan solape por si solas --el
+    vocabulario que todo titulo del dominio comparte--; `min_word_len` descarta
+    las cortas; `min_matches` es cuantas palabras tienen que coincidir para
+    marcar candidata a una spec.
+    """
+
+    stopwords: frozenset[str] = frozenset()
+    min_word_len: int = DEFAULT_TRIAGE_MIN_WORD_LEN
+    min_matches: int = DEFAULT_TRIAGE_MIN_MATCHES
+
+
 @dataclass(frozen=True)
 class CoverageTarget:
     """Umbral de cobertura para un conjunto de carpetas (SPEC-009 FR-001).
@@ -381,6 +417,33 @@ class SddConfig:
                 )
             out[basename] = p.step
         return out
+
+    # -- specs -----------------------------------------------------------------
+    @property
+    def triage(self) -> TriageConfig:
+        """Parametros de `specs.triage`, con defaults tolerantes.
+
+        La seccion ausente, declarada vacia o malformada cae a los defaults sin
+        romper nada (SPEC-022 FR-US2-009, invariante de SPEC-021): `triage:` sin
+        claves lo carga YAML como `None`.
+        """
+        raw = self.raw.get("specs")
+        specs = raw if isinstance(raw, dict) else {}
+        triage = specs.get("triage")
+        triage = triage if isinstance(triage, dict) else {}
+        palabras = triage.get("stopwords")
+        stopwords = (
+            frozenset(str(x).lower() for x in palabras)
+            if isinstance(palabras, (list, tuple))
+            else frozenset()
+        )
+        return TriageConfig(
+            stopwords=stopwords,
+            min_word_len=_entero(
+                triage.get("min_word_len"), DEFAULT_TRIAGE_MIN_WORD_LEN
+            ),
+            min_matches=_entero(triage.get("min_matches"), DEFAULT_TRIAGE_MIN_MATCHES),
+        )
 
     # -- layers ----------------------------------------------------------------
     @property

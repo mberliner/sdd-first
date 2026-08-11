@@ -19,8 +19,11 @@
    spec puede violar un principio; si hay conflicto, se ajusta la spec.
 2. Leé `00-INDEX.md`... (en el kit, este README + `specs/SPECS_REGISTRY.md`).
 3. Leé `specs/SPECS_REGISTRY.md` para saber qué specs están vigentes.
-4. Identificá a qué spec corresponde el cambio. Si no hay, creala con `sdd-spec`
-   (o a mano) antes de tocar `core/` o `adapters/`.
+4. Identificá a qué spec corresponde el cambio. **Antes de crear una nueva,
+   fijate si la capacidad ya cabe en una vigente**: se adopta con `sdd-spec
+   --reuse`, y el triage del propio script avisa cuáles se solapan. El
+   procedimiento completo —incluido dónde escribir el FR nuevo en la spec
+   adoptada— vive en el playbook `sdd-spec`, que no se reproduce acá.
 5. Aplicá la nomenclatura agnóstica (`specs/SPEC-000-naming.md`): el kit maneja
    formatos (yaml/json) por diseño, pero no acopla a proveedores/UI concretos.
 

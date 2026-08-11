@@ -24,6 +24,22 @@ dirs:
                                     # por subproceso no aporta lineas medidas.
   # source_roots: [src]         # opcional; por defecto = top-level de las capas
 
+specs:
+  # Triage de solape: antes de crear una spec, `sdd-spec` avisa cuales de las
+  # vigentes podrian estar cubriendo ya la capacidad, por titulo o porque ya
+  # gobiernan los archivos que vas a tocar (SPEC-022 US2). Al haber candidatas
+  # aborta, y hay que resolver el solape a mano: `--reuse SPEC-NNN --fr FR-NNN`
+  # para adoptar una, o `--new --rationale="..."` para dejar escrito por que no
+  # cabe en ninguna. Toda la seccion es OPCIONAL: sin ella rigen los defaults.
+  triage:
+    # IMPORTANTE: sembra esto con el vocabulario de TU dominio. Son las palabras
+    # que aparecen en casi todos los titulos y que, por comunes, no dicen nada
+    # sobre si dos specs se solapan; sin ellas el triage marca candidata a media
+    # docena de specs y se vuelve ruido que se aprende a ignorar.
+    stopwords: []
+    min_word_len: 4       # palabras mas cortas que esto no se comparan
+    min_matches: 2        # palabras en comun para marcar candidata por titulo
+
 naming:
   # Palabras excluidas de identificadores de codigo (ver templates SPEC-000).
   prohibited:

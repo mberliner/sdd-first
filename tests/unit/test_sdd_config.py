@@ -2,7 +2,14 @@
 
 from pathlib import Path
 
-from sdd_config import DEFAULT_SOURCE_ROOT, DEFAULT_TESTS_UNIT, SddConfig, write_text_lf
+from sdd_config import (
+    DEFAULT_SOURCE_ROOT,
+    DEFAULT_TESTS_UNIT,
+    DEFAULT_TRIAGE_MIN_MATCHES,
+    DEFAULT_TRIAGE_MIN_WORD_LEN,
+    SddConfig,
+    write_text_lf,
+)
 
 
 def _cfg(raw: dict) -> SddConfig:
@@ -166,6 +173,53 @@ def test_enforcement_steps_falla_ante_colision_de_nombres():
     )
     with pytest.raises(ValueError, match="Colisión de enforcement: 'check_naming.py'"):
         _ = cfg.enforcement_steps
+
+
+def test_triage_ausente_cae_a_los_defaults():
+    """SPEC-022 FR-US2-009: la seccion es opcional."""
+    triage = _cfg({}).triage
+    assert triage.stopwords == frozenset()
+    assert triage.min_word_len == DEFAULT_TRIAGE_MIN_WORD_LEN
+    assert triage.min_matches == DEFAULT_TRIAGE_MIN_MATCHES
+
+
+def test_triage_declarado_pero_vacio_cae_a_los_defaults():
+    """SPEC-022 FR-US2-009: invariante de SPEC-021, `triage:` sin claves es None."""
+    triage = _cfg({"specs": {"triage": None}}).triage
+    assert triage.min_matches == DEFAULT_TRIAGE_MIN_MATCHES
+    assert triage.stopwords == frozenset()
+
+
+def test_triage_con_umbral_malformado_cae_al_default():
+    """Un typo en un umbral no puede volver ilegible el proyecto."""
+    triage = _cfg(
+        {"specs": {"triage": {"min_matches": "dos", "min_word_len": 0}}}
+    ).triage
+    assert triage.min_matches == DEFAULT_TRIAGE_MIN_MATCHES
+    assert triage.min_word_len == DEFAULT_TRIAGE_MIN_WORD_LEN
+
+
+def test_triage_lee_las_stopwords_declaradas():
+    triage = _cfg({"specs": {"triage": {"stopwords": ["Spec", "SDD"]}}}).triage
+    assert triage.stopwords == frozenset({"spec", "sdd"})
+
+
+def test_el_kit_siembra_sus_propias_stopwords_de_dominio():
+    """SPEC-022 FR-US2-009: sin esto el triage marcaria candidata a casi toda spec.
+
+    El default del loader es neutro a proposito (Principio I: el vocabulario del
+    dominio va al config, no a `core/`); quien lo puebla es cada proyecto, y el
+    kit no es la excepcion.
+    """
+    import yaml
+
+    raw = yaml.safe_load(
+        (Path(__file__).resolve().parents[2] / ".sdd" / "config.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    stopwords = SddConfig(repo_root=Path("."), raw=raw).triage.stopwords
+    assert {"spec", "specs", "sdd"} <= stopwords
 
 
 def test_layers_tolera_listas_nulas():

@@ -67,3 +67,38 @@ def test_docs_nuevos_estan_en_el_indice_del_derivado():
 def test_docs_nuevos_estan_en_el_indice_del_kit():
     indice = (KIT_ROOT / "00-INDEX.md").read_text(encoding="utf-8")
     assert "SKILLS-MULTITOOL.md" in indice
+
+
+# -- SPEC-022: el playbook es el SSOT del procedimiento de decidir-y-adoptar ----
+
+PLAYBOOK_SPEC = TEMPLATES / "docs" / "playbooks" / "sdd-spec.md"
+
+
+def test_playbook_documenta_el_triage_y_la_bandera_touches():
+    """FR-US2-011: leer el registro, correr el triage, proponer, resolver."""
+    texto = PLAYBOOK_SPEC.read_text(encoding="utf-8")
+    assert "SPECS_REGISTRY.md" in texto
+    assert "--touches" in texto
+    assert "--new --rationale" in texto or "--rationale" in texto
+
+
+def test_playbook_documenta_reuse_y_su_exigencia_de_fr():
+    """FR-US1-008 / FR-US2-011: adoptar es un camino de primera clase."""
+    texto = PLAYBOOK_SPEC.read_text(encoding="utf-8")
+    assert "--reuse SPEC-NNN --fr FR-NNN" in texto
+
+
+def test_playbook_dice_donde_aterriza_el_fr_en_la_spec_adoptada():
+    """FR-US1-008: en la User Story que cubre la capacidad, o en una nueva."""
+    texto = PLAYBOOK_SPEC.read_text(encoding="utf-8")
+    assert "User Story" in texto
+    assert "Independent Test" in texto
+    assert "Coverage mapping" in texto
+
+
+def test_agents_referencia_el_playbook_sin_reproducirlo():
+    """FR-US2-011: SSOT único; AGENTS.md apunta, no duplica."""
+    texto = (KIT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "sdd-spec" in texto and "--reuse" in texto
+    # El detalle vive en el playbook: AGENTS.md no repite el procedimiento.
+    assert "--touches" not in texto

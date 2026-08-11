@@ -206,3 +206,93 @@ def test_main_no_pisa_una_spec_existente(tmp_path, monkeypatch, capsys):
     assert (repo / "specs" / "SPEC-001-nueva.md").read_text(
         encoding="utf-8"
     ) == "# mia\n"
+
+
+# -- SPEC-022 US2: el triage de solape, antes de crear ---------------------------
+
+
+def _repo_con_vigente(
+    tmp_path, titulo="Gate spec-first", entities="`core/gate.py` — x"
+):
+    repo = _repo(tmp_path)
+    archivo = "SPEC-010-vigente.md"
+    (repo / "specs" / archivo).write_text(
+        f"# {archivo}\n\n## Key Entities\n\n- {entities}\n", encoding="utf-8"
+    )
+    registro = (repo / "specs" / "SPECS_REGISTRY.md").read_text(encoding="utf-8")
+    fila = f"| SPEC-010 | {titulo} | draft | - | hibrido | [{archivo}]({archivo}) |"
+    (repo / "specs" / "SPECS_REGISTRY.md").write_text(
+        sdd_spec._insert_registry_row(registro, fila), encoding="utf-8"
+    )
+    return repo
+
+
+def test_triage_por_titulo_aborta_sin_escribir_nada(tmp_path, monkeypatch, capsys):
+    """FR-US2-008 / SC-004: el arbol queda idéntico a antes de la ejecucion."""
+    repo = _repo_con_vigente(tmp_path, titulo="Gate decision spec-first")
+    monkeypatch.chdir(repo)
+    antes = sorted(p.name for p in (repo / "specs").iterdir())
+    registro_antes = (repo / "specs" / "SPECS_REGISTRY.md").read_text(encoding="utf-8")
+
+    assert sdd_spec.main(["gate decision nuevo"]) != 0
+
+    err = capsys.readouterr().err
+    assert "SPEC-010-vigente" in err and "--reuse" in err
+    assert sorted(p.name for p in (repo / "specs").iterdir()) == antes
+    assert (repo / "specs" / "SPECS_REGISTRY.md").read_text(
+        encoding="utf-8"
+    ) == registro_antes
+
+
+def test_triage_por_touches_lista_la_spec_del_archivo(tmp_path, monkeypatch, capsys):
+    """FR-US2-004: la salida indica qué archivo señaló a la candidata."""
+    repo = _repo_con_vigente(tmp_path, titulo="Sin nada en comun")
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["otra capacidad", "--touches", "core/gate.py"]) != 0
+
+    err = capsys.readouterr().err
+    assert "SPEC-010-vigente" in err
+    assert "core/gate.py" in err
+
+
+def test_new_con_rationale_crea_igual(tmp_path, monkeypatch, capsys):
+    """FR-US2-008: la bandera resolutoria deja pasar y la decision queda escrita."""
+    repo = _repo_con_vigente(tmp_path, titulo="Gate decision spec-first")
+    monkeypatch.chdir(repo)
+
+    assert (
+        sdd_spec.main(
+            ["gate decision nuevo", "--new", "--rationale=es otra capa del gate"]
+        )
+        == 0
+    )
+
+    assert (repo / "specs" / "SPEC-011-gate-decision-nuevo.md").exists()
+    assert "SPEC-010-vigente" in capsys.readouterr().out
+
+
+def test_new_sin_rationale_devuelve_2(tmp_path, monkeypatch, capsys):
+    """FR-US2-008: sin el texto, `--new` seria un 'dale' que no deja rastro."""
+    repo = _repo_con_vigente(tmp_path)
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["lo que sea", "--new"]) == 2
+
+    assert "--rationale" in capsys.readouterr().err
+
+
+def test_rationale_sin_new_devuelve_2(tmp_path, monkeypatch):
+    repo = _repo_con_vigente(tmp_path)
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["lo que sea", "--rationale=porque si"]) == 2
+
+
+def test_sin_solape_crea_sin_pedir_nada(tmp_path, monkeypatch):
+    """El triage no estorba cuando no hay candidatas: es red, no peaje."""
+    repo = _repo_con_vigente(tmp_path, titulo="Cobertura minima por capa")
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["exportar reportes a disco"]) == 0
+    assert (repo / "specs" / "SPEC-011-exportar-reportes-a-disco.md").exists()

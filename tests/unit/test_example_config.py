@@ -123,3 +123,17 @@ def test_el_comentario_de_cobertura_nombra_la_herramienta_de_piso():
     # se omite para siempre. El kit puede medirlo: hay que decirlo acá, que es
     # el archivo donde el dueño se topa con la clave vacía.
     assert "sdd_coverage_baseline.py" in EXAMPLE.read_text(encoding="utf-8")
+
+
+def test_declara_la_seccion_de_triage_con_sus_tres_claves():
+    """SPEC-022 FR-US2-010: la clave tiene que viajar al derivado, no solo al kit."""
+    triage = _cargado()["specs"]["triage"]
+    assert set(triage) == {"stopwords", "min_word_len", "min_matches"}
+
+
+def test_el_triage_viene_comentado_con_la_advertencia_de_sembrar_stopwords():
+    """FR-US2-010: sin stopwords propias el triage marca candidata a casi todo."""
+    texto = EXAMPLE.read_text(encoding="utf-8")
+    bloque = texto.split("specs:", 1)[1].split("\nnaming:", 1)[0]
+    assert "stopwords" in bloque
+    assert "TU dominio" in bloque
