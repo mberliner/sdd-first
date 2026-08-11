@@ -59,6 +59,7 @@ def test_genera_sobre_la_raiz_recibida_no_sobre_el_cwd(proyecto, tmp_path, monke
 
 
 def test_check_no_escribe_y_reporta_el_drift(proyecto):
+    """SPEC-013 FR-007: el SKILL.md generado (p.ej. sdd-configure) queda sin drift."""
     raiz = proyecto()
     resultado = gen_skill_adapters.generate(raiz, check=True)
 

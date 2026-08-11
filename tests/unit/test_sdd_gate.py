@@ -39,12 +39,14 @@ def _payload(path: str) -> dict:
 
 
 def test_permite_rutas_fuera_del_codigo_fuente(tmp_path):
+    """SPEC-017 FR-US1-001: ruta fuera de dirs.source_roots, se permite sin mas."""
     repo = _make_repo(tmp_path)
     allow, _ = sdd_gate.decide(_payload(str(repo / "docs" / "x.md")), repo)
     assert allow
 
 
 def test_bloquea_sin_spec_declarada(tmp_path):
+    """SPEC-017 FR-US1-002: sin spec en .sdd/current-spec, bloquea nombrando la via."""
     repo = _make_repo(tmp_path)
     allow, reason = sdd_gate.decide(_payload(str(repo / "src" / "a.py")), repo)
     assert not allow
@@ -60,6 +62,7 @@ def test_bloquea_spec_declarada_inexistente(tmp_path):
 
 
 def test_permite_con_spec_declarada_y_con_requisitos(tmp_path):
+    """SPEC-001 FR-002 / SPEC-002 FR-002: el gate gobierna de hecho src/ con spec declarada."""
     repo = _make_repo(tmp_path)
     _declare(repo, "SPEC-001-demo")
     allow, reason = sdd_gate.decide(_payload(str(repo / "src" / "a.py")), repo)

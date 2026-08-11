@@ -112,7 +112,7 @@ def test_parse_registry_conserva_el_titulo(tmp_path):
 
 
 def test_iter_coverage_entries_liga_cada_fr_con_sus_tests():
-    """SPEC-022 FR-US1-004/005: un unico lector del *Coverage mapping*."""
+    """SPEC-022 FR-US1-004 / FR-US1-005: un unico lector del *Coverage mapping*."""
     text = (
         "## Coverage mapping\n\n"
         "| Requisito | Cubierto por |\n"
@@ -136,7 +136,9 @@ def test_test_ref_captura_la_ruta_entera_no_desde_la_palabra_tests(tmp_path):
     equivocada y reportaba un test faltante que si estaba.
     """
     (tmp_path / "src" / "tests").mkdir(parents=True)
-    (tmp_path / "src" / "tests" / "test_a.py").write_text("", encoding="utf-8")
+    (tmp_path / "src" / "tests" / "test_a.py").write_text(
+        "# cubre FR-001\n", encoding="utf-8"
+    )
     text = (
         "## Coverage mapping\n\n| FR-001 | src/tests/test_a.py |\n\n"
         "## Functional Requirements\n\n- **FR-001** MUST: algo.\n"
@@ -146,6 +148,81 @@ def test_test_ref_captura_la_ruta_entera_no_desde_la_palabra_tests(tmp_path):
     ct._check_coverage("SPEC-001-a.md", text, tmp_path, errors)
 
     assert errors == []
+
+
+# -- SPEC-024: el FR referenciado tiene que aparecer en el test -----------------
+
+
+def test_fr_ausente_del_test_reporta_violacion(tmp_path):
+    """FR-001: archivo existe pero no menciona el FR que dice cubrir."""
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "unit" / "test_x.py").write_text(
+        "# no menciona ningun requisito\n", encoding="utf-8"
+    )
+    errors: list[str] = []
+    ct._check_coverage("SPEC-001.md", HYBRID_OK, tmp_path, errors)
+    assert any("FR-001" in e and "no aparece" in e for e in errors)
+
+
+def test_fr_presente_en_docstring_no_reporta_violacion(tmp_path):
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "unit" / "test_x.py").write_text(
+        'def test_algo():\n    """Cubre FR-001."""\n', encoding="utf-8"
+    )
+    errors: list[str] = []
+    ct._check_coverage("SPEC-001.md", HYBRID_OK, tmp_path, errors)
+    assert not any("no aparece" in e for e in errors)
+
+
+def test_fr_en_al_menos_uno_de_varios_tests_alcanza(tmp_path):
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "unit" / "test_a.py").write_text("nada", encoding="utf-8")
+    (tmp_path / "tests" / "unit" / "test_b.py").write_text("FR-001", encoding="utf-8")
+    text = (
+        "## Coverage mapping\n\n"
+        "| FR-001 | tests/unit/test_a.py tests/unit/test_b.py |\n"
+    )
+    errors: list[str] = []
+    ct._check_coverage("SPEC-001.md", text, tmp_path, errors)
+    assert not any("no aparece" in e for e in errors)
+
+
+def test_fila_sin_ruta_de_test_no_evalua_esta_regla(tmp_path):
+    text = "## Coverage mapping\n\n| FR-001 | (sin test aun) |\n"
+    errors: list[str] = []
+    ct._check_coverage("SPEC-001.md", text, tmp_path, errors)
+    assert not any("no aparece" in e for e in errors)
+
+
+def test_fr_1_no_se_satisface_con_fr_10(tmp_path):
+    """FR-002: match de token completo, no substring."""
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "unit" / "test_y.py").write_text("FR-10", encoding="utf-8")
+    text = "## Coverage mapping\n\n| FR-1 | tests/unit/test_y.py |\n"
+    errors: list[str] = []
+    ct._check_coverage("SPEC-001.md", text, tmp_path, errors)
+    assert any("FR-1" in e and "no aparece" in e for e in errors)
+
+
+def test_fr_1_no_se_satisface_con_fr_1_algo(tmp_path):
+    """FR-002: `-` cuenta como vecino que invalida el match, pese a ser no-\\w."""
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "unit" / "test_y.py").write_text(
+        "FR-1-ALGO", encoding="utf-8"
+    )
+    text = "## Coverage mapping\n\n| FR-1 | tests/unit/test_y.py |\n"
+    errors: list[str] = []
+    ct._check_coverage("SPEC-001.md", text, tmp_path, errors)
+    assert any("FR-1" in e and "no aparece" in e for e in errors)
+
+
+def test_test_no_decodificable_cuenta_como_sin_mencion(tmp_path):
+    """FR-001: binario/encoding inesperado no aborta el check."""
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "unit" / "test_x.py").write_bytes(b"\xff\xfe\x00\x01")
+    errors: list[str] = []
+    ct._check_coverage("SPEC-001.md", HYBRID_OK, tmp_path, errors)
+    assert any("FR-001" in e and "no aparece" in e for e in errors)
 
 
 # -- SPEC-023 US2: la relacion entre specs se verifica sola ---------------------
@@ -318,7 +395,7 @@ def test_supersede_hacia_una_superseded_es_el_desenlace_normal(tmp_path):
 
 
 def test_el_repositorio_migrado_no_tiene_ninguna_violacion():
-    """FR-US2-009/010, SC-007: la migracion cerro las vueltas preexistentes.
+    """FR-US2-009 / FR-US2-010, SC-007: la migracion cerro las vueltas preexistentes.
 
     Activar la reciprocidad sobre specs `active` que nadie toco no puede
     estrenar el validador en rojo.

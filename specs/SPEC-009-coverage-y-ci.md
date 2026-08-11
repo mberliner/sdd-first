@@ -176,9 +176,14 @@ omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
   disparo derivan de `dirs.source_roots` más las carpetas de tests, y el job
   invoca `python tools/sdd/core/pipeline.py` en vez de repetir la lista de
   pasos.
-- **FR-006** MUST: `core/sdd_init.py` instala esa plantilla como
-  `.github/workflows/ci.yml` en el proyecto destino, respetando la
-  idempotencia del instalador (no pisa un workflow existente sin `--force`).
+- **FR-006** MUST: `.github/workflows/ci.yml` es un artefacto derivado más de
+  `core/render.py` (`_GENERATED`), igual que `CONSTITUTION.md` o `SPEC-000`: no
+  lo instala `sdd_init.py` como copia estática, lo escribe `render.py` a partir
+  del config y se regenera siempre, sin idempotencia ni `--force` — es un
+  archivo que "nunca se edita a mano", así que no hay contenido de usuario que
+  proteger. *(Enmendado el 2026-08-11: la versión original describía un
+  instalador que copiaba una plantilla estática con `--force`; el mecanismo
+  real es el de FR-005, no uno separado en `sdd_init.py`.)*
 - **FR-007** SHOULD: el propio kit tiene su `.github/workflows/ci.yml`
   generado por el mismo mecanismo (deuda E-3 de `docs/IDEAS.md`), de modo que
   el dogfooding cubra también esta capa.
@@ -255,7 +260,7 @@ omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
 | FR-003 | tests/unit/test_pipeline_coverage_step.py |
 | FR-004 | tests/unit/test_sdd_config.py |
 | FR-005 | tests/unit/test_render.py |
-| FR-006 | tests/unit/test_sdd_init.py |
+| FR-006 | tests/unit/test_render.py |
 | FR-007 | pipeline del kit (workflow presente y generado sin drift) |
 | FR-US2-001 | tests/unit/test_adapter_coverage_baseline.py |
 | FR-US2-002 | tests/unit/test_adapter_coverage_baseline.py |
@@ -278,3 +283,9 @@ omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
 - 2026-08-09: reabierta con la US2 (K-5 de `docs/IDEAS.md`): el paso sembrado sin
   umbrales se omitía en cada corrida. La US1 queda intacta —el umbral sigue siendo
   opcional—; lo que se agrega es la forma de conseguir el primero.
+- 2026-08-11: FR-006 enmendado (hallazgo de [[SPEC-024-traza-fr-en-test]] al
+  verificar que el FR referenciado aparece en el test, no solo que el archivo
+  exista): describía un instalador que copiaba `ci.yml` como plantilla estática
+  con `--force`; el mecanismo real es que `render.py` lo genera siempre como
+  artefacto derivado, igual que `CONSTITUTION.md`. Coverage mapping actualizado
+  de `test_sdd_init.py` a `test_render.py`.

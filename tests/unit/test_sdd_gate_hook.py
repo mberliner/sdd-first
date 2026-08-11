@@ -56,6 +56,7 @@ def _run_hook(
 
 
 def test_kit_hook_normal_corre_el_gate_y_bloquea_sin_spec(tmp_path):
+    """SPEC-017 FR-US1-003: contrato exit 0/2 con motivos en stderr, agnostico del asistente."""
     real_path = shutil.os.environ.get("PATH", "")  # PATH real: encuentra python3
     res = _run_hook(KIT_HOOK, KIT_ROOT, "core/foo.py", path=real_path)
     # El gate del propio kit corre de verdad; el resultado depende de si hay
@@ -179,6 +180,7 @@ def _run_hook_antigravity(
 
 
 def test_antigravity_hook_permite_salida_json(tmp_path):
+    """SPEC-015 FR-US2-004: corre con `cd "$ROOT"`, asi que rutas relativas resuelven."""
     _seed_config(tmp_path, "dirs:\n  source_roots: [src]\n")
     (tmp_path / "core").mkdir()
     (tmp_path / "core" / "sdd_gate.py").write_text(

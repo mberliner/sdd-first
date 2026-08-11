@@ -27,6 +27,7 @@ def test_write_text_lf_escribe_utf8_con_fin_de_linea_lf(tmp_path):
 
 
 def test_defaults_con_config_vacio():
+    """SPEC-001 FR-001: config vacía cae a defaults tolerantes, sin listas hardcodeadas."""
     cfg = _cfg({})
     assert cfg.language == "none"
     assert cfg.source_roots == [DEFAULT_SOURCE_ROOT]
@@ -66,6 +67,7 @@ def test_naming_normaliza_a_minusculas():
 
 
 def test_naming_con_claves_vacias_equivale_a_ausentes():
+    """SPEC-021 FR-001: ausente, `None` y no-iterable colapsan al mismo default vacio."""
     vacio = _cfg(
         {
             "naming": {
@@ -102,11 +104,13 @@ def test_principles_ignora_entradas_no_dict():
 
 
 def test_principle_step_es_opcional_y_default_vacio():
+    """SPEC-020 FR-001: `step` es una clave opcional de `principles`."""
     cfg = _cfg({"principles": [{"id": "I", "title": "T", "enforcement": "x.py"}]})
     assert cfg.principles[0].step == ""
 
 
 def test_enforcement_steps_mapea_tool_a_paso():
+    """SPEC-020 FR-002: `enforcement_steps` deriva el mapa token->paso."""
     cfg = _cfg(
         {
             "principles": [
@@ -220,6 +224,27 @@ def test_el_kit_siembra_sus_propias_stopwords_de_dominio():
     )
     stopwords = SddConfig(repo_root=Path("."), raw=raw).triage.stopwords
     assert {"spec", "specs", "sdd"} <= stopwords
+
+
+def test_pipeline_coverage_lee_los_umbrales_y_descarta_entradas_malformadas():
+    """SPEC-009 FR-004: lectura tipada, con tolerancia a entradas sin paths/min."""
+    raw = {
+        "pipeline": {
+            "coverage": [
+                {"paths": ["core"], "min": 80},
+                {"paths": ["core"]},  # sin min: se descarta
+                {"min": 80},  # sin paths: se descarta
+            ]
+        }
+    }
+    cfg = _cfg(raw)
+    assert len(cfg.pipeline_coverage) == 1
+    assert cfg.pipeline_coverage[0].paths == ("core",)
+    assert cfg.pipeline_coverage[0].minimum == 80
+
+
+def test_pipeline_coverage_vacio_por_defecto():
+    assert _cfg({}).pipeline_coverage == []
 
 
 def test_layers_tolera_listas_nulas():

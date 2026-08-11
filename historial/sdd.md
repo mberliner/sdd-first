@@ -1,5 +1,40 @@
 # Historial SDD — sdd-first
 
+## 2026-08-11 — SPEC-024: el Coverage mapping verifica que el FR aparezca en el test, no solo que el archivo exista
+
+**Scope:** `specs/SPEC-024-traza-fr-en-test.md`, `core/check_traceability.py`,
+`tests/unit/test_check_traceability.py` y el backfill sobre los tests de las
+specs `active`+`hibrido` vigentes que quedaban en rojo.
+
+**Qué cambió:** una fila del *Coverage mapping* quedaba "verde" si el archivo
+de test referenciado existía, sin importar si mencionaba el FR que decía
+cubrir (hallazgo G-8 de `docs/IDEAS.md`). `check_traceability.py` ahora
+verifica, por cada fila con al menos una ruta de test, que el ID del FR
+aparezca como token completo (no substring) en el contenido de al menos uno
+de los archivos referenciados. Vecinos alfanuméricos, `_` y `-` invalidan el
+match — no alcanza con `\b` de `re`, porque `-` es no-`\w` y dejaría pasar
+`FR-1` dentro de `FR-1-ALGO` (los IDs multi-HU del propio kit usan `-` como
+separador). Un archivo no decodificable como texto cuenta como "no lo
+contiene", sin abortar el check.
+
+**Migración:** de las 217 filas medidas el 2026-08-11 sobre las 21 specs
+`active`+`hibrido`, 30 fallaban. El backfill agregó el ID como comentario o
+docstring de una línea en la función de test que ya ejercía ese
+comportamiento; donde no existía cobertura real (SPEC-009 FR-004:
+`pipeline_coverage`; SPEC-015 FR-US2-001/002/004/005: wiring de Antigravity)
+se escribieron tests nuevos mínimos — la señal que SPEC-024 está diseñada
+para sacar a la luz.
+
+**Hallazgo colateral:** SPEC-009 FR-006 describía un instalador que copiaba
+`ci.yml` como plantilla estática con `--force`; el mecanismo real es que
+`render.py` lo genera siempre como artefacto derivado (igual que
+`CONSTITUTION.md`), sin idempotencia porque no hay contenido de usuario que
+proteger. FR-006 se enmendó y su Coverage mapping pasó de
+`tests/unit/test_sdd_init.py` a `tests/unit/test_render.py`.
+
+**SSOTs afectados:** ninguno nuevo; `core/check_traceability.py` sigue siendo
+el único lector del *Coverage mapping* (FR-002/Key Entities de SPEC-022).
+
 ## 2026-08-11 — SPEC-023: la relación entre specs se declara al crearlas y se verifica sola
 
 **Scope:** `specs/SPEC-023-relacion-entre-specs.md`, `core/spec_relations.py`

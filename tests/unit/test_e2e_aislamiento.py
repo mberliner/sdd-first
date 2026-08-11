@@ -26,6 +26,7 @@ def pyproject() -> dict:
 
 
 def test_pytest_a_secas_no_recoge_los_escenarios(pyproject: dict) -> None:
+    """SPEC-018 FR-US2-003: pytest sin argumentos no recoge ningun escenario e2e."""
     testpaths = pyproject["tool"]["pytest"]["ini_options"]["testpaths"]
     assert testpaths == ["tests/unit"], (
         "`testpaths` es el unico mecanismo de seleccion: ampliarlo mete los "
@@ -34,7 +35,7 @@ def test_pytest_a_secas_no_recoge_los_escenarios(pyproject: dict) -> None:
 
 
 def test_la_seleccion_no_tiene_un_segundo_mecanismo(pyproject: dict) -> None:
-    """Una marca `e2e` seria un filtro duplicado (Principio IV)."""
+    """SPEC-018 FR-US2-004. Una marca `e2e` seria un filtro duplicado (Principio IV)."""
     marcas = pyproject["tool"]["pytest"]["ini_options"].get("markers", [])
     assert not any("e2e" in m for m in marcas), (
         f"`testpaths` ya excluye la suite; sobra la marca: {marcas}"
@@ -136,6 +137,7 @@ def test_el_workflow_verifica_que_no_quedo_residuo(workflow_e2e: str) -> None:
 
 
 def test_el_testigo_brownfield_tiene_un_solo_ssot() -> None:
+    # SPEC-018 FR-US2-006: el testigo de proyecto preexistente tiene un solo SSOT.
     # Partido para que este archivo no cuente como una definicion mas.
     marca = "def " + "crear_proyecto_brownfield"
     definiciones = [

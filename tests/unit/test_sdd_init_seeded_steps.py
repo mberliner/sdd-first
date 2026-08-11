@@ -76,6 +76,7 @@ def test_main_aplica_chmod_al_wiring_ejecutable(tmp_path, monkeypatch):
 @requiere_permisos_posix
 def test_el_wiring_queda_ejecutable_en_disco(tmp_path):
     # FR-002: el efecto real, donde el sistema de archivos puede expresarlo.
+    # SPEC-012 FR-003: el chmod sobre _EXECUTABLE_WIRING se conserva en sdd_init.
     assert sdd_init.main([str(tmp_path), "--language=none"]) == 0
     hook = tmp_path / ".claude" / "sdd_gate_hook.sh"
     assert hook.exists()

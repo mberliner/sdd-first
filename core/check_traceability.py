@@ -309,6 +309,46 @@ def _check_coverage(name: str, text: str, repo_root: Path, errors: list[str]) ->
             errors.append(
                 f"{name}: test referenciado en Coverage mapping no existe: '{test_ref}'."
             )
+    _check_fr_mentioned_in_tests(name, text, repo_root, errors)
+
+
+# Vecinos que invalidan un match como token completo del ID (FR-002): no solo
+# no-\w, porque `-` es no-\w y un `\b` de re dejaria pasar `FR-1` dentro de
+# `FR-1-ALGO` (los IDs multi-HU usan `-` como separador interno).
+_TOKEN_NEIGHBOR = "[A-Za-z0-9_-]"
+
+
+def _fr_appears_as_token(fr_id: str, content: str) -> bool:
+    pattern = re.compile(
+        rf"(?<!{_TOKEN_NEIGHBOR}){re.escape(fr_id)}(?!{_TOKEN_NEIGHBOR})"
+    )
+    return pattern.search(content) is not None
+
+
+def _read_test_text(path: Path) -> str:
+    """Contenido del test, o cadena vacia si no se puede leer como texto (FR-001)."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        return ""
+
+
+def _check_fr_mentioned_in_tests(
+    name: str, text: str, repo_root: Path, errors: list[str]
+) -> None:
+    cache: dict[str, str] = {}
+    for fr, tests in iter_coverage_entries(text):
+        if not tests:
+            continue  # fila sin ruta de test: fuera de alcance (FR-001)
+        found = False
+        for test_ref in tests:
+            if test_ref not in cache:
+                cache[test_ref] = _read_test_text(repo_root / test_ref)
+            if _fr_appears_as_token(fr, cache[test_ref]):
+                found = True
+                break
+        if not found:
+            errors.append(f"{name}: {fr} no aparece en {', '.join(tests)}.")
 
 
 def _check_consistency(

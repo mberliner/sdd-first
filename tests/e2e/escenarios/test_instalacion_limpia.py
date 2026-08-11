@@ -29,6 +29,7 @@ FORMATOS = (
 
 
 def test_instalacion_limpia_deja_el_proyecto_operativo(repo: Path) -> None:
+    """SPEC-018 FR-US1-001: instala corriendo sdd_init.py como subproceso desde el clon."""
     instalacion = espera_exit(entorno.instalar(repo))
 
     dice(instalacion, "Listo. sdd-first instalado en", f"cd {repo}")

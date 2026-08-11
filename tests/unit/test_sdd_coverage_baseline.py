@@ -79,6 +79,7 @@ def test_escribe_el_piso_redondeado_hacia_abajo(tmp_path, monkeypatch):
 
 
 def test_la_escritura_conserva_los_comentarios(tmp_path, monkeypatch):
+    """SPEC-009 FR-US2-004: la escritura preserva el resto del archivo, comentarios incluidos."""
     repo = _proyecto(tmp_path)
     _con_medicion(monkeypatch, repo, 91.0)
 
@@ -115,6 +116,7 @@ def test_varios_paths_medidos_entran_en_una_entrada(tmp_path, monkeypatch):
 
 
 def test_no_toca_un_umbral_ya_declarado(tmp_path, monkeypatch, capsys):
+    """SPEC-009 FR-US2-005: si pipeline.coverage ya esta declarado, no se modifica."""
     config = CONFIG_BASE.replace(
         "principles: []",
         "  coverage:\n    - paths: [src]\n      min: 95\n\nprinciples: []",

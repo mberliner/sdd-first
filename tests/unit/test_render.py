@@ -48,14 +48,19 @@ def test_sync_incluye_los_3_playbooks_operativos():
     # SPEC-007 FR-004: sdd-spec/sdd-doctor/sdd-configure se sincronizan desde
     # templates/ igual que analyze/clarify (patron SPEC-005), no se duplican
     # a mano en docs/playbooks/ del propio kit.
+    # SPEC-013 FR-006: el playbook de sdd-configure.md (con su preambulo
+    # explicativo por pregunta) esta sincronizado sin drift, igual que el resto.
     for name in ("sdd-spec", "sdd-doctor", "sdd-configure"):
         assert f"docs/playbooks/{name}.md" in render._SYNCED_FROM_TEMPLATES
 
 
 def test_generated_targets_es_noop_sin_carpeta_templates(tmp_path):
     # Proyecto instalado con sdd-init: no tiene templates/ propia.
+    # SPEC-009 FR-006 (enmendado): .github/workflows/ci.yml es un artefacto
+    # derivado mas de `render.py`, no algo que instale `sdd_init.py`.
     targets = render._generated_targets(tmp_path)
     assert "docs/SDD-ENFORCEMENT.md" not in targets
+    assert ".github/workflows/ci.yml" in render._GENERATED
     assert set(targets) == set(render._GENERATED)
 
 

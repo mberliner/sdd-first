@@ -18,9 +18,14 @@ def test_project_skills_incluye_las_5_skills_operativas():
 
 
 def test_static_docs_incluye_readme_y_manual_de_operacion():
+    """SPEC-007 FR-002/FR-005: SDD-OPERACION.md se instala y 00-INDEX.md lo referencia.
+
+    SPEC-010 FR-006: DEVELOPMENT.md tambien se instala.
+    """
     destinos = {dst for _src, dst in sdd_init.STATIC_DOCS}
     assert "README.md" in destinos
     assert "docs/SDD-OPERACION.md" in destinos
+    assert "docs/DEVELOPMENT.md" in destinos
     assert "docs/playbooks/sdd-spec.md" in destinos
     assert "docs/playbooks/sdd-doctor.md" in destinos
     assert "docs/playbooks/sdd-configure.md" in destinos

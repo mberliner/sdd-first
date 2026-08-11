@@ -37,3 +37,4 @@
 | SPEC-021 | Una clave del config declarada pero vacía no rompe el pipeline | active | 5 | hibrido | [SPEC-021-config-vacio-no-rompe.md](SPEC-021-config-vacio-no-rompe.md) |
 | SPEC-022 | Antes de crear una spec, reusar la existente que ya cubre la capacidad | active | 8 | hibrido | [SPEC-022-reusar-specs-existentes.md](SPEC-022-reusar-specs-existentes.md) |
 | SPEC-023 | La relación entre specs se declara al crearlas y se verifica sola | active | 9 | hibrido | [SPEC-023-relacion-entre-specs.md](SPEC-023-relacion-entre-specs.md) |
+| SPEC-024 | El Coverage mapping verifica que el FR referenciado aparezca en el test, no solo que el archivo exista | active | 10 | hibrido | [SPEC-024-traza-fr-en-test.md](SPEC-024-traza-fr-en-test.md) |

@@ -23,6 +23,7 @@ def _check(tmp_path: Path, source: str, filename: str = "modulo.py", **kwargs):
 
 
 def test_detecta_token_en_funcion_y_variable(tmp_path):
+    """SPEC-001 FR-005: naming via AST + palabras excluidas del config."""
     violations = _check(tmp_path, "def cliente_acme():\n    acme_url = 1\n")
     names = [v[2] for v in violations]
     assert names == ["cliente_acme", "acme_url"]
