@@ -46,6 +46,17 @@ pisan rompe ese invariante y deja la verdad repartida.
      python tools/sdd/core/sdd_spec.py "<slug>" --new --rationale="<por qué>"
      ```
 
+   - **Crear enlazada** — cuando la capacidad nueva amplía o reemplaza a una
+     vigente, declaralo al crear y el enlace queda escrito en **los dos**
+     documentos:
+
+     ```
+     python tools/sdd/core/sdd_spec.py "<slug>" --extends SPEC-NNN
+     python tools/sdd/core/sdd_spec.py "<slug>" --supersedes SPEC-NNN
+     ```
+
+     Ambas banderas son repetibles y combinables. Ver abajo cuándo usar cada una.
+
 5. Si creaste una spec, **completala** según `docs/SPEC-FORMAT.md` (User Story
    con prioridad, FR-NNN con `MUST:`, SC-NNN, Coverage mapping). Es obligatorio:
    el gate exige que la spec declarada tenga requisitos escritos.
@@ -64,6 +75,30 @@ mapping* y su test.
 Así cada FR sigue perteneciendo a un corte vertical y la spec receptora no se
 degrada con cada adopción. La regla la aplica quien escribe: `sdd_spec.py`
 verifica que el FR exista, no dónde está.
+
+## Cuándo usar `--extends` y cuándo `--supersedes`
+
+- **`--extends SPEC-NNN`**: la spec nueva **amplía el alcance** de SPEC-NNN sin
+  reemplazarla; SPEC-NNN sigue vigente y gobernando lo suyo.
+- **`--supersedes SPEC-NNN`**: la spec nueva **reemplaza** a SPEC-NNN.
+
+Ninguna de las dos es "menciono a SPEC-NNN": citar un invariante suyo, compartir
+archivos o haberse diseñado al lado no es una relación declarable — va en prosa.
+El criterio completo, incluido cuándo corresponde `Depende de:`, vive en
+`docs/SPEC-FORMAT.md`.
+
+Dos cosas que `--supersedes` **no** hace al crear:
+
+- No cambia el estado de SPEC-NNN. La spec nueva nace `draft`, y degradar la
+  vieja en ese momento dejaría la capacidad sin spec vigente. SPEC-NNN pasa a
+  `superseded` **al cerrar la iteración**, junto con el paso de la nueva a
+  `active`, actualizando `specs/SPECS_REGISTRY.md`.
+- No te deja reemplazar una spec de la que cuelga otra `active`: aborta sin
+  escribir nada, porque dejaría a esa otra apoyada en una spec no vigente.
+
+Si la relación aparece **después** —escribiendo los FR descubrís que la spec
+depende de otra—, escribí el campo a mano y cerrá el recíproco con
+`python tools/sdd/core/sdd_doctor.py --fix`.
 
 ## Parámetros del triage
 

@@ -296,3 +296,222 @@ def test_sin_solape_crea_sin_pedir_nada(tmp_path, monkeypatch):
 
     assert sdd_spec.main(["exportar reportes a disco"]) == 0
     assert (repo / "specs" / "SPEC-011-exportar-reportes-a-disco.md").exists()
+
+
+# -- SPEC-023 US1: crear una spec enlazada a la que extiende o reemplaza ---------
+
+SECCION = (
+    "## Relación con specs existentes\n"
+    "\n"
+    "- **Extiende:** — | **Supersede:** — | **Depende de:** —\n"
+    "- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —\n"
+    "- **Por qué no cabe en una spec existente:** —\n"
+)
+
+
+def _agregar_spec(repo, numero, titulo="Capacidad vieja", estado="active", cuerpo=None):
+    """Registra una spec vigente con la seccion de relaciones ya presente."""
+    archivo = f"SPEC-{numero:03d}-vieja-{numero}.md"
+    (repo / "specs" / archivo).write_text(
+        cuerpo
+        if cuerpo is not None
+        else f"# SPEC-{numero:03d}\n\n{SECCION}\n## Functional Requirements\n",
+        encoding="utf-8",
+    )
+    registro = (repo / "specs" / "SPECS_REGISTRY.md").read_text(encoding="utf-8")
+    fila = (
+        f"| SPEC-{numero:03d} | {titulo} | {estado} | - | hibrido "
+        f"| [{archivo}]({archivo}) |"
+    )
+    (repo / "specs" / "SPECS_REGISTRY.md").write_text(
+        sdd_spec._insert_registry_row(registro, fila), encoding="utf-8"
+    )
+    return archivo
+
+
+def _estado_del_arbol(repo):
+    return (
+        sorted(p.name for p in (repo / "specs").iterdir()),
+        (repo / "specs" / "SPECS_REGISTRY.md").read_text(encoding="utf-8"),
+        (repo / ".sdd" / "current-spec").read_text(encoding="utf-8"),
+    )
+
+
+def test_extends_escribe_la_relacion_en_los_dos_documentos(tmp_path, monkeypatch):
+    """FR-US1-001: el enlace no depende de que alguien lo anote del otro lado."""
+    repo = _repo(tmp_path)
+    archivo = _agregar_spec(repo, 10)
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["capacidad ampliada", "--extends", "SPEC-010"]) == 0
+
+    nueva = (repo / "specs" / "SPEC-011-capacidad-ampliada.md").read_text(
+        encoding="utf-8"
+    )
+    assert "**Extiende:** [SPEC-010]" in nueva
+    vieja = (repo / "specs" / archivo).read_text(encoding="utf-8")
+    assert "**Extendida por:** [SPEC-011](SPEC-011-capacidad-ampliada.md)" in vieja
+
+
+def test_supersedes_no_toca_el_estado_de_la_spec_reemplazada(tmp_path, monkeypatch):
+    """FR-US1-003: la nueva nace draft; la vieja se degrada al cerrar, no ahora."""
+    repo = _repo(tmp_path)
+    _agregar_spec(repo, 10)
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["capacidad nueva", "--supersedes", "SPEC-010"]) == 0
+
+    registro = (repo / "specs" / "SPECS_REGISTRY.md").read_text(encoding="utf-8")
+    assert "| SPEC-010 | Capacidad vieja | active |" in registro
+    assert "| SPEC-011 | capacidad nueva | draft |" in registro
+
+
+def test_supersedes_aborta_si_una_active_se_apoya_en_la_referenciada(
+    tmp_path, monkeypatch, capsys
+):
+    """FR-US1-004: reemplazarla dejaria a esa otra apoyada en una no vigente."""
+    repo = _repo(tmp_path)
+    _agregar_spec(repo, 10)
+    _agregar_spec(
+        repo,
+        12,
+        cuerpo="# SPEC-012\n\n"
+        + SECCION.replace("**Depende de:** —", "**Depende de:** [SPEC-010](x.md)"),
+    )
+    monkeypatch.chdir(repo)
+    antes = _estado_del_arbol(repo)
+
+    assert sdd_spec.main(["capacidad nueva", "--supersedes", "SPEC-010"]) != 0
+
+    assert "SPEC-012" in capsys.readouterr().err
+    assert _estado_del_arbol(repo) == antes
+
+
+def test_referencia_sin_la_seccion_aborta_sin_crear_nada(tmp_path, monkeypatch, capsys):
+    """FR-US1-004: sin sección no hay dónde escribir el recíproco."""
+    repo = _repo(tmp_path)
+    _agregar_spec(repo, 10, cuerpo="# SPEC-010\n\n## Functional Requirements\n")
+    monkeypatch.chdir(repo)
+    antes = _estado_del_arbol(repo)
+
+    assert sdd_spec.main(["capacidad nueva", "--extends", "SPEC-010"]) != 0
+
+    assert "Relacion con specs existentes" in capsys.readouterr().err
+    assert _estado_del_arbol(repo) == antes
+
+
+def test_extender_y_reemplazar_la_misma_spec_es_contradictorio(
+    tmp_path, monkeypatch, capsys
+):
+    """FR-US1-001."""
+    repo = _repo(tmp_path)
+    _agregar_spec(repo, 10)
+    monkeypatch.chdir(repo)
+    antes = _estado_del_arbol(repo)
+
+    assert (
+        sdd_spec.main(
+            ["capacidad nueva", "--extends", "SPEC-010", "--supersedes", "SPEC-010"]
+        )
+        != 0
+    )
+
+    assert "contradictorio" in capsys.readouterr().err
+    assert _estado_del_arbol(repo) == antes
+
+
+def test_varias_referencias_se_escriben_todas_en_su_campo(tmp_path, monkeypatch):
+    """FR-US1-001: las banderas son repetibles y combinables entre si."""
+    repo = _repo(tmp_path)
+    for numero in (10, 11, 12):
+        _agregar_spec(repo, numero)
+    monkeypatch.chdir(repo)
+
+    assert (
+        sdd_spec.main(
+            [
+                "capacidad nueva",
+                "--extends",
+                "SPEC-010",
+                "--extends",
+                "SPEC-011",
+                "--supersedes",
+                "SPEC-012",
+            ]
+        )
+        == 0
+    )
+
+    nueva = (repo / "specs" / "SPEC-013-capacidad-nueva.md").read_text(encoding="utf-8")
+    assert "**Extiende:** [SPEC-010]" in nueva and "[SPEC-011]" in nueva
+    assert "**Supersede:** [SPEC-012]" in nueva
+    for numero, campo in (
+        (10, "Extendida por"),
+        (11, "Extendida por"),
+        (12, "Superseded por"),
+    ):
+        vieja = (repo / "specs" / f"SPEC-{numero:03d}-vieja-{numero}.md").read_text(
+            encoding="utf-8"
+        )
+        assert f"**{campo}:** [SPEC-013]" in vieja
+
+
+def test_una_referencia_invalida_aborta_el_conjunto_entero(
+    tmp_path, monkeypatch, capsys
+):
+    """FR-US1-004: la validacion corre sobre todas antes de escribir un byte."""
+    repo = _repo(tmp_path)
+    archivo = _agregar_spec(repo, 10)
+    monkeypatch.chdir(repo)
+    antes = _estado_del_arbol(repo)
+
+    assert (
+        sdd_spec.main(
+            ["capacidad nueva", "--extends", "SPEC-010", "--extends", "SPEC-099"]
+        )
+        != 0
+    )
+
+    assert "SPEC-099" in capsys.readouterr().err
+    assert _estado_del_arbol(repo) == antes
+    # Ni siquiera el reciproco de la referencia valida quedo escrito.
+    assert "SPEC-011" not in (repo / "specs" / archivo).read_text(encoding="utf-8")
+
+
+def test_el_relleno_va_dentro_de_la_seccion_de_la_plantilla(tmp_path, monkeypatch):
+    """FR-US1-006: no se construye una seccion propia si la plantilla la trae."""
+    repo = _repo(tmp_path)
+    (repo / "specs" / "SPEC-TEMPLATE.md").write_text(
+        f"# SPEC-NNN: <título agnóstico>\n\n{SECCION}\n## Functional Requirements\n",
+        encoding="utf-8",
+    )
+    _agregar_spec(repo, 10)
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["capacidad nueva", "--extends", "SPEC-010"]) == 0
+
+    nueva = (repo / "specs" / "SPEC-011-capacidad-nueva.md").read_text(encoding="utf-8")
+    assert nueva.count("## Relación con specs existentes") == 1
+
+
+def test_sin_plantilla_el_cuerpo_minimo_trae_la_seccion_vacia(tmp_path, monkeypatch):
+    """FR-US1-006: el comportamiento preexistente tambien la incluye."""
+    repo = _repo(tmp_path, con_template=False)
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["nueva"]) == 0
+
+    texto = (repo / "specs" / "SPEC-001-nueva.md").read_text(encoding="utf-8")
+    assert "## Relación con specs existentes" in texto
+    assert "**Extiende:** —" in texto
+
+
+def test_rationale_aterriza_en_el_campo_de_la_seccion(tmp_path, monkeypatch):
+    """FR-US1-002: el motivo se escribe donde se lo va a buscar."""
+    repo = _repo(tmp_path)
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["nueva", "--new", "--rationale=es otro corte vertical"]) == 0
+
+    texto = (repo / "specs" / "SPEC-001-nueva.md").read_text(encoding="utf-8")
+    assert "**Por qué no cabe en una spec existente:** es otro corte vertical" in texto

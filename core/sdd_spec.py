@@ -5,6 +5,7 @@ declara la spec en `.sdd/current-spec` (desbloqueando el gate spec-first).
 
 Uso:
     python core/sdd_spec.py "<slug-o-titulo>" [--title "Título legible"]
+                            [--extends SPEC-NNN] [--supersedes SPEC-NNN]
 
 El número NNN se asigna como el siguiente correlativo disponible en specs/.
 """
@@ -19,16 +20,22 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import spec_index  # noqa: E402
+import spec_relations  # noqa: E402
 from check_traceability import (  # noqa: E402
+    RELATION_COUNTERPART,
+    RELATION_NEEDS_ACTIVE,
     _parse_registry,
     has_written_requirements,
     iter_coverage_entries,
+    parse_relations,
+    spec_id_of,
 )
 from sdd_config import find_repo_root, write_text_lf  # noqa: E402
 from sdd_gate import is_source_path  # noqa: E402
 
 _USO = (
     'Uso: sdd_spec.py "<slug>" [--title "Título"]\n'
+    "                 [--extends SPEC-NNN] [--supersedes SPEC-NNN]\n"
     "     sdd_spec.py --reuse SPEC-NNN --fr FR-NNN"
 )
 
@@ -68,6 +75,10 @@ def _build_parser() -> _Parser:
     parser.add_argument("--touches", action="append", default=[], metavar="RUTA")
     parser.add_argument("--new", action="store_true")
     parser.add_argument("--rationale", default=None)
+    # Repetibles y combinables (SPEC-023 FR-US1-001): una spec puede nacer
+    # extendiendo a dos y reemplazando a una tercera.
+    parser.add_argument("--extends", action="append", default=[], metavar="SPEC-NNN")
+    parser.add_argument("--supersedes", action="append", default=[], metavar="SPEC-NNN")
     return parser
 
 
@@ -314,6 +325,105 @@ def _reuse(spec_token: str, fr_id: str, repo_root: Path) -> int:
     return 0
 
 
+def _apoyos_activos(spec_id: str, rows, specs_dir: Path) -> list[str]:  # type: ignore[no-untyped-def]
+    """Specs `active` que se apoyan en `spec_id` (`Depende de:` o `Extiende:`).
+
+    Degradar una spec de la que cuelga una `active` la dejaria violando
+    FR-US2-007; por eso `--supersedes` lo verifica al crear, aunque el cambio de
+    estado ocurra recien al cerrar la iteracion (FR-US1-003).
+    """
+    apoyadas: list[str] = []
+    for row in rows:
+        if row.estado != "active" or not row.is_hybrid:
+            continue
+        path = specs_dir / row.archivo
+        if not path.exists():
+            continue
+        relaciones = parse_relations(path.read_text(encoding="utf-8")) or {}
+        if any(spec_id in relaciones.get(campo, ()) for campo in RELATION_NEEDS_ACTIVE):
+            apoyadas.append(Path(row.archivo).stem)
+    return apoyadas
+
+
+def _resolver_referencias(
+    extends: list[str], supersedes: list[str], repo_root: Path
+) -> tuple[list[tuple[str, str, str]], list[str]]:
+    """`(referencias, motivos_de_aborto)` de `--extends` y `--supersedes`.
+
+    Verifica **todas** las referencias antes de que el llamador escriba el primer
+    byte (FR-US1-004): que una sola falle aborta la ejecucion entera, asi que el
+    arbol de trabajo queda identico a como estaba.
+    """
+    if not extends and not supersedes:
+        return [], []
+
+    specs_dir = repo_root / "specs"
+    rows, errores_registro = _registry_rows(repo_root)
+    if errores_registro and not rows:
+        return [], errores_registro
+
+    referencias: list[tuple[str, str, str]] = []
+    motivos: list[str] = []
+    vistos: dict[str, str] = {}
+    for campo, tokens in (("Extiende", extends), ("Supersede", supersedes)):
+        for token in tokens:
+            row, motivo = _resolve_registry_row(token, rows)
+            if row is None:
+                motivos.append(motivo)
+                continue
+            corto = spec_id_of(row.archivo) or Path(row.archivo).stem
+            if vistos.get(corto, campo) != campo:
+                motivos.append(
+                    f"{corto} esta declarada con --extends y con --supersedes a la "
+                    "vez: extenderla y reemplazarla es contradictorio."
+                )
+                continue
+            vistos[corto] = campo
+            if row.estado not in _ESTADOS_VIGENTES:
+                motivos.append(
+                    f"{corto} esta en estado '{row.estado}': solo se puede enlazar "
+                    "con una spec vigente (draft o active)."
+                )
+                continue
+            path = specs_dir / row.archivo
+            if not path.exists():
+                motivos.append(
+                    f"{corto} esta en el registro pero su archivo no existe: {path}."
+                )
+                continue
+            if parse_relations(path.read_text(encoding="utf-8")) is None:
+                motivos.append(
+                    f"{row.archivo} no tiene la seccion 'Relacion con specs "
+                    "existentes', asi que no hay donde escribir el reciproco. "
+                    "Inyectala con: sdd_doctor.py --fix"
+                )
+                continue
+            if campo == "Supersede":
+                apoyadas = _apoyos_activos(corto, rows, specs_dir)
+                if apoyadas:
+                    motivos.append(
+                        f"{corto} sostiene a spec(s) 'active': {', '.join(apoyadas)}. "
+                        "Reemplazarla las dejaria apoyadas en una spec no vigente."
+                    )
+                    continue
+            referencias.append((campo, corto, row.archivo))
+    return referencias, motivos
+
+
+def _escribir_reciprocos(
+    referencias: list[tuple[str, str, str]], spec_id: str, specs_dir: Path
+) -> None:
+    """Anota en cada spec referenciada el inverso de la relacion declarada."""
+    enlace = spec_relations.link(spec_id_of(spec_id) or spec_id, f"{spec_id}.md")
+    for campo, _corto, archivo in referencias:
+        path = specs_dir / archivo
+        texto = path.read_text(encoding="utf-8")
+        nuevo = spec_relations.add_reference(texto, RELATION_COUNTERPART[campo], enlace)
+        if nuevo is not None:
+            write_text_lf(path, nuevo)
+            print(f"Enlace inverso escrito en {archivo}")
+
+
 def main(argv: list[str]) -> int:
     try:
         ns = _build_parser().parse_args(argv)
@@ -361,7 +471,21 @@ def main(argv: list[str]) -> int:
     title = ns.title or ns.slug
 
     repo_root = find_repo_root()
-    if _triage_bloquea(title, repo_root, tuple(ns.touches), resuelto=ns.new):
+    # Declarar la relacion resuelve el solape igual que `--new`: el triage pide
+    # que la duplicacion quede explicita, y `--extends`/`--supersedes` la dejan
+    # escrita en los dos documentos, que es mas de lo que pide.
+    enlaza = bool(ns.extends or ns.supersedes)
+    if _triage_bloquea(title, repo_root, tuple(ns.touches), resuelto=ns.new or enlaza):
+        return 1
+    referencias, motivos = _resolver_referencias(ns.extends, ns.supersedes, repo_root)
+    if motivos:
+        for motivo in motivos:
+            print(motivo, file=sys.stderr)
+        print(
+            "No se creo ninguna spec: la validacion de los enlaces corre antes de "
+            "escribir (SPEC-023 FR-US1-004).",
+            file=sys.stderr,
+        )
         return 1
     specs_dir = repo_root / "specs"
     specs_dir.mkdir(exist_ok=True)
@@ -378,8 +502,28 @@ def main(argv: list[str]) -> int:
         body = body.replace("SPEC-NNN: <título agnóstico>", f"{spec_id}: {title}")
     else:
         body = f"# {spec_id}: {title}\n\n(TODO: completar según docs/SPEC-FORMAT.md)\n"
+    # La plantilla ya trae la seccion (FR-US1-005) y los campos se rellenan
+    # dentro de ella; el cuerpo minimo sin plantilla la recibe vacia (FR-US1-006).
+    body = spec_relations.inject_section(body)
+    for campo, corto, archivo in referencias:
+        enlazado = spec_relations.add_reference(
+            body, campo, spec_relations.link(corto, archivo)
+        )
+        if enlazado is not None:
+            body = enlazado
+    if ns.rationale:
+        con_motivo = spec_relations.set_rationale(body, ns.rationale)
+        if con_motivo is None:
+            print(
+                "Aviso: la spec no tiene el campo del motivo en la seccion de "
+                "relaciones; --rationale no se escribio.",
+                file=sys.stderr,
+            )
+        else:
+            body = con_motivo
     write_text_lf(spec_file, body)
     print(f"Creada {spec_file}")
+    _escribir_reciprocos(referencias, spec_id, specs_dir)
 
     # Registro: agrega una fila draft a la tabla de SPECS_REGISTRY.md.
     registry = specs_dir / "SPECS_REGISTRY.md"

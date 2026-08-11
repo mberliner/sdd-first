@@ -96,6 +96,24 @@ def test_playbook_dice_donde_aterriza_el_fr_en_la_spec_adoptada():
     assert "Coverage mapping" in texto
 
 
+def test_playbook_documenta_cuando_usar_extends_y_supersedes():
+    """SPEC-023 FR-US1-007: el criterio, no solo la sintaxis de las banderas."""
+    texto = PLAYBOOK_SPEC.read_text(encoding="utf-8")
+    assert "--extends SPEC-NNN" in texto
+    assert "--supersedes SPEC-NNN" in texto
+    assert "amplía el alcance" in texto
+    assert "reemplaza" in texto
+    # El criterio completo vive en SPEC-FORMAT.md: el playbook apunta, no copia.
+    assert "docs/SPEC-FORMAT.md" in texto
+
+
+def test_playbook_dice_cuando_pasa_a_superseded_la_spec_reemplazada():
+    """SPEC-023 FR-US1-007: al cerrar la iteracion, no al crear la nueva."""
+    texto = PLAYBOOK_SPEC.read_text(encoding="utf-8")
+    assert "No cambia el estado" in texto
+    assert "al cerrar la iteración" in texto
+
+
 def test_agents_referencia_el_playbook_sin_reproducirlo():
     """FR-US2-011: SSOT único; AGENTS.md apunta, no duplica."""
     texto = (KIT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
