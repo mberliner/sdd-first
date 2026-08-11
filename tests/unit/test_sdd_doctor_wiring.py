@@ -68,3 +68,99 @@ def test_el_drift_cita_la_ruta_vendorizada_del_script(tmp_path, monkeypatch, cap
     sdd_init.main([str(tmp_path), "--language=python"])
     _, salida = _correr_doctor(tmp_path, monkeypatch, capsys)
     assert "python tools/sdd/core/render.py" in salida
+
+
+# -- SPEC-023 US2: el doctor repara la seccion de relaciones --------------------
+#
+# La inyeccion de la seccion ausente (FR-US2-008) y el cierre de reciprocos
+# (FR-US2-009) son de aca, no del validador: un gate que modifica lo que valida
+# deja de ser gate (FR-US2-011). Ambas son repetibles, no un paso unico de
+# migracion.
+
+import check_traceability as ct  # noqa: E402
+from test_check_traceability import _seccion  # noqa: E402
+
+
+def _repo_de_specs(tmp_path, specs) -> None:
+    """`specs` = {SPEC-NNN: (formato, cuerpo)} + su registro."""
+    specs_dir = tmp_path / "specs"
+    specs_dir.mkdir(parents=True, exist_ok=True)
+    filas = [
+        "| ID | Título | Estado | Iteración | Formato | Archivo |",
+        "|----|--------|--------|-----------|---------|---------|",
+    ]
+    for spec_id, (formato, cuerpo) in specs.items():
+        archivo = f"{spec_id}-x.md"
+        (specs_dir / archivo).write_text(cuerpo, encoding="utf-8")
+        filas.append(
+            f"| {spec_id} | Demo | draft | - | {formato} | [{archivo}]({archivo}) |"
+        )
+    (specs_dir / "SPECS_REGISTRY.md").write_text("\n".join(filas) + "\n", "utf-8")
+
+
+def test_inyecta_la_seccion_ausente_y_deja_pasar_al_validador(tmp_path):
+    """FR-US2-008: tambien en una spec hibrida escrita a mano post-migracion."""
+    _repo_de_specs(
+        tmp_path,
+        {
+            "SPEC-001": ("hibrido", "# SPEC-001\n\n## Clarifications\n\n- nada\n"),
+            "SPEC-002": ("casero", "# SPEC-002\n\ngenerada por render.py\n"),
+        },
+    )
+
+    problemas = sdd_doctor._relaciones_problemas(tmp_path, fix=False)
+    assert any("SPEC-001-x.md" in p for p in problemas)
+    assert not any("SPEC-002-x.md" in p for p in problemas)  # casero queda fuera
+
+    assert sdd_doctor._relaciones_problemas(tmp_path, fix=True) == []
+
+    texto = (tmp_path / "specs" / "SPEC-001-x.md").read_text(encoding="utf-8")
+    assert ct.parse_relations(texto) == {campo: () for campo in ct.RELATION_FIELDS}
+    # La seccion entra antes de la primera seccion posterior a las User Stories.
+    assert texto.index("Relación con specs") < texto.index("## Clarifications")
+    # La casero no se toca: agregarle la seccion produciria drift en `render`.
+    assert "Relación con specs" not in (tmp_path / "specs" / "SPEC-002-x.md").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_cierra_el_reciproco_de_un_enlace_escrito_a_mano(tmp_path):
+    """FR-US2-009/011: sirve igual hoy que dentro de un anio, y es idempotente."""
+    _repo_de_specs(
+        tmp_path,
+        {
+            "SPEC-001": (
+                "hibrido",
+                "# SPEC-001\n\n" + _seccion(**{"Depende de": "SPEC-002"}),
+            ),
+            "SPEC-002": ("hibrido", "# SPEC-002\n\n" + _seccion()),
+        },
+    )
+
+    problemas = sdd_doctor._relaciones_problemas(tmp_path, fix=False)
+    assert any("Es dependencia de" in p and "SPEC-002-x.md" in p for p in problemas)
+
+    assert sdd_doctor._relaciones_problemas(tmp_path, fix=True) == []
+
+    destino = tmp_path / "specs" / "SPEC-002-x.md"
+    escrito = destino.read_text(encoding="utf-8")
+    assert "**Es dependencia de:** [SPEC-001](SPEC-001-x.md)" in escrito
+    # Repetible: una segunda corrida no encuentra nada que hacer ni duplica.
+    assert sdd_doctor._relaciones_problemas(tmp_path, fix=True) == []
+    assert destino.read_text(encoding="utf-8") == escrito
+
+
+def test_una_spec_sin_seccion_recibe_la_vuelta_en_la_misma_corrida(tmp_path):
+    """FR-US2-008/009: inyectar y cerrar son una sola operacion de reparacion."""
+    _repo_de_specs(
+        tmp_path,
+        {
+            "SPEC-001": ("hibrido", "# SPEC-001\n\n" + _seccion(Extiende="SPEC-002")),
+            "SPEC-002": ("hibrido", "# SPEC-002\n\n## Clarifications\n"),
+        },
+    )
+
+    assert sdd_doctor._relaciones_problemas(tmp_path, fix=True) == []
+
+    escrito = (tmp_path / "specs" / "SPEC-002-x.md").read_text(encoding="utf-8")
+    assert "**Extendida por:** [SPEC-001](SPEC-001-x.md)" in escrito

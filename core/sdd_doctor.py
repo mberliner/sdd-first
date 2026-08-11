@@ -20,12 +20,15 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import check_traceability as ct  # noqa: E402
+import spec_relations  # noqa: E402
 from sdd_config import (  # noqa: E402
     GATE_WIRING,
     TEST_DIRS,
     find_repo_root,
     load,
     script_hint,
+    write_text_lf,
 )
 
 REQUIRED = [
@@ -133,6 +136,98 @@ def _coverage_inerte(cfg, repo_root: Path) -> list[str]:  # type: ignore[no-unty
     ]
 
 
+def _specs_hibridas(repo_root: Path):  # type: ignore[no-untyped-def]
+    """`{SPEC-NNN: (ruta, fila)}` de las specs hibridas registradas y en disco.
+
+    Las `casero` y las que genera `core/render.py` quedan fuera a proposito
+    (SPEC-023 FR-US2-008): agregarles la seccion a mano reaparece como drift en
+    el paso `render` del pipeline, y la validacion tampoco se las exige.
+    """
+    specs_dir = repo_root / "specs"
+    if not specs_dir.exists():
+        return {}
+    filas = {}
+    for row in ct._parse_registry(specs_dir / "SPECS_REGISTRY.md", []):
+        spec_id = ct.spec_id_of(row.archivo)
+        if spec_id and row.is_hybrid:
+            filas[spec_id] = row
+    salida = {}
+    for path in specs_dir.glob("SPEC-*.md"):
+        spec_id = ct.spec_id_of(path.name)
+        if spec_id in filas and path.name == filas[spec_id].archivo:
+            salida[spec_id] = (path, filas[spec_id])
+    return salida
+
+
+def _relaciones_problemas(repo_root: Path, fix: bool) -> list[str]:
+    """Seccion ausente y reciprocos sin cerrar: los reporta, y con --fix los escribe.
+
+    Las dos operaciones son de aca y no del validador (FR-US2-011), y son
+    **repetibles**: cierran igual los reciprocos de un `Depende de:` escrito a
+    mano hoy o dentro de un anio, e inyectan la seccion en una spec hibrida
+    creada a mano despues de la migracion inicial, que fue solo su primera
+    corrida.
+    """
+    specs = _specs_hibridas(repo_root)
+    problemas: list[str] = []
+    textos: dict[str, str] = {}
+
+    for spec_id, (path, _row) in sorted(specs.items()):
+        texto = path.read_text(encoding="utf-8")
+        if not ct.has_relation_section(texto):
+            if not fix:
+                problemas.append(
+                    f"{path.name}: sin la seccion '{spec_relations.SECTION_TITLE}', "
+                    "obligatoria en specs hibrido."
+                )
+                continue
+            texto = spec_relations.inject_section(texto)
+            write_text_lf(path, texto)
+        textos[spec_id] = texto
+
+    # Reciprocos: se calculan sobre los textos ya inyectados, asi la seccion
+    # recien creada puede recibir la vuelta en la misma corrida.
+    faltantes: list[tuple[str, str, str]] = []  # (destino, campo_inverso, origen)
+    for spec_id, texto in sorted(textos.items()):
+        relaciones = ct.parse_relations(texto) or {}
+        for campo, refs in relaciones.items():
+            inverso = ct.RELATION_COUNTERPART[campo]
+            for ref in refs:
+                if ref not in textos:
+                    continue  # referencia colgada o no hibrida: la reporta el gate
+                if spec_id not in (ct.parse_relations(textos[ref]) or {})[inverso]:
+                    faltantes.append((ref, inverso, spec_id))
+
+    for destino, inverso, origen in faltantes:
+        path, _row = specs[destino]
+        if not fix:
+            problemas.append(
+                f"{path.name}: falta el enlace inverso '{inverso}: {origen}' que "
+                f"exige la relacion declarada en {specs[origen][0].name}."
+            )
+            continue
+        nuevo = spec_relations.add_reference(
+            textos[destino],
+            inverso,
+            spec_relations.link(origen, specs[origen][0].name),
+        )
+        if nuevo is None:
+            problemas.append(
+                f"{path.name}: la seccion no declara el campo '{inverso}', asi que "
+                "no hay donde escribir el reciproco. Agregalo a mano."
+            )
+            continue
+        textos[destino] = nuevo
+        write_text_lf(path, nuevo)
+
+    if problemas and not fix:
+        problemas.append(
+            "Las relaciones entre specs se reparan con: python "
+            f"{script_hint(HERE / 'sdd_doctor.py', repo_root)} --fix"
+        )
+    return problemas
+
+
 def main(argv: list[str]) -> int:
     fix = "--fix" in argv
     repo_root = find_repo_root()
@@ -161,6 +256,9 @@ def main(argv: list[str]) -> int:
 
     # 3c. Paso `coverage` sin umbrales: nota, no problema.
     notes.extend(_coverage_inerte(cfg, repo_root))
+
+    # 3d. Seccion de relaciones ausente y reciprocos sin cerrar (SPEC-023).
+    problems.extend(_relaciones_problemas(repo_root, fix))
 
     # 4. Drift de artefactos generados.
     core = repo_root / "tools" / "sdd" / "core"
