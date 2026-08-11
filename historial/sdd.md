@@ -1,5 +1,71 @@
 # Historial SDD — sdd-first
 
+## 2026-08-11 — SPEC-023: la relación entre specs se declara al crearlas y se verifica sola
+
+**Scope:** `specs/SPEC-023-relacion-entre-specs.md`, `core/spec_relations.py`
+(nuevo), `core/check_traceability.py`, `core/sdd_spec.py`, `core/sdd_doctor.py`,
+`templates/docs/SPEC-FORMAT.md`, `templates/docs/playbooks/sdd-spec.md`,
+`templates/specs/SPEC-TEMPLATE.md` + `specs/SPEC-TEMPLATE.md`, las 22 specs
+`hibrido` del repositorio (migración), `tests/unit/test_check_traceability.py`,
+`tests/unit/test_sdd_spec.py`, `tests/unit/test_sdd_doctor_wiring.py`,
+`tests/unit/test_spec_format_reference.py`, `tests/unit/test_template_paths.py`.
+
+**Qué cambió:** la relación entre dos specs vivía en prosa, se anotaba de un solo
+lado y nadie la verificaba. Ahora es una sección obligatoria con tres pares
+simétricos de campos —`Extiende:`↔`Extendida por:`, `Depende de:`↔`Es dependencia
+de:`, `Supersede:`↔`Superseded por:`— y tres piezas que la sostienen:
+
+- **`sdd-spec --extends SPEC-NNN` / `--supersedes SPEC-NNN`** escriben el enlace
+  en **los dos** documentos en el momento en que la información existe y es
+  barata de anotar. Son repetibles y combinables; apuntar la misma spec con las
+  dos aborta. La creación es atómica: todo lo que hay que verificar sobre cada
+  referencia corre antes del primer byte, así que un fallo deja el árbol idéntico
+  —sin spec, sin fila y sin `.sdd/current-spec` tocado—. `--rationale` aterriza
+  ahora en el campo de prosa de la sección, que es donde se lo va a buscar.
+- **`check_traceability.py`** exige la sección en specs `hibrido` y valida que
+  las referencias existan, que cada campo directo tenga su recíproco del tipo
+  correcto y que una spec `active` no se apoye en una no vigente.
+- **`sdd_doctor.py --fix`** inyecta la sección ausente y cierra los recíprocos.
+
+**Decisiones:**
+- **`--supersedes` no degrada la spec vieja al crear.** La nueva nace `draft`:
+  degradarla ahí dejaría la capacidad sin spec vigente y a toda `active` que se
+  apoye en ella violando la restricción de estado. El cambio ocurre al cerrar la
+  iteración. Por eso mismo se aborta si alguna `active` cuelga de la referenciada.
+- **`Supersede:` queda fuera de la restricción de estado.** Apuntar a una
+  `superseded` es el desenlace normal de reemplazarla, no una violación. El
+  primer caso real es SPEC-017 → SPEC-006, que se declaró en esta migración.
+- **Quien escribe no es el validador.** Un gate que modifica lo que valida deja
+  de ser gate: la lectura de la sección vive en `check_traceability.py` —un solo
+  parseador, o el validador rechazaría lo que el creador escribe— y la escritura
+  en `core/spec_relations.py`, que consumen `sdd_spec` y `sdd_doctor`.
+- **La reparación es repetible, no una migración de una vez.** La misma operación
+  cierra el recíproco de un `Depende de:` escrito a mano hoy o dentro de un año, e
+  inyecta la sección en una spec `hibrido` creada a mano después; la migración
+  inicial fue su primera corrida.
+- **No hay `--depends`.** `--extends`/`--supersedes` resuelven el triage de
+  SPEC-022 y se saben al crear; la dependencia se descubre escribiendo los FR,
+  cuando `sdd_spec.py` ya terminó. Una bandera que casi siempre llegaría vacía no
+  evitaría el olvido del recíproco: lo que sí lo evita es poder cerrarlo después.
+- **Las specs `casero` quedan fuera.** `SPEC-000-naming.md` la genera
+  `core/render.py`: agregarle la sección a mano reaparecería como drift.
+- Declarar `--extends`/`--supersedes` **resuelve el triage** igual que `--new`:
+  deja el solape escrito en los dos documentos, que es más de lo que el triage
+  pide.
+
+**Migración:** las 22 specs `hibrido` recibieron la sección y se cerraron los
+recíprocos preexistentes que SPEC-022 dejó abiertos (SPEC-001 y SPEC-017 reciben
+`Es dependencia de:`). Sin ese paso la reciprocidad habría nacido fallando sobre
+specs `active` que nadie tocó.
+
+**Deuda declarada:** el vocabulario se queda en tres relaciones; "conflicto con"
+o "duplica parcialmente" se agregan cuando aparezca el caso, no antes.
+
+**SSOTs afectados:** `templates/docs/SPEC-FORMAT.md` (gramática de la sección
+**y** criterio de cuándo usar cada campo, en un único documento),
+`templates/docs/playbooks/sdd-spec.md` (cuándo usar cada bandera y cuándo pasa a
+`superseded` la spec reemplazada), `specs/SPECS_REGISTRY.md`.
+
 ## 2026-08-10 — SPEC-022: antes de crear una spec, reusar la que ya cubre la capacidad
 
 **Scope:** `specs/SPEC-022-reusar-specs-existentes.md`, `core/spec_index.py`

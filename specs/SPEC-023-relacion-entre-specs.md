@@ -327,6 +327,12 @@ falla `check_traceability.py` con código 1.
 
 ## Historial
 
+- 2026-08-11: implementada y pasada a `active` (iteración 9). La escritura de la
+  sección vive en `core/spec_relations.py` —nuevo— y la lectura en
+  `check_traceability.py`, como exige FR-US2-011. La migración cubrió las 22
+  specs `hibrido` y cerró los recíprocos que SPEC-022 dejó abiertos; de paso se
+  declaró el primer `Supersede:` real del repositorio (SPEC-017 → SPEC-006), que
+  ejercita la excepción de estado de FR-US2-007 sobre datos verdaderos.
 - 2026-08-10: creada (draft) al partir SPEC-022, que había llegado a 31
   requisitos. El corte respeta historias completas: acá vienen las banderas de
   enlace (`--extends`, `--supersedes`, `--rationale`), la sección en la plantilla
