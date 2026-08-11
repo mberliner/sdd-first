@@ -1,5 +1,65 @@
 # Historial SDD — sdd-first
 
+## 2026-08-10 — SPEC-022: antes de crear una spec, reusar la que ya cubre la capacidad
+
+**Scope:** `specs/SPEC-022-reusar-specs-existentes.md`, `core/spec_index.py`
+(nuevo), `core/sdd_spec.py`, `core/sdd_gate.py`, `core/check_traceability.py`,
+`core/sdd_config.py`, `.sdd/config.yaml`, `examples/config/config.yaml`,
+`templates/docs/playbooks/sdd-spec.md`, `AGENTS.md`,
+`tests/unit/test_spec_index.py` y `tests/unit/test_sdd_spec_reuse.py` (nuevos),
+`tests/unit/test_sdd_spec.py`, `tests/unit/test_sdd_gate.py`,
+`tests/unit/test_sdd_config.py`, `tests/unit/test_check_traceability.py`,
+`tests/unit/test_example_config.py`, `tests/unit/test_template_paths.py`.
+
+**Qué cambió:** el kit sólo sabía *crear* specs. Reusar una vigente exigía
+editar `.sdd/current-spec` a mano, así que en la práctica se creaba una spec
+nueva siempre y las capacidades quedaban repartidas en documentos que se pisan.
+Ahora hay tres piezas:
+
+- **`sdd-spec --reuse SPEC-NNN --fr FR-NNN`** declara una spec existente sin
+  crear archivo ni fila, y sólo si ese requisito ya está escrito en ella:
+  adoptar no puede abrir el gate con menos evidencia que crear. Sobre una spec
+  `active` exige además la fila de *Coverage mapping*, porque sin ella
+  `check_traceability` —que corre en el pre-commit con `always_run`— quedaría
+  rojo y bloquearía hasta el commit del test.
+- **Triage de solape** (`core/spec_index.py`): antes de crear, se listan las
+  specs vigentes que podrían cubrir ya la capacidad, por título o porque ya
+  gobiernan los archivos a tocar. Al haberlas, aborta sin escribir nada y exige
+  resolver el solape con `--reuse` o dejarlo escrito con `--new --rationale`.
+- **Aviso de reuso en el gate**: cuando bloquea por falta de spec declarada, el
+  motivo nombra las specs que ya gobiernan ese archivo. Es el punto donde la
+  señal es más dura, porque el archivo concreto ya se conoce.
+
+**Decisiones:**
+- El índice se deriva de tres fuentes que ya viven en el repositorio (rutas de
+  *Key Entities*, tests del *Coverage mapping*, citas `SPEC-NNN` en el código),
+  se computa en memoria y no se persiste: un artefacto generado más es un
+  artefacto que puede quedar desincronizado.
+- Nada de similitud semántica: sobre specs que comparten todo el vocabulario del
+  dominio, la léxica rankea ruido, y los embeddings romperían el agnosticismo y
+  el trabajo offline. Las citas ya escritas son señal dura y determinista.
+- El índice conserva las rutas que una spec `draft` todavía no creó. Son
+  precisamente las que el gate bloquea primero, y descartarlas dejaba ciego al
+  aviso en su caso más frecuente.
+- `specs.triage` vive en el config con defaults **neutros** en el loader: el
+  vocabulario del dominio lo siembra cada proyecto, el kit incluido. Hardcodear
+  `spec`/`sdd` en `core/` es justo la lista que el Principio I manda al config.
+
+**Hallazgo de paso:** `_TEST_REF` de `check_traceability` no estaba anclada y de
+`src/tests/test_x.py` extraía `tests/test_x.py`, así que la verificación de
+existencia buscaba donde no era. Rompía justo en el layout con los tests dentro
+de las carpetas de código, el que FR-US1-004 contempla.
+
+**Deuda declarada:** el triage por título deducido del stem no hace stemming, así
+que `existentes` no alcanza a `existente`; se compensa con `--touches`. La
+relación entre specs (`--extends`, `--supersedes`) es SPEC-023, todavía `draft`:
+`--new --rationale` acepta y exige el texto, pero quien lo escribe en la sección
+de relaciones es esa spec.
+
+**SSOTs afectados:** `templates/docs/playbooks/sdd-spec.md` (procedimiento),
+`AGENTS.md` (paso 4, referencia sin duplicar), `.sdd/config.yaml` y
+`examples/config/config.yaml` (parámetros del triage).
+
 ## 2026-08-09 — Soporte para Antigravity CLI unificado (Iteración 7)
 
 **Scope:** `specs/SPEC-015-wiring-apunta-al-codigo-real.md` (ampliada con User Story 2),

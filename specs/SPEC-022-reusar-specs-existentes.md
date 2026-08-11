@@ -232,8 +232,8 @@ y sugiere `sdd_spec.py --reuse SPEC-NNN --fr FR-NNN`.
 - **FR-US1-003** MUST: `--reuse` exige `--fr FR-NNN` —el identificador del
   requisito que la capacidad nueva agrega a la spec adoptada— y **solo declara la
   spec si ese FR ya está escrito en ella** con el criterio de contenido de
-  SPEC-017 FR-US3-001 (declaración `**FR-NNN**` con texto propio más allá de la
-  keyword). Si el FR no existe todavía, aborta con código ≠ 0, sin declarar nada,
+  SPEC-017 FR-US3-001: el ID declarado en negrita, seguido de texto propio más
+  allá de la keyword normativa. Si el FR no existe todavía, aborta con código ≠ 0, sin declarar nada,
   e imprime dónde escribirlo y con qué forma. Adoptar una spec no puede ser más
   barato que crearla: en ambos caminos el gate se abre contra un requisito
   escrito antes del código, nunca contra los FR viejos (Principio III).
@@ -436,6 +436,18 @@ y sugiere `sdd_spec.py --reuse SPEC-NNN --fr FR-NNN`.
 
 ## Historial
 
+- 2026-08-10: **implementada y pasada a `active`** (iteración 8). Los tests de
+  US1 viven en `tests/unit/test_sdd_spec_reuse.py` y los del índice y el triage
+  en `tests/unit/test_spec_index.py`; el *Coverage mapping* se corrigió para
+  apuntar donde efectivamente están. Al implementar FR-US1-004 se destapó que
+  `_TEST_REF` de `check_traceability` no estaba anclada —de `src/tests/test_x.py`
+  extraía `tests/test_x.py`— y rompía justo en el layout que ese requisito
+  contempla; se arregló ahí, en el único lector del formato (FR-US1-005).
+  Medición del triage sobre este mismo repositorio: un título de vocabulario
+  compartido ("aviso de reuso en el gate") produce 8 candidatas sobre 23 specs,
+  la mayoría verdaderas —esas specs sí tocan archivos con `gate` en el nombre—;
+  el falso positivo visible es el compromiso que esta spec eligió, y `--touches`
+  es la vía precisa.
 - 2026-08-10: creada (draft).
 - 2026-08-10: FR-006 movido a SPEC-023; FR-010 eliminado por redundante.
 - 2026-08-10: reescrita tras análisis. Se agrega `--reuse` (adoptar una spec
