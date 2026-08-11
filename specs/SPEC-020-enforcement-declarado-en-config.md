@@ -28,6 +28,12 @@ arbitraria y cuyo `step` no está en `pipeline.steps` hace fallar
 `check_constitution.py` nombrando el principio y el paso faltante; agregando el
 paso al config, pasa.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-08

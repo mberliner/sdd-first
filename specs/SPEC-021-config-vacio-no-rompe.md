@@ -29,6 +29,12 @@ ya tiene escrito para exactamente ese caso.
 ítems) hace que `check_naming.py <root>` salga 0 imprimiendo el aviso de "nada
 que verificar", en vez de propagar una excepción.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-08

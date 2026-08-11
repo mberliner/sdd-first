@@ -63,6 +63,12 @@ invisible tanto tiempo.
 `tests/integration`; el `.sdd/config.yaml` sembrado declara las dos y el mensaje
 de layout detectado las nombra.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-07

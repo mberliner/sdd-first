@@ -22,6 +22,12 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
 `.sdd/current-spec` con solo comentarios; el hook `sdd-gate` de pre-commit
 sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-01

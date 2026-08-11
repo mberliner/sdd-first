@@ -21,6 +21,12 @@ puede pasar.
 la aserción sobre el wiring ejecutable sigue fallando si se elimina el `chmod`
 de `sdd_init.py` (la protección no se pierde, cambia de forma).
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-04

@@ -21,6 +21,12 @@ verificar que aparecen `README.md`, `docs/SDD-OPERACION.md`, y las 5 skills
 (`analyze`, `clarify`, `sdd-spec`, `sdd-doctor`, `sdd-configure`) bajo
 `.agents/skills/`.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-02

@@ -20,6 +20,12 @@ agrega la fila dentro de la tabla del registro. Y sobre un proyecto que **ya
 tiene código**: el pipeline mide ese código (no lo omite) y el resumen
 distingue los pasos que verificaron algo de los que se omitieron.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-07-02

@@ -82,6 +82,12 @@ kit persigue en todo lo demás (un VERDE que no miró lo que más importa).
 escenarios e2e como un paso más, y romper un escenario pinta el paso `e2e` en
 rojo; el paso `coverage` sigue sin ejecutarlos.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-07

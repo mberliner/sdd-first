@@ -26,6 +26,12 @@ produce un `CONSTITUTION.md` con Preámbulo y procedimiento de enmienda, y
 ningún archivo instalado contiene la cadena `core/` apuntando al kit (todas
 dicen `tools/sdd/core/`), mientras el propio kit conserva `core/`.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-04

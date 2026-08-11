@@ -35,6 +35,12 @@ Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte pa
 
 **Why this priority:** Antigravity CLI soporta pre-tool hooks via `.agents/hooks.json`, lo que permite replicar la contencion exacta del gate antes de editar. Expandir el soporte asegura que proyectos usando Antigravity tengan el mismo enforcement que los de Claude.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-05

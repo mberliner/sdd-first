@@ -11,6 +11,12 @@ solo porque el gate spec-first exige spec antes de tocar `core/`.
 
 **Independent Test:** grep de "sdd-kit" sobre `core/` no devuelve resultados.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-02

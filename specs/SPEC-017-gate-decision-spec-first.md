@@ -61,6 +61,12 @@ alta, garantía nula.
 tras el reset post-commit habilita el commit siguiente; y una spec declarada que
 solo tiene los placeholders de la plantilla bloquea.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** [SPEC-006](SPEC-006-gate-verifica-estado-spec.md) | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** [SPEC-022](SPEC-022-reusar-specs-existentes.md) | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-06

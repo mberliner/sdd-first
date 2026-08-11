@@ -41,6 +41,12 @@ Cada uno cuesta minutos y confianza.
 ningún archivo instalado contiene la cadena `{{`, los mensajes de drift citan
 rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-05

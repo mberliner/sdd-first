@@ -11,6 +11,12 @@ Como <rol>, quiero <capacidad> para <beneficio>.
 
 **Independent Test:** ...
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session YYYY-MM-DD

@@ -148,6 +148,190 @@ def test_test_ref_captura_la_ruta_entera_no_desde_la_palabra_tests(tmp_path):
     assert errors == []
 
 
+# -- SPEC-023 US2: la relacion entre specs se verifica sola ---------------------
+
+_CAMPOS_VACIOS = {
+    "Extiende": "—",
+    "Supersede": "—",
+    "Depende de": "—",
+    "Extendida por": "—",
+    "Es dependencia de": "—",
+    "Superseded por": "—",
+}
+
+
+def _seccion(**campos) -> str:
+    """La seccion con los valores pedidos; el resto de los campos, vacios."""
+    valores = {**_CAMPOS_VACIOS, **campos}
+
+    def celda(campo: str) -> str:
+        return f"**{campo}:** {valores[campo]}"
+
+    return (
+        "## Relación con specs existentes\n\n"
+        f"- {celda('Extiende')} | {celda('Supersede')} | {celda('Depende de')}\n"
+        f"- {celda('Extendida por')} | {celda('Es dependencia de')} "
+        f"| {celda('Superseded por')}\n"
+        "- **Por qué no cabe en una spec existente:** —\n"
+    )
+
+
+def _repo_specs(tmp_path, specs):
+    """`specs` = {spec_id: (estado, formato, seccion_o_None)} -> (rows, specs_dir)."""
+    specs_dir = tmp_path / "specs"
+    specs_dir.mkdir(exist_ok=True)
+    rows = []
+    for spec_id, (estado, formato, seccion) in specs.items():
+        archivo = f"{spec_id}-x.md"
+        cuerpo = f"# {spec_id}\n\n" + (seccion or "")
+        (specs_dir / archivo).write_text(cuerpo, encoding="utf-8")
+        rows.append(ct._RegistryRow(spec_id, estado, formato, archivo))
+    return rows, specs_dir
+
+
+def test_pares_simetricos_se_leen_desde_los_dos_lados():
+    """FR-US2-003: el tipo de la relacion se lee desde cualquiera de las puntas."""
+    for directo, inverso in ct.RELATION_PAIRS:
+        assert ct.RELATION_COUNTERPART[directo] == inverso
+        assert ct.RELATION_COUNTERPART[inverso] == directo
+    assert len(ct.RELATION_FIELDS) == 6
+
+
+def test_marcadores_de_vacio_son_todos_equivalentes():
+    """FR-US2-004: em dash, en dash, guion simple y campo sin valor son lo mismo."""
+    for marcador in ("—", "–", "-", ""):
+        texto = "# SPEC-001\n\n" + _seccion(Extiende=marcador)
+        assert ct.parse_relations(texto)["Extiende"] == ()
+
+
+def test_sin_seccion_el_parseo_lo_distingue_de_la_seccion_vacia():
+    """FR-US2-008/011: el doctor decide inyectar leyendo esto, no reparseando."""
+    assert ct.parse_relations("# SPEC-001\n\n## Clarifications\n") is None
+    assert ct.parse_relations("# SPEC-001\n\n" + _seccion()) is not None
+
+
+def test_spec_hibrida_sin_la_seccion_falla_nombrandola(tmp_path):
+    """FR-US2-004."""
+    rows, specs_dir = _repo_specs(tmp_path, {"SPEC-001": ("draft", "hibrido", None)})
+    errors: list[str] = []
+    ct._check_relations(rows, specs_dir, errors)
+    assert any("SPEC-001-x.md" in e and "Relacion con specs" in e for e in errors)
+
+
+def test_spec_casero_sin_la_seccion_no_se_valida(tmp_path):
+    """FR-US2-004: las generadas por render.py quedan fuera o habria drift."""
+    rows, specs_dir = _repo_specs(tmp_path, {"SPEC-000": ("active", "casero", None)})
+    errors: list[str] = []
+    ct._check_relations(rows, specs_dir, errors)
+    assert errors == []
+
+
+def test_referencia_a_spec_inexistente_es_violacion(tmp_path):
+    """FR-US2-005: un enlace colgado."""
+    rows, specs_dir = _repo_specs(
+        tmp_path,
+        {"SPEC-001": ("draft", "hibrido", _seccion(**{"Depende de": "SPEC-099"}))},
+    )
+    errors: list[str] = []
+    ct._check_relations(rows, specs_dir, errors)
+    assert any("SPEC-099" in e for e in errors)
+
+
+def test_falta_el_enlace_inverso_nombra_spec_y_campo(tmp_path):
+    """FR-US2-006: la violacion dice qué campo falta y dónde."""
+    rows, specs_dir = _repo_specs(
+        tmp_path,
+        {
+            "SPEC-001": ("draft", "hibrido", _seccion(**{"Depende de": "SPEC-002"})),
+            "SPEC-002": ("draft", "hibrido", _seccion()),
+        },
+    )
+    errors: list[str] = []
+    ct._check_relations(rows, specs_dir, errors)
+    assert any(
+        "SPEC-001-x.md" in e and "Es dependencia de" in e and "SPEC-002-x.md" in e
+        for e in errors
+    )
+
+
+def test_reciproco_del_tipo_equivocado_no_alcanza(tmp_path):
+    """FR-US2-003/006: el par tiene que ser el que corresponde a la relacion."""
+    rows, specs_dir = _repo_specs(
+        tmp_path,
+        {
+            "SPEC-001": ("draft", "hibrido", _seccion(Extiende="SPEC-002")),
+            # El inverso de `Extiende` es `Extendida por`, no `Es dependencia de`.
+            "SPEC-002": (
+                "draft",
+                "hibrido",
+                _seccion(**{"Es dependencia de": "SPEC-001"}),
+            ),
+        },
+    )
+    errors: list[str] = []
+    ct._check_relations(rows, specs_dir, errors)
+    assert any("Extendida por" in e for e in errors)
+
+
+def test_active_apoyada_en_draft_falla_pero_el_inverso_pasa(tmp_path):
+    """FR-US2-007: `Depende de` exige vigencia; `Es dependencia de` no."""
+    directa = {
+        "SPEC-001": ("active", "hibrido", _seccion(**{"Depende de": "SPEC-002"})),
+        "SPEC-002": ("draft", "hibrido", _seccion(**{"Es dependencia de": "SPEC-001"})),
+    }
+    errors: list[str] = []
+    rows, specs_dir = _repo_specs(tmp_path, directa)
+    ct._check_relations(rows, specs_dir, errors)
+    assert any("SPEC-001-x.md" in e and "draft" in e for e in errors)
+
+    # Misma pareja, mirada desde el lado inverso: la 'active' no se apoya en nada.
+    inversa = {
+        "SPEC-001": (
+            "active",
+            "hibrido",
+            _seccion(**{"Es dependencia de": "SPEC-002"}),
+        ),
+        "SPEC-002": ("draft", "hibrido", _seccion(**{"Depende de": "SPEC-001"})),
+    }
+    errors = []
+    rows, specs_dir = _repo_specs(tmp_path, inversa)
+    ct._check_relations(rows, specs_dir, errors)
+    assert errors == []
+
+
+def test_supersede_hacia_una_superseded_es_el_desenlace_normal(tmp_path):
+    """FR-US2-007: la restriccion de estado no alcanza a `Supersede:`."""
+    rows, specs_dir = _repo_specs(
+        tmp_path,
+        {
+            "SPEC-001": ("active", "hibrido", _seccion(Supersede="SPEC-002")),
+            "SPEC-002": (
+                "superseded",
+                "hibrido",
+                _seccion(**{"Superseded por": "SPEC-001"}),
+            ),
+        },
+    )
+    errors: list[str] = []
+    ct._check_relations(rows, specs_dir, errors)
+    assert errors == []
+
+
+def test_el_repositorio_migrado_no_tiene_ninguna_violacion():
+    """FR-US2-009/010, SC-007: la migracion cerro las vueltas preexistentes.
+
+    Activar la reciprocidad sobre specs `active` que nadie toco no puede
+    estrenar el validador en rojo.
+    """
+    from pathlib import Path
+
+    specs_dir = Path(__file__).resolve().parents[2] / "specs"
+    rows = ct._parse_registry(specs_dir / "SPECS_REGISTRY.md", [])
+    errors: list[str] = []
+    ct._check_relations(rows, specs_dir, errors)
+    assert errors == []
+
+
 def test_spec_files_ignora_template(tmp_path):
     (tmp_path / "SPEC-TEMPLATE.md").write_text("", encoding="utf-8")
     (tmp_path / "SPEC-001-a.md").write_text("", encoding="utf-8")

@@ -32,6 +32,12 @@ como su valor central.
 `active`, el gate debe permitir (dado que además fue tocada después de
 declararse, regla ya existente).
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** [SPEC-017](SPEC-017-gate-decision-spec-first.md)
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-01

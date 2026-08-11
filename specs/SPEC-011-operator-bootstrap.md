@@ -22,6 +22,12 @@ previo, los comandos del bloque de bootstrap del `README.md` sobre un
 directorio nuevo → termina en `pipeline` VERDE sin errores intermedios ni
 pasos inferidos.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-04

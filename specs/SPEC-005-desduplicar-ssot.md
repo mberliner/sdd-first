@@ -23,6 +23,12 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
 `specs/SPEC-TEMPLATE.md` sin tocar su contraparte en `templates/`; el paso
 `render` del pipeline falla en ese caso.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-01

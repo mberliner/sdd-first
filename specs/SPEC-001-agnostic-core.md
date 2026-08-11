@@ -16,6 +16,12 @@ disciplina de specs en cualquier proyecto sin reescribir tooling.
 `.sdd/config.yaml`, delegando los de código al adaptador del lenguaje activo,
 y sale VERDE/ROJO según el resultado agregado.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** [SPEC-022](SPEC-022-reusar-specs-existentes.md) | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-07-01

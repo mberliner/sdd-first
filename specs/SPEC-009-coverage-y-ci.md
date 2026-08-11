@@ -56,6 +56,12 @@ la herramienta de piso deja el config con un umbral igual a la cobertura real
 medida (redondeada hacia abajo), y el paso `coverage` pasa a verificar en vez de
 omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-04

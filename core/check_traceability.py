@@ -11,6 +11,9 @@ Gate determinista de trazabilidad. Sobre el directorio de specs:
 3. Cobertura FR->test (solo specs 'active'): cada FR-NNN declarado aparece en el
    Coverage mapping, y toda referencia a un archivo de test dentro del Coverage
    mapping existe.
+4. Relacion entre specs (solo 'hibrido'): la seccion "Relacion con specs
+   existentes" esta presente, sus referencias existen, cada campo directo tiene
+   su reciproco del otro lado y una spec 'active' no se apoya en una no vigente.
 
 No juzga *adecuacion* (eso lo aportan las skills analyze/clarify y la revision
 humana). Es agnostico de dominio y de lenguaje. Detalle en docs/SDD-ENFORCEMENT.md.
@@ -54,6 +57,110 @@ _TEST_REF = re.compile(
     r"(?<![\w/.-])(?:[\w.-]+/)*(?:tests?|spec)/[\w./-]+\.(?:py|js|ts|go|rs|java|rb)"
 )
 _COVERAGE_HEADING = re.compile(r"(?i)^#+\s+.*coverage mapping")
+
+# -- Relacion entre specs (SPEC-023 US2) ---------------------------------------
+#
+# La *lectura* de la seccion vive aca y en ningun otro lado (FR-US2-011): quien
+# la escribe --`sdd_spec.py` al crear con --extends/--supersedes, `sdd_doctor.py`
+# al inyectarla o cerrar reciprocos-- consume estos mismos parseadores desde
+# `spec_relations.py`. Dos ideas de que es la seccion harian que el validador
+# rechace lo que el creador escribe. El validador, en cambio, no escribe: un gate
+# que modifica lo que valida deja de ser gate.
+RELATION_HEADING = re.compile(r"(?i)^#+\s+.*relaci.n con specs existentes")
+
+# Los tres pares simetricos, directo -> inverso (FR-US2-003). El tipo de la
+# relacion se lee desde cualquiera de los dos lados, asi que una violacion puede
+# nombrar el campo exacto que falta.
+RELATION_PAIRS: tuple[tuple[str, str], ...] = (
+    ("Extiende", "Extendida por"),
+    ("Depende de", "Es dependencia de"),
+    ("Supersede", "Superseded por"),
+)
+RELATION_FIELDS: tuple[str, ...] = tuple(f for par in RELATION_PAIRS for f in par)
+RELATION_COUNTERPART: dict[str, str] = {
+    **{directo: inverso for directo, inverso in RELATION_PAIRS},
+    **{inverso: directo for directo, inverso in RELATION_PAIRS},
+}
+
+# Campo de prosa de la misma seccion: no declara un enlace, asi que no se valida
+# como tal, pero el escritor necesita reconocerlo (`--rationale`, FR-US1-002).
+RATIONALE_FIELD = "Por qué no cabe en una spec existente"
+
+# Los dos campos que expresan apoyo en algo que tiene que seguir en pie: una spec
+# 'active' no puede apuntarlos a una no vigente (FR-US2-007). `Supersede:` queda
+# fuera --apuntar a una 'superseded' es el desenlace normal de reemplazarla-- y
+# los tres inversos tambien.
+RELATION_NEEDS_ACTIVE: frozenset[str] = frozenset({"Extiende", "Depende de"})
+
+_KNOWN_FIELDS = {campo.lower(): campo for campo in (*RELATION_FIELDS, RATIONALE_FIELD)}
+_RELATION_LABEL = re.compile(r"\*\*\s*([^*:]+?)\s*:?\s*\*\*(.*)")
+_SPEC_REF = re.compile(r"\bSPEC-(\d+)\b")
+# Marcadores de vacio (SPEC-FORMAT.md): las specs se escriben a mano y en
+# consolas que no siempre producen el mismo caracter, asi que em dash, en dash,
+# guion simple y campo sin valor son lo mismo.
+EMPTY_MARKERS: frozenset[str] = frozenset({"", "—", "–", "-", "--"})
+
+
+def canonical_field(raw: str) -> str | None:
+    """Nombre canonico del campo, o `None` si la etiqueta no es de la seccion."""
+    return _KNOWN_FIELDS.get(" ".join(raw.split()).lower())
+
+
+def is_empty_value(raw: str) -> bool:
+    return raw.strip() in EMPTY_MARKERS
+
+
+def spec_id_of(name: str) -> str | None:
+    """`SPEC-NNN` normalizado a tres digitos, desde un archivo o una referencia."""
+    match = _SPEC_REF.search(name)
+    return f"SPEC-{int(match.group(1)):03d}" if match else None
+
+
+def iter_relation_fields(text: str):
+    """Devuelve `(indice_de_linea, indice_de_celda, match)` por campo declarado.
+
+    La seccion agrupa varios campos por linea separados por `|`, asi que la
+    unidad de parseo es la celda y no la linea. Lo consume tanto el validador
+    como el escritor, que necesita ademas las coordenadas para reemplazar.
+    """
+    inside = False
+    for i, raw in enumerate(text.splitlines()):
+        stripped = raw.strip()
+        if RELATION_HEADING.match(stripped):
+            inside = True
+            continue
+        if stripped.startswith("#"):
+            inside = False
+        if not inside:
+            continue
+        for j, celda in enumerate(raw.split("|")):
+            match = _RELATION_LABEL.search(celda)
+            if match and canonical_field(match.group(1)):
+                yield i, j, match
+
+
+def has_relation_section(text: str) -> bool:
+    return any(RELATION_HEADING.match(line.strip()) for line in text.splitlines())
+
+
+def parse_relations(text: str) -> dict[str, tuple[str, ...]] | None:
+    """Los seis campos de enlace de la spec, o `None` si no tiene la seccion.
+
+    Un campo ausente y un campo vacio son lo mismo: tupla vacia. La distincion
+    que importa es "la spec no tiene la seccion" (violacion de FR-US2-004) vs
+    "la tiene y no declara enlaces", que es el caso normal.
+    """
+    if not has_relation_section(text):
+        return None
+    relations: dict[str, tuple[str, ...]] = {campo: () for campo in RELATION_FIELDS}
+    for _i, _j, match in iter_relation_fields(text):
+        campo = canonical_field(match.group(1))
+        if campo not in relations:
+            continue  # el campo de prosa no declara enlaces
+        refs = [f"SPEC-{int(n):03d}" for n in _SPEC_REF.findall(match.group(2))]
+        relations[campo] = tuple(dict.fromkeys([*relations[campo], *refs]))
+    return relations
+
 
 # Keyword normativo con que arranca el cuerpo de un FR de la plantilla
 # (`**FR-001** MUST: ...`): sin el, del placeholder no queda texto. El umbral
@@ -226,6 +333,72 @@ def _check_consistency(
             )
 
 
+def _check_relations(
+    rows: list[_RegistryRow], specs_dir: Path, errors: list[str]
+) -> None:
+    """Seccion presente, referencias reales, reciprocas y sin apoyo en no vigentes.
+
+    Corre sobre el conjunto de specs y no spec por spec porque la reciprocidad
+    (FR-US2-006) solo se puede juzgar mirando las dos puntas del enlace.
+    """
+    por_id: dict[str, _RegistryRow] = {}
+    for row in rows:
+        spec_id = spec_id_of(row.archivo)
+        if spec_id:
+            por_id[spec_id] = row
+    en_disco: dict[str, Path] = {}
+    for path in _spec_files(specs_dir):
+        spec_id = spec_id_of(path.name)
+        if spec_id:
+            en_disco[spec_id] = path
+
+    relaciones: dict[str, dict[str, tuple[str, ...]]] = {}
+    for spec_id, path in sorted(en_disco.items()):
+        row = por_id.get(spec_id)
+        if row is None or not row.is_hybrid:
+            continue  # las specs de otro formato no se validan contra la seccion
+        parsed = parse_relations(path.read_text(encoding="utf-8"))
+        if parsed is None:
+            errors.append(
+                f"{path.name}: falta la seccion 'Relacion con specs existentes', "
+                "obligatoria en specs hibrido (ver docs/SPEC-FORMAT.md). Se "
+                "inyecta con: sdd_doctor.py --fix"
+            )
+            continue
+        relaciones[spec_id] = parsed
+
+    for spec_id, parsed in sorted(relaciones.items()):
+        nombre = en_disco[spec_id].name
+        for campo, refs in parsed.items():
+            for ref in refs:
+                if ref not in por_id or ref not in en_disco:
+                    errors.append(
+                        f"{nombre}: '{campo}: {ref}' apunta a una spec que no "
+                        "existe en disco o no esta en SPECS_REGISTRY.md."
+                    )
+                    continue
+                if (
+                    campo in RELATION_NEEDS_ACTIVE
+                    and por_id[spec_id].estado == "active"
+                    and por_id[ref].estado != "active"
+                ):
+                    errors.append(
+                        f"{nombre}: spec 'active' con '{campo}: {ref}', que esta "
+                        f"en estado '{por_id[ref].estado}'. Ambos campos expresan "
+                        "apoyo en una spec que tiene que seguir vigente."
+                    )
+                otra = relaciones.get(ref)
+                if otra is None:
+                    continue  # spec no hibrida, o sin seccion: ya se reporto
+                inverso = RELATION_COUNTERPART[campo]
+                if spec_id not in otra[inverso]:
+                    errors.append(
+                        f"{nombre}: '{campo}: {ref}' sin enlace inverso: falta "
+                        f"'{inverso}: {spec_id}' en {en_disco[ref].name}. Se "
+                        "cierra con: sdd_doctor.py --fix"
+                    )
+
+
 def main(argv: list[str]) -> int:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
@@ -257,6 +430,8 @@ def main(argv: list[str]) -> int:
         _check_structure(spec_path.name, text, errors)
         if row.estado == "active":
             _check_coverage(spec_path.name, text, repo_root, errors)
+
+    _check_relations(rows, specs_dir, errors)
 
     if errors:
         print("Violaciones de trazabilidad:", file=sys.stderr)

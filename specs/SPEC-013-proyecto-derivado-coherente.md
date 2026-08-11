@@ -22,6 +22,12 @@ con `--language python`; en ambos casos el `CONSTITUTION.md` generado contiene
 solo los cuatro principios del núcleo, y ninguna ruta citada en los documentos
 instalados apunta a un archivo ausente.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-04

@@ -18,6 +18,12 @@ spec-first) está declarado pero sin enforcement.
 **Independent Test:** `python core/sdd_doctor.py` exit 0 y
 `python core/pipeline.py` VERDE con los pasos `tests` y `lint` incluidos.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-07-02

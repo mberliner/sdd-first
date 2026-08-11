@@ -32,6 +32,12 @@ paso ejecutable del onboarding.
 `python tools/sdd/core/gen_skill_adapters.py --check` sale 0 sin haber corrido
 nunca el generador a mano.
 
+## Relación con specs existentes
+
+- **Extiende:** — | **Supersede:** — | **Depende de:** —
+- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Por qué no cabe en una spec existente:** —
+
 ## Clarifications
 
 ### Session 2026-08-06
