@@ -26,8 +26,10 @@ from sdd_config import (  # noqa: E402
     GATE_WIRING,
     TEST_DIRS,
     find_repo_root,
+    gitignore_has_current_spec_line,
     load,
     script_hint,
+    seed_current_spec,
     write_text_lf,
 )
 
@@ -38,7 +40,6 @@ REQUIRED = [
     "specs/SPECS_REGISTRY.md",
     "specs/SPEC-000-naming.md",
     ".sdd/config.yaml",
-    ".sdd/current-spec",
 ]
 
 
@@ -247,6 +248,25 @@ def main(argv: list[str]) -> int:
     for rel in REQUIRED:
         if not (repo_root / rel).exists():
             problems.append(f"Falta artefacto requerido: {rel}")
+
+    # 2b. `.sdd/current-spec` es estado de sesion local, no versionado (SPEC-004
+    # FR-008): no es un artefacto requerido, se siembra solo si falta.
+    if seed_current_spec(repo_root):
+        notes.append(
+            "sembrado .sdd/current-spec (no versionado; ver docs/SDD-ENFORCEMENT.md)"
+        )
+
+    # 2c. El .gitignore del proyecto tiene que ignorar .sdd/current-spec de
+    # verdad (SPEC-004 FR-009): `sdd-init` pudo haber conservado uno propio sin
+    # la linea, que neutralizaria FR-008 en silencio.
+    gitignore = repo_root / ".gitignore"
+    if not gitignore.exists():
+        problems.append("Falta .gitignore (no ignora .sdd/current-spec).")
+    elif not gitignore_has_current_spec_line(gitignore):
+        problems.append(
+            ".gitignore no ignora .sdd/current-spec: agrega la linea "
+            "'.sdd/current-spec' (SPEC-004 FR-009) o corre sdd-init de nuevo."
+        )
 
     # 3. Gates cableados (existen y cablean el gate).
     problems.extend(_gate_wiring_problems(repo_root))

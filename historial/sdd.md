@@ -1,5 +1,98 @@
 # Historial SDD — sdd-first
 
+## 2026-08-11 — SPEC-004 (reabierta, G-9): `.sdd/current-spec` deja de versionarse
+
+**Scope:** `specs/SPEC-004-enforcement-hardening.md` (FR-008/SC-005),
+`core/sdd_config.py`, `core/sdd_doctor.py`, `.gitignore`,
+`templates/wiring/.gitignore`, `tests/unit/test_current_spec_no_versionado.py`,
+`tests/e2e/escenarios/test_ciclo_spec_first.py`.
+
+**Qué cambió:** G-9 de `docs/IDEAS.md` — el reset post-commit (`sdd_reset.py`,
+FR-002) edita `.sdd/current-spec` *después* de que el commit ya cerró, así que
+ese cambio nunca queda commiteado y el working tree salía sucio tras todo
+commit con spec declarada. En vez de reconciliar el reset con el commit que lo
+origina (arriesga recursión de hooks, o un antipatrón de `git add` manual), se
+repensó el mecanismo: `.sdd/current-spec` es estado de sesión local (el gate
+solo lee su contenido en disco; la trazabilidad real vive en
+`SPECS_REGISTRY.md` + `FR-NNN` grepeado en los tests, nunca en este archivo),
+así que se sacó del control de versiones (`.gitignore` en el kit y en la
+plantilla del wiring; `git rm --cached`).
+
+Eso rompía a `sdd-doctor`, que tenía el archivo en `REQUIRED` (chequeo de mera
+existencia): un `git clone` fresco saldría en rojo por "artefacto faltante" —
+la misma clase de contradicción que D-1/D-3/G-4 señalaron en otras
+superficies. Se sacó de `REQUIRED` y se agregó `sdd_config.seed_current_spec`,
+que siembra el header si falta (nunca pisa uno existente): usa
+`templates/wiring/current-spec` cuando hay `templates/` (el kit) y
+`CURRENT_SPEC_FALLBACK_HEADER` — mismo texto embebido, con `{{sdd.core}}`
+resuelto a `tools/sdd/core` — cuando no la hay (proyecto derivado, donde
+`templates/` nunca se vendoriza). Un test de paridad
+(`test_fallback_header_coincide_con_la_plantilla_del_kit`) evita que las dos
+copias diverjan en silencio, mismo patrón que la duplicación inevitable de
+`source_roots` entre capas (G-1).
+
+**SSOTs afectados:** ninguno nuevo; `templates/wiring/current-spec` sigue
+siendo el header canónico, `sdd_config.CURRENT_SPEC_FALLBACK_HEADER` es su
+copia de emergencia atada por test.
+
+**Hallazgos de `analyze` corregidos antes de cerrar (mismo día):** FR-008
+decía "reemplaza FR-002/FR-007" mientras ambos seguían `MUST` con tests
+propios (ANA-01, HIGH) — reformulado a "complementa": el reset y la
+preservación de comentarios siguen haciendo falta dentro de una sesión,
+tenga o no versionado el archivo. `git rm --cached` no aclaraba si era un
+paso automatizado o manual (ANA-02, MEDIUM) — se documentó como manual y de
+una sola vez, sobre el archivo ya trackeado. SC-004 y SC-005 se pisaban
+hablando los dos de `git status` (ANA-03, LOW) — SC-004 quedó acotado a la
+preservación byte a byte del contenido. Una segunda pasada de `analyze`
+encontró que SC-005 — "no aparece en `git status`" — no tenía ningún test
+que corriera git de verdad (ANA-04, HIGH): el test unitario solo probaba
+`seed_current_spec`, y el e2e existente verificaba el *contenido* del
+archivo tras el reset, nunca `git status`. Se agregó la aserción
+`git status --porcelain` sobre `current-spec` en
+`test_escenario_2_misma_spec_en_varios_commits` (entorno con git y hooks
+reales). También se cubrió que ambos `.gitignore` contuvieran de verdad la
+línea (ANA-05, MEDIUM) y se completaron el *Independent Test* y *Key
+Entities* de la spec, que no nombraban el alcance de FR-008 (ANA-06/ANA-07).
+
+Una tercera pasada de `analyze` encontró el hueco más importante (ANA-08,
+HIGH): FR-008 prometía que `.gitignore` ignoraba `.sdd/current-spec` "de
+forma permanente y automática", pero `sdd_init.py` **conserva sin tocar**
+cualquier `.gitignore` ya presente en el target vía `_copy_text` — el caso
+realista, porque casi todo proyecto (brownfield, o greenfield con `git init`
+que ya generó uno) tiene `.gitignore` antes de correr `sdd-init`. La línea
+nunca se agregaba y FR-008 quedaba neutralizado por la vía de instalación,
+sin que `sdd-doctor` lo detectara (`.gitignore` no estaba en `GATE_WIRING`,
+lo único auditado por contenido). Misma familia que U-4/G-4. Se agregó
+**FR-009/SC-006**: `sdd_config.ensure_gitignore_current_spec` suma la línea a
+un `.gitignore` existente sin pisar el resto (mismo criterio que
+`sdd_spec.py` con `.sdd/current-spec`: preservar y sumar, no reemplazar);
+`_copy_text` de `sdd_init.py` la invoca en la rama "existe, se conserva"; y
+`sdd_doctor.py` verifica por contenido que el `.gitignore` del proyecto la
+incluya, reportando problema si falta el archivo o la línea.
+
+Una cuarta pasada de `analyze` encontró que el fix de FR-009 solo estaba
+probado llamando directo a `sdd_init._copy_text` (unidad interna), no por la
+ruta real de instalación —`sdd_init.py` como subproceso, como ya hace la
+suite e2e para FR-008— así que una regresión en `main()` no la detectaría
+nadie (ANA-09, MEDIUM). Se agregó
+`tests/e2e/escenarios/test_instalacion_brownfield_gitignore.py`, que corre
+`entorno.instalar` (subproceso real) sobre un `.gitignore` propio
+preexistente. De paso, dos correcciones de texto: SC-006 tenía un error de
+concordancia verbal ("...dejar ese .gitignore...", ANA-10, LOW) y *Key
+Entities* no mencionaba `.gitignore` pese al comportamiento que FR-009 le
+agrega (ANA-11, LOW).
+
+**Verificación:** `python core/pipeline.py` → VERDE (11/11); simulado un clon
+fresco (borrando `.sdd/current-spec` del kit) y `sdd-doctor` lo sembró
+correctamente con `core/sdd_gate.py` (ruta del kit) y siguió reportando
+"Instalación SDD sana"; `tests/e2e/escenarios/test_ciclo_spec_first.py` → 4/4
+verde con la aserción de `git status` nueva; instalación simulada a mano en
+`/tmp` sobre un target con `.gitignore` propio (`node_modules/`, `*.log`):
+`sdd-init` conservó ambas líneas y agregó `.sdd/current-spec`, con el aviso
+"se agregó .sdd/current-spec" en el log;
+`test_instalacion_brownfield_gitignore.py` → verde, ejercitando el mismo
+camino vía subproceso real de `sdd_init.py`.
+
 ## 2026-08-11 — SPEC-024: el Coverage mapping verifica que el FR aparezca en el test, no solo que el archivo exista
 
 **Scope:** `specs/SPEC-024-traza-fr-en-test.md`, `core/check_traceability.py`,

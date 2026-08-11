@@ -19,3 +19,8 @@ coverage.xml
 
 # Configuracion local del asistente (por-usuario, no se versiona)
 .claude/settings.local.json
+
+# Puntero de sesion local del gate spec-first (SPEC-004 FR-008): se
+# reescribe con cada commit y no aporta a la trazabilidad real (esa vive en
+# specs/SPECS_REGISTRY.md + los FR-NNN referenciados en los tests).
+.sdd/current-spec

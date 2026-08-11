@@ -15,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..lib import entorno
-from ..lib.aserciones import dice, espera_exit
+from ..lib.aserciones import dice, espera_exit, no_dice
 
 CABECERA_DECLARACION = (
     "# Spec(s) vigente(s): una por linea, formato SPEC-NNN-slug.\n"
@@ -89,6 +89,13 @@ def test_escenario_2_misma_spec_en_varios_commits(derivado_con_hooks: Path) -> N
     assert _declaradas(destino) == [], (
         "el reset post-commit no limpio .sdd/current-spec: "
         f"quedo {_declaradas(destino)}"
+    )
+
+    # SPEC-004 FR-008/SC-005: el archivo esta ignorado, no solo "limpio" -- no
+    # debe aparecer en absoluto en git status tras el ciclo declarar->commit->reset.
+    no_dice(
+        espera_exit(entorno.git(destino, "status", "--porcelain")),
+        "current-spec",
     )
 
     _declarar(destino, spec.stem)

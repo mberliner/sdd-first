@@ -219,6 +219,85 @@ def kit_path_tokens(repo_root: Path) -> dict[str, str]:
     }
 
 
+# Fallback del header de `.sdd/current-spec` para cuando no hay `templates/`
+# (proyecto derivado): mismo texto que `templates/wiring/current-spec`, con
+# `{{sdd.core}}` como placeholder de `.format(core=...)`. Un test de paridad
+# (tests/unit/test_current_spec_no_versionado.py) evita que diverjan en
+# silencio -- mismo patron que la duplicacion inevitable de `source_roots`
+# entre capas (docs/IDEAS.md G-1).
+CURRENT_SPEC_FALLBACK_HEADER = (
+    "# Spec(s) vigente(s): una por línea, formato SPEC-NNN-slug.\n"
+    "# El gate spec-first ({core}/sdd_gate.py) exige que cada spec listada aquí\n"
+    "# exista, esté registrada con estado vigente y tenga sus requisitos (FR) escritos.\n"
+    "# Vacío = ninguna edición de código fuente permitida.\n"
+)
+
+
+def seed_current_spec(repo_root: Path) -> bool:
+    """Siembra `.sdd/current-spec` con el header si falta (SPEC-004 FR-008).
+
+    El archivo dejo de versionarse -- es estado de sesion local, no un
+    artefacto instalado -- asi que un `git clone` fresco no lo trae. No pisa
+    un archivo ya existente (podria tener una spec declarada). Devuelve True
+    si lo creo.
+    """
+    path = repo_root / ".sdd" / "current-spec"
+    if path.exists():
+        return False
+    core_token = kit_path_tokens(repo_root)["{{sdd.core}}"]
+    template = repo_root / "templates" / "wiring" / "current-spec"
+    if template.exists():
+        text = template.read_text(encoding="utf-8").replace("{{sdd.core}}", core_token)
+    else:
+        text = CURRENT_SPEC_FALLBACK_HEADER.format(core=core_token)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_text_lf(path, text)
+    return True
+
+
+# Linea que `.gitignore` debe tener para que `.sdd/current-spec` (estado de
+# sesion local, SPEC-004 FR-008) nunca vuelva a trackearse.
+GITIGNORE_CURRENT_SPEC_LINE = ".sdd/current-spec"
+
+
+def _gitignore_lines(text: str) -> set[str]:
+    return {line.strip() for line in text.splitlines()}
+
+
+def gitignore_has_current_spec_line(gitignore_path: Path) -> bool:
+    """True si `gitignore_path` ya tiene la linea que ignora `.sdd/current-spec`."""
+    if not gitignore_path.exists():
+        return False
+    text = gitignore_path.read_text(encoding="utf-8")
+    return GITIGNORE_CURRENT_SPEC_LINE in _gitignore_lines(text)
+
+
+def ensure_gitignore_current_spec(gitignore_path: Path) -> bool:
+    """Agrega la linea de `.sdd/current-spec` a un `.gitignore` que no la tenga
+    (SPEC-004 FR-009), sin pisar el resto del archivo.
+
+    `sdd_init.py` conserva sin tocar cualquier `.gitignore` ya presente en el
+    target -- el caso realista, porque casi todo proyecto ya tiene uno. Sin
+    este paso esa conservacion neutralizaria FR-008: la linea nunca se
+    agregaria y `.sdd/current-spec` volveria a trackearse. No crea el archivo
+    si no existe (eso lo cubre la copia normal de `WIRING` en una instalacion
+    fresca). Devuelve True si modifico el archivo.
+    """
+    if not gitignore_path.exists():
+        return False
+    if gitignore_has_current_spec_line(gitignore_path):
+        return False
+    text = gitignore_path.read_text(encoding="utf-8")
+    if not text.endswith("\n"):
+        text += "\n"
+    text += (
+        "\n# Puntero de sesion local del gate spec-first (SPEC-004 FR-008/FR-009):\n"
+        f"{GITIGNORE_CURRENT_SPEC_LINE}\n"
+    )
+    write_text_lf(gitignore_path, text)
+    return True
+
+
 def write_text_lf(path: Path, text: str) -> None:
     """Escribe `text` en UTF-8 forzando fin de linea LF (determinismo en
     Windows). `Path.write_text` no admite `newline=`; solo `Path.open` lo

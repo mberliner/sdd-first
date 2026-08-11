@@ -49,6 +49,7 @@ def test_es_nota_y_no_problema(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr(sdd_doctor, "load", lambda root: _Cfg(["coverage"], []))
     (tmp_path / ".sdd").mkdir()
     (tmp_path / ".sdd" / "config.yaml").write_text("project: {}\n", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text(".sdd/current-spec\n", encoding="utf-8")
 
     assert sdd_doctor.main([]) == 0
     salida = capsys.readouterr().out

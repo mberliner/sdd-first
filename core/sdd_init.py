@@ -25,7 +25,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import gen_skill_adapters  # noqa: E402
-from sdd_config import GATE_WIRING, VENDOR_PREFIX, write_text_lf  # noqa: E402
+from sdd_config import (  # noqa: E402
+    GATE_WIRING,
+    VENDOR_PREFIX,
+    ensure_gitignore_current_spec,
+    write_text_lf,
+)
 
 KIT_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = KIT_ROOT / "templates"
@@ -97,6 +102,11 @@ def _substitute(text: str, name: str, domain: str) -> str:
 
 def _copy_text(src: Path, dst: Path, name: str, domain: str, force: bool) -> str:
     if dst.exists() and not force:
+        if dst.name == ".gitignore" and ensure_gitignore_current_spec(dst):
+            return (
+                f"  (existe, se conserva) {dst} -- se agrego .sdd/current-spec "
+                "(SPEC-004 FR-009)"
+            )
         return f"  (existe, se conserva) {dst}"
     dst.parent.mkdir(parents=True, exist_ok=True)
     # Se sustituye en TODO lo que se copia: son todas plantillas de texto. El

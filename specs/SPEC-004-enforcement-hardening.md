@@ -19,8 +19,10 @@ huecos reales que dejan pasar código sin spec vigente real.
 
 **Independent Test:** en un repo limpio (o recién instalado con `sdd-init`),
 correr el pipeline instala los hooks git si faltan; un commit exitoso deja
-`.sdd/current-spec` con solo comentarios; el hook `sdd-gate` de pre-commit
-sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
+`.sdd/current-spec` con solo comentarios y **sin aparecer en `git status`**
+(está ignorado, FR-008); un `git clone` fresco sin el archivo lo recupera vía
+`sdd-doctor`; el hook `sdd-gate` de pre-commit sigue bloqueando aunque
+`python` no esté en el PATH (solo `python3`).
 
 ## Relación con specs existentes
 
@@ -39,6 +41,92 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
   `core/`, porque `sdd_init.py` vendoriza todo `core/` en
   `tools/sdd/core/` de cada proyecto instalado (`_vendor_kit`); ponerlos ahí
   los distribuye gratis a los derivados sin tocar la lista `WIRING`.
+
+### Session 2026-08-11 (reabierta, G-9)
+
+- Q: ¿nueva spec o se reabre SPEC-004? → A: se reabre — G-9
+  (`docs/IDEAS.md`) es el mismo invariante que SC-004 ya declara ("git status
+  no lo marca modificado") y que sigue incumplido: `sdd_reset.py` (FR-002)
+  edita el archivo *después* de que el commit ya cerró, así que ese cambio
+  nunca queda commiteado y el working tree sale sucio tras todo commit con
+  spec declarada.
+- Q: ¿reconciliar el reset con el commit (hook que commitea, o exigir `git add`
+  manual) o repensar el mecanismo? → A: repensar — `.sdd/current-spec` es
+  estado de sesión local (el gate solo lee su contenido en disco, nunca su
+  historial de git; la trazabilidad real vive en `SPECS_REGISTRY.md` +
+  `FR-NNN` grepeado en los tests, no en este archivo). Que un hook post-commit
+  haga su propio commit arriesga recursión y ensucia el historial con commits
+  vacíos de "reset"; exigir `git add .sdd/current-spec` a mano es el
+  antipatrón que el propio protocolo prohíbe (automatización que depende de
+  memoria humana). Sacarlo de git resuelve la contradicción de raíz.
+- Q: ¿alcanza con el `.gitignore`? → A: no — `core/sdd_doctor.py` tiene
+  `.sdd/current-spec` en `REQUIRED` (chequeo de existencia). Sin sembrarlo, un
+  `git clone` fresco (del kit o de un derivado ya instalado) sale con el
+  doctor en rojo por "artefacto faltante" — la misma clase de contradicción
+  que D-1/D-3/G-4 ya señalaron en otras superficies. FR-008 lo resuelve
+  sacándolo de `REQUIRED` y sembrándolo si falta.
+- Q (hallazgos de `analyze`, ANA-01): FR-008 decía "reemplaza FR-002/FR-007
+  como mecanismo" mientras ambos siguen `MUST` con tests propios — ¿se
+  deprecan o el texto está mal? → A: el texto estaba mal. FR-002/FR-007 siguen
+  vigentes: limpian y preservan el *contenido* del archivo dentro de una
+  sesión de trabajo, algo necesario tenga o no versionado. Lo único que
+  cambia con FR-008 es que ese contenido ya no viaja por git. Reformulado a
+  "complementa".
+- Q (ANA-02): "se destrackea con `git rm --cached`" — ¿es un paso
+  automatizado (algún script) o manual? Los tests no lo ejercitan. → A: es
+  manual y de una sola vez, sobre el archivo ya trackeado del kit al cerrar
+  esta iteración; no es comportamiento de ningún script porque no hay nada
+  que automatizar para repos que nacen después de este FR (el `.gitignore`
+  evita que vuelvan a trackearlo). Aclarado en el texto del FR; no aplica
+  cobertura de test porque no es lógica del andamiaje.
+- Q (ANA-03): SC-004 decía "`git status` no lo marca modificado", que
+  SC-005 ya cubre (y de forma más fuerte: ni siquiera aparece). → A: se acotó
+  SC-004 a la preservación byte a byte de la estructura del archivo tras el
+  reset, sin mencionar git; SC-005 es el único SC que habla de `git status`.
+- Q (ANA-04, HIGH): SC-005 afirma que el archivo no aparece en `git status`
+  tras el ciclo completo, pero el test mapeado no corría git — solo probaba
+  `seed_current_spec` y la ausencia en `REQUIRED`. → A: hueco real. Se agregó
+  una aserción en `test_escenario_2_misma_spec_en_varios_commits`
+  (`tests/e2e/escenarios/test_ciclo_spec_first.py`, entorno con git real y
+  hooks reales) que corre `git status --porcelain` tras el primer commit y
+  confirma que "current-spec" no aparece en la salida.
+- Q (ANA-05, MEDIUM): nada verificaba que `.gitignore` (kit) y
+  `templates/wiring/.gitignore` contuvieran de verdad la línea
+  `.sdd/current-spec`. → A: se agregaron dos tests unitarios de paridad
+  (`test_gitignore_del_kit_ignora_current_spec`,
+  `test_gitignore_de_la_plantilla_de_wiring_ignora_current_spec`) en
+  `tests/unit/test_current_spec_no_versionado.py`.
+- Q (ANA-06, MEDIUM): el *Independent Test* de la User Story no mencionaba el
+  alcance de FR-008. → A: ampliado para nombrar que el commit no deja rastro
+  en `git status` y que `sdd-doctor` recupera el header en un clon fresco.
+- Q (ANA-07, LOW): *Key Entities* no reflejaba que el ciclo de
+  `.sdd/current-spec` ocurre fuera de git desde FR-008. → A: agregada la
+  cláusula correspondiente.
+- Q (ANA-08, HIGH, segunda pasada de `analyze`): FR-008 promete que
+  `.gitignore` "de forma permanente y automática" evita volver a trackear
+  `.sdd/current-spec`, pero `sdd_init.py` conserva sin tocar cualquier
+  `.gitignore` preexistente en el target — el caso realista (casi todo
+  proyecto ya tiene uno) — así que la línea nunca se agregaba y FR-008 quedaba
+  neutralizado por la vía de instalación, sin que `sdd-doctor` lo detectara
+  (`.gitignore` no estaba en `GATE_WIRING`, lo único que el doctor audita por
+  contenido). Misma familia que U-4/G-4 de `docs/IDEAS.md`. → A: se agregó
+  FR-009/SC-006 — `sdd_init.py` ahora **agrega** la línea a un `.gitignore`
+  existente que no la tenga (sin pisar el resto, mismo criterio que
+  `sdd_spec.py` con `.sdd/current-spec`), y `sdd-doctor` verifica por
+  contenido que el `.gitignore` del proyecto la incluya, reportándolo si
+  falta.
+- Q (ANA-09, MEDIUM, tercera pasada de `analyze`): el único test de FR-009
+  llamaba directo a `sdd_init._copy_text`, no a la ruta real de instalación
+  (`sdd_init.py` como subproceso, como ya hace la suite e2e para FR-008) —
+  una regresión en `main()` no la detectaría. → A: se agregó
+  `tests/e2e/escenarios/test_instalacion_brownfield_gitignore.py`, que corre
+  `entorno.instalar` (subproceso real) sobre un `.gitignore` propio
+  preexistente y confirma que se conserva y se le agrega la línea.
+- Q (ANA-10, LOW): SC-006 tenía un error de concordancia verbal ("...propio
+  dejar ese .gitignore..."). → A: corregido a "deja".
+- Q (ANA-11, LOW): *Key Entities* no mencionaba `.gitignore` pese al
+  comportamiento que le agrega FR-009. → A: agregada la entrada
+  correspondiente.
 
 ### Session 2026-08-01 (reabierta)
 - Q: tras un commit real, `.sdd/current-spec` no quedaba con "solo
@@ -76,8 +164,24 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
 - **Given** ese mismo flujo (`sdd_spec.py` declara → se edita la spec → se
   commitea), **When** corre el hook post-commit `sdd-reset`, **Then**
   `.sdd/current-spec` queda **byte a byte igual** al header de
-  `templates/wiring/current-spec` — el working tree no queda sucio después
-  del commit.
+  `templates/wiring/current-spec` (SC-004; que el working tree no quede
+  sucio lo cubre el escenario siguiente, vía SC-005).
+- **Given** `.sdd/current-spec` bajo `.gitignore`, **When** se declara una
+  spec, se edita, se commitea y corre `sdd-reset`, **Then** `git status` no
+  reporta el archivo en absoluto (ni modificado ni sin trackear pendiente de
+  commit) — no solo "sin diff" como en el escenario anterior.
+- **Given** un `git clone` fresco sin `.sdd/current-spec` en disco, **When**
+  corre `core/sdd_doctor.py` (con o sin `--fix`), **Then** no lo reporta como
+  artefacto faltante y lo siembra con el header de
+  `templates/wiring/current-spec` si no existe.
+- **Given** un target con un `.gitignore` propio ya existente (sin la línea
+  `.sdd/current-spec`), **When** corre `sdd-init`, **Then** el `.gitignore`
+  resultante conserva su contenido original **y además** incluye
+  `.sdd/current-spec`.
+- **Given** un proyecto instalado cuyo `.gitignore` no incluye
+  `.sdd/current-spec` (por ejemplo, editado a mano después de instalar),
+  **When** corre `core/sdd_doctor.py`, **Then** lo reporta como problema,
+  igual que reporta un gate no cableado por contenido.
 
 ## Functional Requirements
 
@@ -110,13 +214,53 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
   o reemplaza la línea del spec-id, nunca pisa el archivo entero. Cierra el
   hueco por el que `sdd_reset.py` (FR-002) no tenía comentarios que preservar
   tras un ciclo real declarar→commitear→reset.
+- **FR-008** MUST: `.sdd/current-spec` deja de estar bajo control de versiones
+  — es un puntero de sesión local, no un artefacto del repo. `.gitignore` del
+  kit y `templates/wiring/.gitignore` lo ignoran de forma permanente y
+  automática (ningún commit futuro puede volver a trackearlo por descuido).
+  El destrackeo del archivo ya versionado (`git rm --cached .sdd/current-spec`)
+  es, en cambio, una acción **manual y de una sola vez**, ejecutada al cerrar
+  esta iteración sobre el repo del kit — no un paso de ningún script, porque
+  solo aplica a un archivo que ya estaba en el índice; un repo que nace con
+  este FR ya implementado nunca llega a trackearlo. `core/sdd_doctor.py` deja
+  de exigirlo en `REQUIRED` (ya no es un artefacto instalado que deba
+  persistir) y, en su lugar, lo siembra con el header de
+  `templates/wiring/current-spec` si falta — tanto en el chequeo normal como
+  en `--fix` — para que un `git clone` fresco (del kit o de un derivado ya
+  instalado) recupere el header sin paso manual. Esto **complementa** a
+  FR-002/FR-007, no los reemplaza: ambos siguen vigentes para la higiene del
+  contenido del archivo dentro de una misma sesión de trabajo (limpiar la
+  spec declarada tras cada commit, preservar el header al declarar una
+  nueva) — lo único que cambia es que ese contenido ya no viaja por git.
+- **FR-009** MUST: la garantía de FR-008 no depende de que `.gitignore` del
+  proyecto derivado sea uno nuevo. `core/sdd_init.py` copia `.gitignore` vía
+  `WIRING`, cuyo `_copy_text` conserva sin tocar cualquier archivo ya
+  presente en el destino — el caso realista, porque casi todo proyecto
+  (brownfield, o greenfield con `git init` que ya generó un `.gitignore` por
+  defecto) tiene uno antes de correr `sdd-init`. Si la instalación se limitara
+  a conservar, la línea `.sdd/current-spec` nunca se agregaría y FR-008
+  quedaría neutralizado por la vía de instalación. Por eso `sdd_init.py`
+  **agrega** la línea a un `.gitignore` existente que no la tenga (append, sin
+  pisar el resto del archivo — mismo criterio que `sdd_spec.py` ya aplica a
+  `.sdd/current-spec`: preservar lo existente, sumar solo lo que falta), y
+  `core/sdd_doctor.py` verifica por **contenido** (no solo existencia) que el
+  `.gitignore` del proyecto instalado incluya esa línea, reportándolo como
+  problema si no — mismo patrón que `_gate_wiring_problems` (FR-US1-002 de
+  SPEC-014), que ya audita otros archivos de wiring por contenido y no solo
+  por presencia.
 
 ## Key Entities
 
-- `.sdd/current-spec` — archivo de declaración de spec vigente; ahora tiene
-  ciclo de vida completo: declarar → editar → commitear → reset.
+- `.sdd/current-spec` — archivo de declaración de spec vigente; tiene ciclo de
+  vida completo: declarar → editar → commitear → reset. Desde FR-008 ese
+  ciclo entero ocurre fuera de git (`.gitignore`): no es un artefacto
+  versionado, es estado de sesión local que `sdd-doctor` siembra si falta.
 - Hooks git (`pre-commit`, `post-commit`) — instalados vía el paquete
   `pre-commit`, gestionados por `bootstrap_hooks.py`.
+- `.gitignore` (kit y proyecto derivado) — desde FR-009 su contenido se
+  audita (no solo su existencia): `sdd-init` le agrega la línea de
+  `.sdd/current-spec` si lo conserva sin tenerla, y `sdd-doctor` reporta
+  problema si falta.
 
 ## Success Criteria
 
@@ -129,8 +273,20 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
   correctamente en un entorno donde el binario `python` no existe (solo
   `python3`).
 - **SC-004** Tras el ciclo real `sdd_spec.py` declara → se edita la spec → se
-  commitea → corre `sdd-reset`, `.sdd/current-spec` queda idéntico al header
-  de la plantilla — `git status` no lo marca modificado.
+  commitea → corre `sdd-reset`, `.sdd/current-spec` queda **byte a byte
+  idéntico** al header de la plantilla — la estructura del archivo (líneas de
+  comentario preservadas, sin ID de spec residual) sobrevive el ciclo
+  completo, independientemente de si el archivo está o no bajo control de
+  versiones (eso lo cubre SC-005).
+- **SC-005** `.sdd/current-spec` no aparece en `git status` bajo ninguna
+  circunstancia del ciclo declarar→editar→commitear→reset (está ignorado, no
+  solo "limpio" — a diferencia de SC-004, acá no hay diff que comparar porque
+  git no lo trackea), y un `git clone` fresco recupera el header sin paso
+  manual.
+- **SC-006** Instalar con `sdd-init` sobre un target que ya tiene `.gitignore`
+  propio deja ese `.gitignore` con `.sdd/current-spec` incluido, sin perder
+  ninguna línea original; `sdd-doctor` sobre un proyecto instalado detecta y
+  reporta si esa línea falta.
 
 ## Assumptions
 
@@ -149,6 +305,8 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
 | FR-005 | tests/unit/test_sdd_init_seeded_steps.py |
 | FR-006 | tests/unit/test_sdd_gate_hook.py |
 | FR-007, SC-004 | tests/unit/test_sdd_spec.py |
+| FR-008, SC-005 | tests/unit/test_current_spec_no_versionado.py, tests/e2e/escenarios/test_ciclo_spec_first.py |
+| FR-009, SC-006 | tests/unit/test_current_spec_no_versionado.py, tests/e2e/escenarios/test_instalacion_brownfield_gitignore.py |
 
 ## Fuera de alcance
 
@@ -178,3 +336,23 @@ sigue bloqueando aunque `python` no esté en el PATH (solo `python3`).
   de `templates/wiring/current-spec` tras el ciclo completo. Relacionado con
   G-7 de `docs/IDEAS.md` (parcialmente resuelto — la semántica multi-spec
   sigue pendiente). Pipeline 9/9 VERDE, 70 tests.
+- 2026-08-11: reabierta y cerrada de nuevo (G-9, FR-008/FR-009). El reset
+  post-commit (FR-002) editaba `.sdd/current-spec` *después* de que el commit
+  ya cerrara, así que ese cambio nunca quedaba commiteado y el working tree
+  salía sucio tras todo commit con spec declarada — invariante roto de
+  SC-004/SC-005 desde que existían. Se repensó el mecanismo en vez de
+  reconciliar el reset con el commit: `.sdd/current-spec` pasó a ser estado
+  de sesión local no versionado (`.gitignore`, `git rm --cached`), con
+  `sdd_config.seed_current_spec` sembrando el header en un clon fresco y
+  `core/sdd_doctor.py` dejando de exigirlo en `REQUIRED` (FR-008). Cuatro
+  rondas de `analyze` sobre esta misma reapertura encontraron y cerraron
+  ocho hallazgos más (ANA-01..ANA-11 salvo huecos numéricos): el más
+  importante, que `sdd_init.py` conserva sin tocar cualquier `.gitignore`
+  preexistente en el target —el caso realista—, así que la línea nunca se
+  agregaba y FR-008 quedaba neutralizado por la vía de instalación; se cerró
+  con FR-009 (`sdd_config.ensure_gitignore_current_spec`, que agrega la línea
+  sin pisar el resto, y una auditoría por contenido en `sdd-doctor`). Cada
+  hallazgo quedó documentado en *Clarifications* con su corrección. Verificado
+  con `pipeline.py` → VERDE 11/11, `check_traceability.py` OK, una instalación
+  simulada en `/tmp` sobre un `.gitignore` propio y el escenario e2e
+  `test_instalacion_brownfield_gitignore.py`.

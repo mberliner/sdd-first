@@ -17,7 +17,7 @@
 | SPEC-001 | Núcleo agnóstico + adaptadores | active | 1 | hibrido | [SPEC-001-agnostic-core.md](SPEC-001-agnostic-core.md) |
 | SPEC-002 | Dogfooding íntegro del kit | active | 1 | hibrido | [SPEC-002-dogfooding-integro.md](SPEC-002-dogfooding-integro.md) |
 | SPEC-003 | Happy path de instalación | active | 4 | hibrido | [SPEC-003-install-happy-path.md](SPEC-003-install-happy-path.md) |
-| SPEC-004 | Enforcement hardening (bootstrap hooks, reset post-commit, pre-commit robusto) | active | 1 | hibrido | [SPEC-004-enforcement-hardening.md](SPEC-004-enforcement-hardening.md) |
+| SPEC-004 | Enforcement hardening (bootstrap hooks, reset post-commit, pre-commit robusto) | active | 11 | hibrido | [SPEC-004-enforcement-hardening.md](SPEC-004-enforcement-hardening.md) |
 | SPEC-005 | Desduplicar SSOTs del kit (docs/templates, defaults) | active | 2 | hibrido | [SPEC-005-desduplicar-ssot.md](SPEC-005-desduplicar-ssot.md) |
 | SPEC-006 | El gate verifica el estado (draft/active) de la spec declarada | superseded | 1 | hibrido | [SPEC-006-gate-verifica-estado-spec.md](SPEC-006-gate-verifica-estado-spec.md) |
 | SPEC-007 | README propio y manual de operación SDD en el proyecto derivado | active | 1 | hibrido | [SPEC-007-derived-project-onboarding.md](SPEC-007-derived-project-onboarding.md) |

@@ -157,6 +157,25 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   comportamiento como esperado y sumar el `git add .sdd/current-spec` al
   playbook de cierre de iteración, (c) repensar el mecanismo para no
   depender de tocar un archivo fuera del commit que lo origina.
+  **(cerrado el 2026-08-11)** → [[SPEC-004-enforcement-hardening]] FR-008/SC-005,
+  opción (c): `.sdd/current-spec` es estado de sesión local (el gate solo lee
+  su contenido en disco; la trazabilidad real vive en `SPECS_REGISTRY.md` +
+  `FR-NNN` grepeado en los tests), así que se sacó del control de versiones
+  (`.gitignore`, `git rm --cached`) en vez de reconciliar el reset con el
+  commit. Eso rompía a `sdd-doctor` (`.sdd/current-spec` estaba en `REQUIRED`:
+  un clon fresco saldría en rojo por "artefacto faltante"); se sacó de
+  `REQUIRED` y se agregó `sdd_config.seed_current_spec`, que lo siembra con el
+  header si falta, sin pisar uno existente. Una tercera pasada de `analyze`
+  encontró que `sdd_init.py` conserva sin tocar cualquier `.gitignore` ya
+  presente en el target — el caso realista —, así que la línea nunca se
+  agregaba y FR-008 quedaba neutralizado por la vía de instalación (FR-009):
+  se sumó `sdd_config.ensure_gitignore_current_spec` (agrega la línea sin
+  pisar el resto) y `sdd-doctor` audita el `.gitignore` del proyecto por
+  contenido, no solo por existencia. Una cuarta pasada encontró que ese fix
+  solo estaba probado por unidad interna (`sdd_init._copy_text`), no por la
+  ruta real de instalación: se sumó
+  `tests/e2e/escenarios/test_instalacion_brownfield_gitignore.py`, que corre
+  `sdd_init.py` como subproceso real sobre un `.gitignore` propio.
 
 ## P2 — Duplicación de SSOT dentro del kit
 
