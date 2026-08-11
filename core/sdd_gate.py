@@ -156,8 +156,45 @@ def _declared_file_path(payload: dict[str, object]) -> str:
     return ""
 
 
-def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:
-    """Devuelve (permitir, motivo). Motivo solo es relevante cuando se bloquea."""
+def _aviso_de_reuso(file_path: str, repo_root: Path, indexador) -> str:  # type: ignore[no-untyped-def]
+    """Que specs ya gobiernan este archivo, para poder reusar una (FR-US3-001).
+
+    Es el momento exacto en que la pregunta importa: el archivo concreto ya se
+    conoce. Puramente informativo -- no cambia *que* se bloquea, cuyo SSOT es
+    SPEC-017 -- asi que un indice vacio o un fallo al computarlo devuelven vacio
+    y el bloqueo sale con su mensaje de siempre (FR-US3-003).
+    """
+    try:
+        if indexador is None:
+            import spec_index
+
+            indexador = spec_index.specs_for_path
+        specs = indexador(file_path, repo_root)
+    except Exception:
+        return ""
+    if not specs:
+        return ""
+    detalle = "; ".join(f"{spec_id} ({titulo})" for spec_id, titulo in specs)
+    return (
+        f"\nEspecs que ya gobiernan '{file_path}': {detalle}. Si la capacidad "
+        "cabe en alguna, escribi ahi el requisito nuevo y adoptala con "
+        "sdd_spec.py --reuse SPEC-NNN --fr FR-NNN, en vez de crear otra spec."
+    )
+
+
+def decide(
+    payload: dict[str, object],
+    repo_root: Path,
+    *,
+    indexador=None,  # type: ignore[no-untyped-def]
+) -> tuple[bool, str]:
+    """Devuelve (permitir, motivo). Motivo solo es relevante cuando se bloquea.
+
+    `indexador` existe para inyectarlo desde los tests: el gate corre en cada
+    `PreToolUse` y no puede pagar un escaneo del repositorio por edicion
+    permitida, asi que el indice se computa **solo** en el camino de bloqueo
+    (FR-US3-002).
+    """
     file_path = _declared_file_path(payload)
     if not file_path or not is_source_path(file_path, repo_root):
         return True, ""
@@ -168,6 +205,7 @@ def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:
             "Edicion de codigo fuente bloqueada (gate spec-first): no hay spec "
             "vigente declarada. Declara la SPEC-NNN en .sdd/current-spec (o creala "
             "con sdd-spec). Ver docs/SDD-ENFORCEMENT.md."
+            + _aviso_de_reuso(file_path, repo_root, indexador)
         )
     invalid = {
         s: reason
@@ -181,6 +219,7 @@ def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:
             "Edicion de codigo fuente bloqueada (gate spec-first): spec(s) "
             f"declarada(s) invalida(s) — {detalle}. Deben existir en specs/ y "
             "estar registradas en SPECS_REGISTRY.md con estado draft o active."
+            + _aviso_de_reuso(file_path, repo_root, indexador)
         )
     sin_requisitos = _specs_sin_requisitos(declared, repo_root)
     if sin_requisitos:

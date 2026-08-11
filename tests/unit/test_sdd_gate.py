@@ -146,3 +146,99 @@ def test_extrae_ruta_de_antigravity_payload():
         }
     }
     assert sdd_gate._declared_file_path(payload) == "/some/path/file.py"
+
+
+# -- SPEC-022 US3: el motivo del bloqueo dice que specs ya gobiernan el archivo --
+
+
+def test_bloqueo_nombra_las_specs_que_gobiernan_el_archivo(tmp_path):
+    """FR-US3-001: el aviso llega en el momento en que la pregunta importa."""
+    repo = _make_repo(tmp_path)
+
+    def indexador(file_path, repo_root):
+        return [("SPEC-001-demo", "Demo")]
+
+    allow, motivo = sdd_gate.decide(_payload("src/a.py"), repo, indexador=indexador)
+
+    assert not allow
+    assert "SPEC-001-demo (Demo)" in motivo
+    assert "--reuse" in motivo
+
+
+def test_el_indice_no_se_computa_cuando_el_gate_permite(tmp_path):
+    """FR-US3-002: el gate corre en cada PreToolUse; no puede escanear el repo."""
+    repo = _make_repo(tmp_path)
+    _declare(repo, "SPEC-001-demo")
+    llamadas = []
+
+    def indexador(file_path, repo_root):
+        llamadas.append(file_path)
+        return []
+
+    allow, _motivo = sdd_gate.decide(_payload("src/a.py"), repo, indexador=indexador)
+
+    assert allow
+    assert llamadas == []
+
+
+def test_sin_specs_asociadas_el_mensaje_es_el_de_siempre(tmp_path):
+    """FR-US3-003: el aviso es informativo; no cambia qué se bloquea."""
+    repo = _make_repo(tmp_path)
+
+    _allow, con_indice = sdd_gate.decide(
+        _payload("src/a.py"), repo, indexador=lambda *_: []
+    )
+    _allow2, sin_indice = sdd_gate.decide(_payload("src/a.py"), repo)
+
+    assert "Especs que ya gobiernan" not in con_indice
+    assert con_indice == sin_indice
+
+
+def test_un_indexador_que_falla_no_altera_el_bloqueo(tmp_path):
+    """FR-US3-003: el mismo mensaje y el mismo código de salida."""
+    repo = _make_repo(tmp_path)
+
+    def roto(file_path, repo_root):
+        raise RuntimeError("indice roto")
+
+    allow, motivo = sdd_gate.decide(_payload("src/a.py"), repo, indexador=roto)
+    _allow, esperado = sdd_gate.decide(
+        _payload("src/a.py"), repo, indexador=lambda *_: []
+    )
+
+    assert not allow
+    assert motivo == esperado
+
+
+def test_el_aviso_tambien_acompana_al_bloqueo_por_spec_invalida(tmp_path):
+    """FR-US3-001: declarar una spec cerrada tampoco te deja sin salida."""
+    repo = _make_repo(tmp_path)
+    (repo / ".sdd" / "current-spec").write_text("SPEC-404-fantasma\n", encoding="utf-8")
+
+    allow, motivo = sdd_gate.decide(
+        _payload("src/a.py"), repo, indexador=lambda *_: [("SPEC-001-demo", "Demo")]
+    )
+
+    assert not allow
+    assert "SPEC-001-demo" in motivo
+
+
+def test_el_gate_real_nombra_la_spec_de_un_archivo_que_todavia_no_existe(tmp_path):
+    """FR-US3-001 + FR-US2-003, sin indexador inyectado.
+
+    Es el caso mas frecuente: una spec `draft` nombra en *Key Entities* el
+    archivo que va a crear, y ese archivo nuevo es justo el que el gate bloquea
+    primero. Si el indice descartara las rutas inexistentes, el aviso estaria
+    ciego donde mas se necesita.
+    """
+    repo = _make_repo(tmp_path)
+    (repo / "specs" / "SPEC-001-demo.md").write_text(
+        "# demo\n\n## Key Entities\n\n- `src/nuevo.py` — lo que voy a crear\n",
+        encoding="utf-8",
+    )
+
+    allow, motivo = sdd_gate.decide(_payload("src/nuevo.py"), repo)
+
+    assert not allow
+    assert "SPEC-001-demo (Demo)" in motivo
+    assert not (repo / "src" / "nuevo.py").exists()
