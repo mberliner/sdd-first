@@ -97,6 +97,57 @@ def test_parse_registry_extrae_filas(tmp_path):
     assert rows[0].archivo == "SPEC-001-a.md"
 
 
+def test_parse_registry_conserva_el_titulo(tmp_path):
+    """SPEC-022 FR-US2-006: el triage compara contra la columna Titulo."""
+    registry = tmp_path / "SPECS_REGISTRY.md"
+    registry.write_text(
+        "| ID | Título | Estado | Iteración | Formato | Archivo |\n"
+        "|----|--------|--------|-----------|---------|---------|\n"
+        "| SPEC-001 | Gate spec-first | active | 0 | hibrido "
+        "| [SPEC-001-a.md](SPEC-001-a.md) |\n",
+        encoding="utf-8",
+    )
+    rows = ct._parse_registry(registry, [])
+    assert rows[0].titulo == "Gate spec-first"
+
+
+def test_iter_coverage_entries_liga_cada_fr_con_sus_tests():
+    """SPEC-022 FR-US1-004/005: un unico lector del *Coverage mapping*."""
+    text = (
+        "## Coverage mapping\n\n"
+        "| Requisito | Cubierto por |\n"
+        "|-----------|--------------|\n"
+        "| FR-001 | tests/unit/test_a.py |\n"
+        "| FR-US2-003 | tests/unit/test_b.py |\n"
+        "\n## Otra seccion\n\n| FR-999 | tests/unit/test_fuera.py |\n"
+    )
+    entries = dict(ct.iter_coverage_entries(text))
+    assert entries["FR-001"] == ("tests/unit/test_a.py",)
+    assert entries["FR-US2-003"] == ("tests/unit/test_b.py",)
+    # Lo que esta fuera de la seccion no es parte del mapping.
+    assert "FR-999" not in entries
+
+
+def test_test_ref_captura_la_ruta_entera_no_desde_la_palabra_tests(tmp_path):
+    """El match arrancaba en `tests`, perdiendo el prefijo `src/`.
+
+    Con los tests dentro de las carpetas de codigo —el layout que contempla
+    SPEC-022 FR-US1-004— la verificacion de existencia buscaba la ruta
+    equivocada y reportaba un test faltante que si estaba.
+    """
+    (tmp_path / "src" / "tests").mkdir(parents=True)
+    (tmp_path / "src" / "tests" / "test_a.py").write_text("", encoding="utf-8")
+    text = (
+        "## Coverage mapping\n\n| FR-001 | src/tests/test_a.py |\n\n"
+        "## Functional Requirements\n\n- **FR-001** MUST: algo.\n"
+    )
+
+    errors: list[str] = []
+    ct._check_coverage("SPEC-001-a.md", text, tmp_path, errors)
+
+    assert errors == []
+
+
 def test_spec_files_ignora_template(tmp_path):
     (tmp_path / "SPEC-TEMPLATE.md").write_text("", encoding="utf-8")
     (tmp_path / "SPEC-001-a.md").write_text("", encoding="utf-8")

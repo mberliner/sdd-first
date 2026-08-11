@@ -1,4 +1,7 @@
-"""Tests de sdd_spec (SPEC-003 FR-003, SPEC-004 FR-007)."""
+"""Tests de sdd_spec (SPEC-003 FR-003, SPEC-004 FR-007).
+
+El camino de adopcion (`--reuse`, SPEC-022 US1) vive en test_sdd_spec_reuse.py.
+"""
 
 import sdd_spec
 

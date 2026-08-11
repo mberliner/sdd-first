@@ -43,7 +43,7 @@ def _source_roots(repo_root: Path) -> list[str]:
         return [DEFAULT_SOURCE_ROOT]
 
 
-def _is_source_path(file_path: str, repo_root: Path) -> bool:
+def is_source_path(file_path: str, repo_root: Path) -> bool:
     candidate = Path(file_path)
     if not candidate.is_absolute():
         candidate = repo_root / candidate
@@ -159,7 +159,7 @@ def _declared_file_path(payload: dict[str, object]) -> str:
 def decide(payload: dict[str, object], repo_root: Path) -> tuple[bool, str]:
     """Devuelve (permitir, motivo). Motivo solo es relevante cuando se bloquea."""
     file_path = _declared_file_path(payload)
-    if not file_path or not _is_source_path(file_path, repo_root):
+    if not file_path or not is_source_path(file_path, repo_root):
         return True, ""
 
     declared = _declared_specs(repo_root)
@@ -211,7 +211,7 @@ def _repo_root_for(payload: dict[str, object]) -> Path | None:
 
     Se prueba el `cwd` y despues la ruta del archivo. Antes se usaba solo el
     `cwd` via `find_repo_root`, que ante la falta de marcadores devolvia ese
-    mismo directorio: `_is_source_path` no reconocia nada como codigo y la
+    mismo directorio: `is_source_path` no reconocia nada como codigo y la
     edicion pasaba en silencio (SPEC-014 FR-US1-003). Lo que decide si hay
     protocolo que aplicar no es desde donde se invoca al gate sino **de que
     proyecto es el archivo**; el `cwd` es solo la pista mas barata.

@@ -45,7 +45,14 @@ _FR_ANY = re.compile(r"\bFR-[A-Za-z0-9-]+\b")
 _SC_ANY = re.compile(r"\bSC-[A-Za-z0-9-]+\b")
 _LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 # Referencia a un archivo de test: acepta prefijos comunes de varios ecosistemas.
-_TEST_REF = re.compile(r"(?:tests?|spec)/[\w./-]+\.(?:py|js|ts|go|rs|java|rb)")
+# El lookbehind y el grupo de directorios previos capturan la ruta *entera*: sin
+# ellos, de `src/tests/test_x.py` se extraia `tests/test_x.py` —el match arrancaba
+# en la palabra `tests`— y la verificacion de existencia buscaba un archivo que
+# no esta ahi. Rompia justo en el layout con los tests dentro de las carpetas de
+# codigo, el que contempla SPEC-022 FR-US1-004.
+_TEST_REF = re.compile(
+    r"(?<![\w/.-])(?:[\w.-]+/)*(?:tests?|spec)/[\w./-]+\.(?:py|js|ts|go|rs|java|rb)"
+)
 _COVERAGE_HEADING = re.compile(r"(?i)^#+\s+.*coverage mapping")
 
 # Keyword normativo con que arranca el cuerpo de un FR de la plantilla

@@ -398,13 +398,13 @@ y sugiere `sdd_spec.py --reuse SPEC-NNN --fr FR-NNN`.
 
 | Requisito | Cubierto por |
 |-----------|--------------|
-| FR-US1-001 | tests/unit/test_sdd_spec.py |
-| FR-US1-002 | tests/unit/test_sdd_spec.py |
-| FR-US1-003 | tests/unit/test_sdd_spec.py |
-| FR-US1-004 | tests/unit/test_sdd_spec.py |
-| FR-US1-005 | tests/unit/test_sdd_spec.py |
-| FR-US1-006 | tests/unit/test_sdd_spec.py |
-| FR-US1-007 | tests/unit/test_sdd_spec.py |
+| FR-US1-001 | tests/unit/test_sdd_spec_reuse.py |
+| FR-US1-002 | tests/unit/test_sdd_spec_reuse.py |
+| FR-US1-003 | tests/unit/test_sdd_spec_reuse.py |
+| FR-US1-004 | tests/unit/test_sdd_spec_reuse.py |
+| FR-US1-005 | tests/unit/test_check_traceability.py |
+| FR-US1-006 | tests/unit/test_sdd_spec_reuse.py |
+| FR-US1-007 | tests/unit/test_sdd_spec_reuse.py |
 | FR-US1-008 | tests/unit/test_template_paths.py |
 | FR-US2-001 | tests/unit/test_sdd_spec.py |
 | FR-US2-002 | tests/unit/test_sdd_spec.py |

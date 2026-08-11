@@ -18,9 +18,28 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+from check_traceability import (  # noqa: E402
+    _parse_registry,
+    has_written_requirements,
+    iter_coverage_entries,
+)
 from sdd_config import find_repo_root, write_text_lf  # noqa: E402
+from sdd_gate import is_source_path  # noqa: E402
 
-_USO = 'Uso: sdd_spec.py "<slug>" [--title "Título"]'
+_USO = (
+    'Uso: sdd_spec.py "<slug>" [--title "Título"]\n'
+    "     sdd_spec.py --reuse SPEC-NNN --fr FR-NNN"
+)
+
+# Estados del registro sobre los que se puede adoptar una spec: los mismos que
+# el gate acepta como vigentes (SPEC-017 FR-US2-002). Adoptar una spec que el
+# gate no aceptaria dejaria el trabajo declarado contra un documento cerrado.
+_ESTADOS_VIGENTES = frozenset({"draft", "active"})
+
+# Forma de un identificador de requisito. Es el patron de check_traceability y
+# del gate: el script no impone convencion sobre como se numeran las historias
+# (SPEC-022 FR-US1-007).
+_FR_ID = re.compile(r"^FR-[A-Za-z0-9-]+$")
 
 
 class _ArgError(Exception):
@@ -43,6 +62,8 @@ def _build_parser() -> _Parser:
     parser = _Parser(prog="sdd_spec.py", add_help=False)
     parser.add_argument("slug", nargs="?")
     parser.add_argument("--title", default=None)
+    parser.add_argument("--reuse", default=None, metavar="SPEC-NNN")
+    parser.add_argument("--fr", default=None, metavar="FR-NNN")
     return parser
 
 
@@ -99,11 +120,189 @@ def _insert_registry_row(text: str, row: str) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _registry_rows(repo_root: Path):  # type: ignore[no-untyped-def]
+    errors: list[str] = []
+    return _parse_registry(repo_root / "specs" / "SPECS_REGISTRY.md", errors), errors
+
+
+def _resolve_registry_row(token: str, rows):  # type: ignore[no-untyped-def]
+    """Fila del registro que `token` designa, o `(None, motivo)`.
+
+    El ID se resuelve contra `SPECS_REGISTRY.md` —SSOT de las specs vigentes— y
+    no por glob sobre `specs/`, que devolveria tambien archivos sin registrar
+    (SPEC-022 FR-US1-002). Se acepta tanto el ID completo como el numero pelado;
+    lo segundo solo si designa a una sola fila.
+    """
+    token = token.strip().removesuffix(".md")
+    exactas = [r for r in rows if Path(r.archivo).stem == token]
+    if len(exactas) == 1:
+        return exactas[0], ""
+    prefijo = [r for r in rows if Path(r.archivo).stem.startswith(f"{token}-")]
+    if len(prefijo) == 1:
+        return prefijo[0], ""
+    if not prefijo:
+        return None, (
+            f"'{token}' no figura en specs/SPECS_REGISTRY.md. Solo se puede "
+            "adoptar una spec registrada."
+        )
+    candidatas = ", ".join(sorted(Path(r.archivo).stem for r in prefijo))
+    return None, (
+        f"'{token}' resuelve a mas de una spec ({candidatas}). Pasa el ID completo."
+    )
+
+
+def _coverage_tests(text: str, fr_id: str) -> tuple[bool, list[str]]:
+    """`(tiene_fila, rutas_de_test)` del FR en el *Coverage mapping* de la spec."""
+    tiene_fila = False
+    rutas: list[str] = []
+    for fr, tests in iter_coverage_entries(text):
+        if fr != fr_id:
+            continue
+        tiene_fila = True
+        rutas.extend(t for t in tests if t not in rutas)
+    return tiene_fila, rutas
+
+
+def _falta_coverage(text: str, fr_id: str, repo_root: Path) -> tuple[str, list[str]]:
+    """`(motivo_de_aborto, avisos)` de la exigencia de mapping sobre una spec `active`.
+
+    Adoptar una spec `active` y escribirle un FR deja rojo a `check_traceability`
+    —que corre en el pre-commit con `always_run`— hasta que exista la fila. Ese
+    rojo bloquearia incluso el commit del test rojo, asi que se exige por
+    adelantado (SPEC-022 FR-US1-004). Es el unico rojo que se adelanta: que el
+    test *falle* es el estado esperado y el script no ejecuta la suite
+    (FR-US1-006).
+    """
+    tiene_fila, rutas = _coverage_tests(text, fr_id)
+    if not tiene_fila:
+        return (
+            f"{fr_id} no tiene fila en el *Coverage mapping* de la spec. Sobre una "
+            "spec 'active' la fila es obligatoria: sin ella check_traceability "
+            "queda rojo y el pre-commit no deja commitear ni el test.",
+            [],
+        )
+    avisos: list[str] = []
+    faltantes = [ruta for ruta in rutas if not (repo_root / ruta).exists()]
+    for ruta in faltantes:
+        if is_source_path(ruta, repo_root):
+            # El test cae dentro de `dirs.source_roots`: exigirlo aca cerraria el
+            # flujo contra si mismo, porque el gate impide crearlo antes de tener
+            # la spec declarada. Se declara igual y se avisa (FR-US1-004).
+            avisos.append(
+                f"El test '{ruta}' todavia no existe. Cae dentro de "
+                "dirs.source_roots, asi que se declara la spec igual: creralo "
+                "ahora que el gate esta abierto, antes de commitear."
+            )
+        else:
+            return (
+                f"El test '{ruta}' referenciado por {fr_id} en el *Coverage "
+                "mapping* no existe. Crealo (puede —y se espera que— falle) "
+                "antes de adoptar la spec.",
+                [],
+            )
+    if not rutas:
+        avisos.append(
+            f"La fila de {fr_id} en el *Coverage mapping* no nombra ningun archivo "
+            "de test. check_traceability no lo exige, pero el FR queda sin cubrir."
+        )
+    return "", avisos
+
+
+def _reuse(spec_token: str, fr_id: str, repo_root: Path) -> int:
+    """Adopta una spec vigente en vez de crear otra (SPEC-022 US1).
+
+    No escribe nada hasta haber verificado todo: un abort deja el arbol de
+    trabajo identico a como estaba.
+    """
+    if not _FR_ID.match(fr_id):
+        print(
+            f"--fr '{fr_id}' no tiene la forma FR-NNN (se acepta cualquier "
+            "identificador FR-[A-Za-z0-9-]+, p. ej. FR-007 o FR-US1-007).",
+            file=sys.stderr,
+        )
+        return 2
+
+    rows, errores_registro = _registry_rows(repo_root)
+    if errores_registro and not rows:
+        print("; ".join(errores_registro), file=sys.stderr)
+        return 1
+    row, motivo = _resolve_registry_row(spec_token, rows)
+    if row is None:
+        print(motivo, file=sys.stderr)
+        return 1
+
+    spec_id = Path(row.archivo).stem
+    spec_file = repo_root / "specs" / row.archivo
+    if not spec_file.exists():
+        print(
+            f"{spec_id} esta en el registro pero su archivo no existe: {spec_file}.",
+            file=sys.stderr,
+        )
+        return 1
+    if row.estado not in _ESTADOS_VIGENTES:
+        print(
+            f"{spec_id} esta en estado '{row.estado}': solo se puede adoptar una "
+            "spec vigente (draft o active).",
+            file=sys.stderr,
+        )
+        return 1
+
+    text = spec_file.read_text(encoding="utf-8")
+    if not has_written_requirements(text, fr_id):
+        print(
+            f"{fr_id} todavia no esta escrito en {row.archivo}. Escribilo primero, "
+            "en la User Story cuyo alcance cubre la capacidad y con el ID de esa "
+            "historia; si ninguna la cubre, agrega una User Story nueva —con "
+            "prioridad e Independent Test— y que el requisito nazca ahi. Forma: "
+            f"**{fr_id}** MUST: <lo que la capacidad debe cumplir>. Adoptar una "
+            "spec no puede abrir el gate con menos evidencia que crearla.",
+            file=sys.stderr,
+        )
+        return 1
+
+    avisos: list[str] = []
+    if row.estado == "active":
+        motivo_coverage, avisos = _falta_coverage(text, fr_id, repo_root)
+        if motivo_coverage:
+            print(motivo_coverage, file=sys.stderr)
+            return 1
+
+    current = repo_root / ".sdd" / "current-spec"
+    _declare_current_spec(current, spec_id)
+    print(f"Adoptada {row.archivo} ({row.estado}) para {fr_id}: no se creo spec nueva.")
+    print(f"Declarada en {current}")
+    for aviso in avisos:
+        print(f"Aviso: {aviso}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     try:
         ns = _build_parser().parse_args(argv)
     except _ArgError as exc:
         print(f"{_USO}\n{exc}", file=sys.stderr)
+        return 2
+
+    if ns.reuse:
+        if ns.slug:
+            print(
+                f"{_USO}\n--reuse adopta una spec existente: no lleva slug "
+                "posicional (no se crea ninguna).",
+                file=sys.stderr,
+            )
+            return 2
+        if not ns.fr:
+            print(
+                "--reuse exige --fr FR-NNN: el requisito que la capacidad nueva "
+                "agrega a la spec adoptada. Sin el, el gate quedaria abierto "
+                "contra los FR viejos, con menos evidencia que al crear una spec.",
+                file=sys.stderr,
+            )
+            return 2
+        return _reuse(ns.reuse, ns.fr, find_repo_root())
+
+    if ns.fr:
+        print("--fr solo tiene sentido junto a --reuse.", file=sys.stderr)
         return 2
     if not ns.slug:
         print(_USO, file=sys.stderr)
