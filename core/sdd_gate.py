@@ -20,23 +20,15 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_traceability import _parse_registry, iter_fr_declarations  # noqa: E402
+from check_traceability import _parse_registry, has_written_requirements  # noqa: E402
 from sdd_config import DEFAULT_SOURCE_ROOT, find_sdd_root, load  # noqa: E402
 
 # Estados de SPECS_REGISTRY.md que dejan pasar el gate (SPEC-017 FR-US2-002).
 _VALID_ESTADOS = frozenset({"draft", "active"})
-
-# Declaracion de un FR y lo que sigue en su linea. Mismo marcador que usa
-# check_traceability (`**FR-NNN**`), para no tener dos ideas de que es un FR.
-_FR_KEYWORD = re.compile(r"(?i)^\s*(MUST|SHOULD|MAY)\s*:?")
-# Un FR de la plantilla es `**FR-001** MUST: ...`: sin el keyword no queda texto.
-# El umbral separa eso de un requisito escrito, sin pretender juzgar su calidad.
-_MIN_FR_CHARS = 1
 
 # Escape hatch acotado al gate (SPEC-017 FR-US3-004). La alternativa historica
 # era `--no-verify`, que ademas apaga trazabilidad y reset post-commit.
@@ -121,16 +113,16 @@ def _has_written_requirements(spec_file: Path) -> bool:
     legitimo de varios commits por spec— y que un `touch` satisface —no
     deteniendo a quien quiera saltearlo—. El contenido es determinista, no
     necesita git y da la misma respuesta en cualquier maquina.
+
+    El criterio de "FR escrito" lo aporta `check_traceability`, no este modulo:
+    `sdd_spec.py --reuse` lo aplica al FR que adopta y tiene que dar el mismo
+    veredicto que el gate (SPEC-022 FR-US1-005).
     """
     try:
         text = spec_file.read_text(encoding="utf-8")
     except OSError:
         return False
-    for rest in iter_fr_declarations(text):
-        cuerpo = _FR_KEYWORD.sub("", rest)
-        if sum(c.isalnum() for c in cuerpo) >= _MIN_FR_CHARS:
-            return True
-    return False
+    return has_written_requirements(text)
 
 
 def _specs_sin_requisitos(declared: list[str], repo_root: Path) -> list[str]:

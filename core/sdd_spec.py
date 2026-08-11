@@ -11,6 +11,7 @@ El número NNN se asigna como el siguiente correlativo disponible en specs/.
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -18,6 +19,31 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from sdd_config import find_repo_root, write_text_lf  # noqa: E402
+
+_USO = 'Uso: sdd_spec.py "<slug>" [--title "Título"]'
+
+
+class _ArgError(Exception):
+    """Argumentos invalidos, con el mensaje que argparse habria impreso."""
+
+
+class _Parser(argparse.ArgumentParser):
+    """ArgumentParser que informa el error en vez de matar el proceso.
+
+    `sdd_spec.main` es invocable como funcion (la skill y los tests la llaman
+    directo), asi que el `SystemExit` que argparse lanza por su cuenta seria un
+    efecto colateral sorpresivo: el contrato del modulo es devolver el codigo.
+    """
+
+    def error(self, message: str):  # type: ignore[override]
+        raise _ArgError(message)
+
+
+def _build_parser() -> _Parser:
+    parser = _Parser(prog="sdd_spec.py", add_help=False)
+    parser.add_argument("slug", nargs="?")
+    parser.add_argument("--title", default=None)
+    return parser
 
 
 def _slugify(text: str) -> str:
@@ -74,16 +100,16 @@ def _insert_registry_row(text: str, row: str) -> str:
 
 
 def main(argv: list[str]) -> int:
-    args = [a for a in argv if not a.startswith("--")]
-    if not args:
-        print('Uso: sdd_spec.py "<slug>" [--title "Título"]', file=sys.stderr)
+    try:
+        ns = _build_parser().parse_args(argv)
+    except _ArgError as exc:
+        print(f"{_USO}\n{exc}", file=sys.stderr)
         return 2
-    title = None
-    for a in argv:
-        if a.startswith("--title="):
-            title = a.split("=", 1)[1]
-    slug = _slugify(args[0])
-    title = title or args[0]
+    if not ns.slug:
+        print(_USO, file=sys.stderr)
+        return 2
+    slug = _slugify(ns.slug)
+    title = ns.title or ns.slug
 
     repo_root = find_repo_root()
     specs_dir = repo_root / "specs"

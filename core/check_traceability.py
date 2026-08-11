@@ -40,7 +40,7 @@ def _spec_files(specs_dir: Path) -> list[Path]:
 
 
 _FR_DECL = re.compile(r"\*\*(FR-[A-Za-z0-9-]+)\*\*")
-_FR_DECL_LINE = re.compile(r"\*\*FR-[A-Za-z0-9-]+\*\*(.*)")
+_FR_DECL_LINE = re.compile(r"\*\*(FR-[A-Za-z0-9-]+)\*\*(.*)")
 _FR_ANY = re.compile(r"\bFR-[A-Za-z0-9-]+\b")
 _SC_ANY = re.compile(r"\bSC-[A-Za-z0-9-]+\b")
 _LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
@@ -48,21 +48,71 @@ _LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 _TEST_REF = re.compile(r"(?:tests?|spec)/[\w./-]+\.(?:py|js|ts|go|rs|java|rb)")
 _COVERAGE_HEADING = re.compile(r"(?i)^#+\s+.*coverage mapping")
 
+# Keyword normativo con que arranca el cuerpo de un FR de la plantilla
+# (`**FR-001** MUST: ...`): sin el, del placeholder no queda texto. El umbral
+# separa eso de un requisito escrito, sin pretender juzgar su calidad.
+_FR_KEYWORD = re.compile(r"(?i)^\s*(MUST|SHOULD|MAY)\s*:?")
+_MIN_FR_CHARS = 1
 
-def iter_fr_declarations(text: str):
-    """Devuelve el resto de la linea para cada FR declarado en el texto."""
+
+def iter_fr_entries(text: str):
+    """Devuelve `(fr_id, resto_de_la_linea)` para cada FR declarado en el texto."""
     for match in _FR_DECL_LINE.finditer(text):
-        yield match.group(1)
+        yield match.group(1), match.group(2)
+
+
+def has_written_requirements(text: str, fr_id: str | None = None) -> bool:
+    """True si la spec declara un FR con texto propio mas alla del keyword.
+
+    Es la evidencia de que la spec precede al codigo (SPEC-017 FR-US3-001). Con
+    `fr_id` la pregunta se acota a *ese* requisito, que es lo que necesita
+    `sdd_spec.py --reuse` (SPEC-022 FR-US1-003): adoptar una spec no puede abrir
+    el gate contra los FR viejos. La comparacion es por igualdad exacta del ID,
+    nunca por substring: `FR-007` no satisface a `FR-US1-007` (FR-US1-007).
+
+    Vive aca --y no en el gate, que fue su primer consumidor-- porque es parseo
+    de spec: dos ideas de "que es un FR escrito" harian que `sdd_spec` acepte lo
+    que `sdd_gate` rechaza (SPEC-022 FR-US1-005, Principio IV).
+    """
+    for declarado, rest in iter_fr_entries(text):
+        if fr_id is not None and declarado != fr_id:
+            continue
+        cuerpo = _FR_KEYWORD.sub("", rest)
+        if sum(c.isalnum() for c in cuerpo) >= _MIN_FR_CHARS:
+            return True
+    return False
+
+
+def iter_coverage_entries(text: str):
+    """Devuelve `(fr_id, rutas_de_test)` por cada fila del *Coverage mapping*.
+
+    Liga cada requisito con los tests de su propia fila, que es lo que necesita
+    `--reuse` para verificar la fila del FR nuevo (SPEC-022 FR-US1-004). La
+    verificacion de cobertura de este mismo modulo consume la union de lo que
+    esta funcion emite, para que haya un unico lector del formato.
+    """
+    for line in _coverage_section_text(text).splitlines():
+        tests = tuple(dict.fromkeys(_TEST_REF.findall(line)))
+        for fr in _FR_ANY.findall(line):
+            yield fr, tests
 
 
 class _RegistryRow:
     """Una fila de la tabla de specs vigentes de SPECS_REGISTRY.md."""
 
-    def __init__(self, spec_id: str, estado: str, formato: str, archivo: str) -> None:
+    def __init__(
+        self,
+        spec_id: str,
+        estado: str,
+        formato: str,
+        archivo: str,
+        titulo: str = "",
+    ) -> None:
         self.spec_id = spec_id
         self.estado = estado
         self.formato = formato
         self.archivo = archivo  # basename del .md
+        self.titulo = titulo  # columna Titulo, tal cual se escribio
 
     @property
     def is_hybrid(self) -> bool:
@@ -84,11 +134,17 @@ def _parse_registry(path: Path, errors: list[str]) -> list[_RegistryRow]:
             continue
         if cells[0] == "ID" or set(cells[0]) <= {"-", ":"}:
             continue
-        spec_id, _titulo, estado, _iter, formato, archivo_cell = cells[:6]
+        spec_id, titulo, estado, _iter, formato, archivo_cell = cells[:6]
         match = _LINK.search(archivo_cell)
         target = match.group(1) if match else archivo_cell
         rows.append(
-            _RegistryRow(spec_id, estado.lower(), formato.lower(), Path(target).name)
+            _RegistryRow(
+                spec_id,
+                estado.lower(),
+                formato.lower(),
+                Path(target).name,
+                titulo,
+            )
         )
     return rows
 
@@ -127,12 +183,14 @@ def _check_structure(name: str, text: str, errors: list[str]) -> None:
 
 
 def _check_coverage(name: str, text: str, repo_root: Path, errors: list[str]) -> None:
-    coverage = _coverage_section_text(text)
     declared = set(_FR_DECL.findall(text))
-    covered = set(_FR_ANY.findall(coverage))
+    covered = {fr for fr, _tests in iter_coverage_entries(text)}
     for fr in sorted(declared - covered):
         errors.append(f"{name}: {fr} declarado pero ausente del Coverage mapping.")
-    for test_ref in sorted(set(_TEST_REF.findall(coverage))):
+    # Los test refs se buscan sobre la seccion entera y no sobre las filas que
+    # `iter_coverage_entries` liga a un FR: una referencia escrita en una linea
+    # sin FR (una nota al pie de la tabla) tambien tiene que existir en disco.
+    for test_ref in sorted(set(_TEST_REF.findall(_coverage_section_text(text)))):
         if not (repo_root / test_ref).exists():
             errors.append(
                 f"{name}: test referenciado en Coverage mapping no existe: '{test_ref}'."
