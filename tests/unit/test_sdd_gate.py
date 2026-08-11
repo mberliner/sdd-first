@@ -161,7 +161,7 @@ def test_bloqueo_nombra_las_specs_que_gobiernan_el_archivo(tmp_path):
     allow, motivo = sdd_gate.decide(_payload("src/a.py"), repo, indexador=indexador)
 
     assert not allow
-    assert "SPEC-001-demo (Demo)" in motivo
+    assert "SPEC-001-demo: Demo" in motivo
     assert "--reuse" in motivo
 
 
@@ -190,7 +190,7 @@ def test_sin_specs_asociadas_el_mensaje_es_el_de_siempre(tmp_path):
     )
     _allow2, sin_indice = sdd_gate.decide(_payload("src/a.py"), repo)
 
-    assert "Especs que ya gobiernan" not in con_indice
+    assert "Specs que ya gobiernan" not in con_indice
     assert con_indice == sin_indice
 
 
@@ -240,5 +240,5 @@ def test_el_gate_real_nombra_la_spec_de_un_archivo_que_todavia_no_existe(tmp_pat
     allow, motivo = sdd_gate.decide(_payload("src/nuevo.py"), repo)
 
     assert not allow
-    assert "SPEC-001-demo (Demo)" in motivo
+    assert "SPEC-001-demo: Demo" in motivo
     assert not (repo / "src" / "nuevo.py").exists()

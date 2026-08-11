@@ -174,11 +174,12 @@ def _aviso_de_reuso(file_path: str, repo_root: Path, indexador) -> str:  # type:
         return ""
     if not specs:
         return ""
-    detalle = "; ".join(f"{spec_id} ({titulo})" for spec_id, titulo in specs)
+    lineas = "\n".join(f"  - {spec_id}: {titulo}" for spec_id, titulo in specs)
     return (
-        f"\nEspecs que ya gobiernan '{file_path}': {detalle}. Si la capacidad "
-        "cabe en alguna, escribi ahi el requisito nuevo y adoptala con "
-        "sdd_spec.py --reuse SPEC-NNN --fr FR-NNN, en vez de crear otra spec."
+        f"\n\nSpecs que ya gobiernan '{file_path}':\n{lineas}\n"
+        "Si la capacidad cabe en alguna, escribi ahi el requisito nuevo y "
+        "adoptala en vez de crear otra spec:\n"
+        "  sdd_spec.py --reuse SPEC-NNN --fr FR-NNN"
     )
 
 

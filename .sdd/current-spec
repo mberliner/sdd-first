@@ -2,3 +2,4 @@
 # El gate spec-first (tools/sdd/core/sdd_gate.py) exige que cada spec listada aquí
 # exista, esté registrada con estado vigente y tenga sus requisitos (FR) escritos.
 # Vacío = ninguna edición de código fuente permitida.
+SPEC-022-reusar-specs-existentes
