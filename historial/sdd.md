@@ -1,5 +1,64 @@
 # Historial SDD — sdd-first
 
+## 2026-08-12 — SPEC-025: el andamiaje instalado se puede actualizar sin perder lo propio
+
+**Scope:** `specs/SPEC-025-actualizar-kit-en-derivados.md` (30 FR, US1..US4,
+`active`), `core/sdd_catalog.py` y `core/sdd_lock.py` (nuevos),
+`core/sdd_update.py` (nuevo comando), `core/sdd_init.py`, `core/sdd_doctor.py`,
+`core/sdd_config.py` (`KIT_VERSION`), `CHANGELOG.md` (nuevo),
+`.agents/skills/sdd-update/`, `docs/playbooks/sdd-update.md`, `README.md`,
+`templates/docs/SDD-OPERACION.md`, `00-INDEX.md` y `templates/00-INDEX.md`, 13
+archivos de test nuevos en `tests/unit/` y
+`tests/e2e/escenarios/test_actualizacion_kit.py`.
+
+**Qué cambió:** promueve E-2 de `docs/IDEAS.md`. Antes de esta spec no había
+forma segura de traer arreglos del kit a un proyecto ya instalado:
+`project.kit_version` era una constante copiada del ejemplo (siempre
+`"0.1.0"`, nunca comparada), y la única ruta de "actualización",
+`sdd-init --force`, **borraba** `specs/SPECS_REGISTRY.md` y
+`historial/sdd.md`.
+
+- **US1 — registro:** `KIT_VERSION` vendorizado (`sdd_config.py`) y
+  `.sdd/kit.lock`, un manifiesto JSON determinista que `sdd-init` escribe al
+  terminar: versión, valores de sustitución usados, `sha256` por `plantilla`
+  **tal como la entrega el kit** (nunca el contenido del disco — es lo que
+  evita que una plantilla en conflicto se dé por intacta y se pise en
+  silencio en la actualización siguiente) y presencia de cada `semilla`.
+- **US2 — actualización:** `core/sdd_update.py`, simétrico a `sdd-init`,
+  corrido desde el clon del kit apuntando al derivado. Purga y recrea
+  `tools/sdd/`, pisa las plantillas intactas, deja las editadas sin tocar con
+  la versión del kit en `<archivo>.kit-new`, propaga altas y bajas del
+  catálogo, y reescribe el lock solo si todo salió bien. `sdd-init --force`
+  pasa a respetar el mismo catálogo de clases (`core/sdd_catalog.py`:
+  vendor/plantilla/semilla) — deja de borrar el registro y el historial, y
+  aplica la misma política de conflicto sobre las plantillas.
+- **US3 — el plan:** por defecto `sdd-update` solo muestra qué cambiaría (sin
+  escribir); `--apply` lo aplica, `--diff` muestra el contenido.
+- **US4 — changelog:** `CHANGELOG.md` con una entrada por `KIT_VERSION`, que
+  el plan cita entre la versión instalada y la del kit.
+
+**Decisiones de diseño:**
+- El lock nunca lee el disco para decidir su propio contenido: `build_lock`
+  arma cada hash desde `templates/` con los placeholders resueltos. Es lo que
+  hace que el caso brownfield y el de un conflicto sin resolver registren la
+  línea base correcta sin necesitar una rama especial.
+- `sdd_catalog.decidir_plantilla` es la única función de decisión de
+  conflicto, compartida por `sdd-init --force` y `sdd-update`: evita que las
+  dos rutas de escritura del kit terminen aplicando criterios distintos.
+- `STATIC_DOCS`/`WIRING` se mudaron de `sdd_init.py` a `sdd_catalog.py` (con
+  `sdd_init` reexportándolos) para que el catálogo sea el único SSOT que
+  ambos comandos consultan, sin import circular.
+- Al escribir el `--force` sobre `.sdd/config.yaml`, se encontró un bug
+  colateral: `sdd-init` sustituía las plantillas con un `domain` hardcodeado
+  distinto del que terminaba escrito en `.sdd/config.yaml`, así que el lock
+  registraba una sustitución que nunca coincidía con la del config real. Se
+  corrigió leyendo `name`/`domain` del config recién escrito (mismo criterio
+  que ya usa `sdd-update`, FR-US2-010), en vez de un literal aparte.
+- `sdd-init --force` sobre un wiring propio del brownfield ya no puede
+  "silenciar" el aviso pisándolo: sin lock que lo avale como intacto, sigue
+  en conflicto (`tests/unit/test_sdd_init_wiring_conservado.py` se actualizó
+  para reflejarlo).
+
 ## 2026-08-12 — SPEC-003 + SPEC-012: las herramientas del kit no fallan en silencio
 
 **Scope:** `specs/SPEC-003-install-happy-path.md` (FR-012/FR-013, SC-008/SC-009),

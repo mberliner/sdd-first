@@ -44,7 +44,7 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 ## Relación con specs existentes
 
 - **Extiende:** — | **Supersede:** — | **Depende de:** —
-- **Extendida por:** — | **Es dependencia de:** — | **Superseded por:** —
+- **Extendida por:** [SPEC-025](SPEC-025-actualizar-kit-en-derivados.md) | **Es dependencia de:** — | **Superseded por:** —
 - **Por qué no cabe en una spec existente:** —
 
 ## Clarifications

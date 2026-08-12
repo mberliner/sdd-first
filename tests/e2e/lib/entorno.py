@@ -154,6 +154,15 @@ def instalar(destino: Path, language: str = "python", *extra: str) -> Resultado:
     )
 
 
+def actualizar(destino: Path, *extra: str) -> Resultado:
+    """Corre `sdd-update` **desde el clon del kit** apuntando a `destino`
+    (SPEC-025 FR-US4-003): igual que `instalar`, el producto real es lo que se
+    ejecuta desde ahi, no un import."""
+    return correr_python(
+        KIT_ROOT / "core" / "sdd_update.py", KIT_ROOT, str(destino), *extra
+    )
+
+
 def git(destino: Path, *args: str, timeout: int = 120) -> Resultado:
     return correr(["git", *args], destino, timeout=timeout)
 

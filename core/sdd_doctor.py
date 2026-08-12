@@ -21,9 +21,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import check_traceability as ct  # noqa: E402
+import sdd_lock  # noqa: E402
 import spec_relations  # noqa: E402
 from sdd_config import (  # noqa: E402
     GATE_WIRING,
+    KIT_VERSION,
     TEST_DIRS,
     find_repo_root,
     forzar_salida_utf8,
@@ -236,13 +238,35 @@ def main(argv: list[str]) -> int:
     problems: list[str] = []
     notes: list[str] = []
 
-    # 1. Config parseable + versión del kit.
+    # 1. Config parseable + versión del kit (SPEC-025 FR-US1-005): se lee del
+    # lock, no del config -- `project.kit_version` era una constante copiada
+    # del ejemplo, nunca comparada contra nada real.
     cfg = load(repo_root)
     if not (repo_root / ".sdd" / "config.yaml").exists():
         problems.append("Falta .sdd/config.yaml (¿corriste sdd-init?).")
     else:
-        kit_version = cfg.raw.get("project", {}).get("kit_version")
-        notes.append(f"kit_version: {kit_version or '(no declarada)'}")
+        try:
+            lock = sdd_lock.load_lock(repo_root)
+        except sdd_lock.LockIlegible as exc:
+            problems.append(
+                f"'.sdd/kit.lock' ilegible: {exc}. Si es un conflicto de merge sin "
+                "resolver, arreglalo; si preferís correr en modo degradado, "
+                "borrá el archivo y volvé a actualizar."
+            )
+        else:
+            if lock is None:
+                notes.append(
+                    "kit_version: sin lock (instalación anterior a sdd-update; "
+                    "el próximo sdd-update deja uno escrito)"
+                )
+            else:
+                notes.append(f"kit_version instalada: {lock.kit_version}")
+                if lock.kit_version != KIT_VERSION:
+                    problems.append(
+                        f"Actualización a medio aplicar: el lock declara "
+                        f"'{lock.kit_version}' pero el andamiaje vendorizado es "
+                        f"'{KIT_VERSION}'. Volvé a correr sdd-update."
+                    )
         notes.append(f"language: {cfg.language}")
 
     # 2. Artefactos requeridos.

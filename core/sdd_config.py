@@ -21,6 +21,7 @@ accesos tipados con defaults razonables para que un config parcial no rompa.
 
 from __future__ import annotations
 
+import hashlib
 import sys
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -193,6 +194,14 @@ def script_hint(module_file: str | Path, repo_root: Path) -> str:
 # Prefijo bajo el que `sdd-init` vendoriza el andamiaje en un proyecto derivado.
 VENDOR_PREFIX = "tools/sdd"
 
+# Versión del propio andamiaje (SPEC-025 FR-US1-001). Viaja vendorizada bajo
+# `{{sdd.core}}`: un derivado puede afirmar qué versión tiene sin el clon del
+# kit al lado. Independiente de `constitution_version`: son dos líneas de
+# versionado distintas (andamiaje vs. principios) que no tiene sentido atar.
+# Cada versión publicada necesita su entrada en `CHANGELOG.md`
+# (tests/unit/test_changelog.py lo exige).
+KIT_VERSION = "0.1.0"
+
 
 def is_kit_repo(repo_root: Path) -> bool:
     """True si `repo_root` es el repo del kit (no un proyecto instalado).
@@ -316,6 +325,13 @@ def forzar_salida_utf8() -> None:
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
             reconfigure(encoding="utf-8")
+
+
+def hash_bytes(data: bytes) -> str:
+    """`sha256` hexdigest de `data`. Vive acá (y no en `sdd_lock`) porque lo usan
+    `sdd_init` y `sdd_lock` por igual, y `sdd_lock` ya importa a `sdd_init` para
+    reusar `_substitute` -- ponerlo del otro lado crearia un ciclo."""
+    return hashlib.sha256(data).hexdigest()  # nosec B324 - integridad, no criptografía
 
 
 def write_text_lf(path: Path, text: str) -> None:

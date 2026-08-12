@@ -39,10 +39,16 @@ def test_sin_wiring_previo_no_hay_aviso(tmp_path, capsys):
     assert "ATENCION" not in capsys.readouterr().out
 
 
-def test_con_force_no_avisa_porque_lo_piso(tmp_path, capsys):
+def test_con_force_sigue_avisando_si_el_wiring_propio_es_un_conflicto(tmp_path, capsys):
+    """SPEC-025 FR-US2-013: `--force` dejó de pisar a ciegas. El wiring propio
+    del brownfield no coincide con lo que entrega el kit (no hay lock previo
+    que lo avale como intacto), así que sigue en conflicto y el aviso se
+    mantiene -- ya no ofrece `--force` como forma de silenciarlo."""
     crear_proyecto_brownfield(tmp_path, layout="app", con_wiring=True)
     sdd_init.main([str(tmp_path), "--language=python", "--force"])
-    assert "ATENCION" not in capsys.readouterr().out
+    salida = capsys.readouterr().out
+    assert "ATENCION" in salida
+    assert ".kit-new" in salida
 
 
 def test_nombra_el_indice_como_puerta_de_entrada(tmp_path, capsys):

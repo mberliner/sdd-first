@@ -36,3 +36,6 @@
 | Plantillas instalables | `templates/` |
 | Historial de iteraciones | `historial/sdd.md` |
 | Ideas pre-spec | `docs/IDEAS.md` |
+| Historial de versiones del kit | `CHANGELOG.md` |
+| Clases de propiedad de cada artefacto instalado | `core/sdd_catalog.py` |
+| Manifiesto de instalación de un derivado | `.sdd/kit.lock` (formato en `core/sdd_lock.py`) |

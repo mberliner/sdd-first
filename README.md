@@ -48,8 +48,11 @@ documentación corren contra esa copia, con las rutas de tu proyecto.
 Eso es deliberado, y define qué es este kit: **una herramienta de bootstrap, no
 un framework del que quedás colgado.** Podés borrar el clon después de instalar.
 La única razón para volver es traer una versión nueva del andamiaje a un proyecto
-ya instalado — hoy eso es reinstalar con `--force`; una ruta de actualización
-propia está pendiente (ver `docs/IDEAS.md`, E-2).
+ya instalado: `python core/sdd_update.py <ruta-del-proyecto>` desde este clon
+muestra el plan (nada se escribe sin `--apply`) y nunca pisa una plantilla que
+editaste — la reporta como conflicto y deja la versión nueva en
+`<archivo>.kit-new` para fusionar a mano. Detalle completo en
+`docs/playbooks/sdd-update.md` y en `CHANGELOG.md` (qué trae cada versión).
 
 Corolario para quien contribuye al kit: todo lo que el usuario del proyecto
 derivado vaya a necesitar tiene que **viajar con la instalación**. Un documento,

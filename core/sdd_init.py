@@ -28,17 +28,24 @@ import subprocess  # nosec B404 - solo consulta la rama actual del destino
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import gen_skill_adapters  # noqa: E402
+import sdd_catalog  # noqa: E402
+from sdd_catalog import KIT_NEW_SUFFIX, Clase  # noqa: E402
 from sdd_config import (  # noqa: E402
     GATE_WIRING,
     VENDOR_PREFIX,
     ensure_gitignore_current_spec,
     forzar_salida_utf8,
+    hash_bytes,
     write_text_lf,
 )
+
+if TYPE_CHECKING:  # evita el ciclo sdd_init <-> sdd_lock en tiempo de import
+    from sdd_lock import Lock
 
 KIT_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = KIT_ROOT / "templates"
@@ -48,44 +55,14 @@ TEMPLATES = KIT_ROOT / "templates"
 EXAMPLE_CONFIG = KIT_ROOT / "examples" / "config" / "config.yaml"
 CONFIG_REFERENCE_RELPATH = Path(".sdd") / "config.reference.yaml"
 
-# Plantillas estáticas: (origen relativo a templates/, destino relativo a target).
-STATIC_DOCS = [
-    ("AGENTS.md", "AGENTS.md"),
-    ("CLAUDE.md", "CLAUDE.md"),
-    ("00-INDEX.md", "00-INDEX.md"),
-    ("README.md", "README.md"),
-    ("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.md"),
-    ("docs/CONTRIBUTING.md", "docs/CONTRIBUTING.md"),
-    ("docs/SPEC-FORMAT.md", "docs/SPEC-FORMAT.md"),
-    ("docs/SDD-ENFORCEMENT.md", "docs/SDD-ENFORCEMENT.md"),
-    ("docs/SDD-OPERACION.md", "docs/SDD-OPERACION.md"),
-    ("docs/SKILLS-MULTITOOL.md", "docs/SKILLS-MULTITOOL.md"),
-    ("docs/DEVELOPMENT.md", "docs/DEVELOPMENT.md"),
-    ("docs/IDEAS.md", "docs/IDEAS.md"),
-    ("docs/playbooks/analyze.md", "docs/playbooks/analyze.md"),
-    ("docs/playbooks/clarify.md", "docs/playbooks/clarify.md"),
-    ("docs/playbooks/sdd-spec.md", "docs/playbooks/sdd-spec.md"),
-    ("docs/playbooks/sdd-doctor.md", "docs/playbooks/sdd-doctor.md"),
-    ("docs/playbooks/sdd-configure.md", "docs/playbooks/sdd-configure.md"),
-    ("specs/SPECS_REGISTRY.md", "specs/SPECS_REGISTRY.md"),
-    ("specs/SPEC-TEMPLATE.md", "specs/SPEC-TEMPLATE.md"),
-    ("historial/sdd.md", "historial/sdd.md"),
-]
-
-# Wiring: (origen en templates/wiring, destino en target).
-WIRING = [
-    ("wiring/claude-settings.json", ".claude/settings.json"),
-    ("wiring/sdd_gate_hook.sh", ".claude/sdd_gate_hook.sh"),
-    ("wiring/.pre-commit-config.yaml", ".pre-commit-config.yaml"),
-    ("wiring/opencode-sdd-gate.js", ".opencode/plugin/sdd-gate.js"),
-    ("wiring/.gitattributes", ".gitattributes"),
-    ("wiring/.gitignore", ".gitignore"),
-    ("wiring/hooks.json", ".agents/hooks.json"),
-    ("wiring/current-spec", ".sdd/current-spec"),
-]
+# Catálogo de artefactos (plantillas estáticas + wiring), con su clase de
+# propiedad: SSOT único en `sdd_catalog.py`, compartido con `sdd_update.py`
+# (SPEC-025 FR-US2-001). No se copian acá para no duplicar la lista.
+STATIC_DOCS = sdd_catalog.STATIC_DOCS
+WIRING = sdd_catalog.WIRING
 
 # Wiring que necesita quedar con permiso de ejecucion tras copiarse.
-_EXECUTABLE_WIRING = {".claude/sdd_gate_hook.sh"}
+_EXECUTABLE_WIRING = sdd_catalog.EXECUTABLE_WIRING
 
 # Skills de proyecto que se instalan en el destino (fuente para el generador).
 # No incluye "sdd-init": es bootstrap de una sola vez, no una skill operativa
@@ -108,20 +85,58 @@ def _substitute(text: str, name: str, domain: str) -> str:
     )
 
 
-def _copy_text(src: Path, dst: Path, name: str, domain: str, force: bool) -> str:
-    if dst.exists() and not force:
-        if dst.name == ".gitignore" and ensure_gitignore_current_spec(dst):
-            return (
-                f"  (existe, se conserva) {dst} -- se agrego .sdd/current-spec "
-                "(SPEC-004 FR-009)"
-            )
-        return f"  (existe, se conserva) {dst}"
+def _copy_text(
+    src: Path,
+    dst: Path,
+    name: str,
+    domain: str,
+    force: bool,
+    *,
+    dst_rel: str = "",
+    lock: Lock | None = None,
+) -> str:
+    """Instala una plantilla, respetando su clase de propiedad (SPEC-025 FR-US2-013).
+
+    `dst_rel` (ruta relativa al target, forma posix) es la clave del catálogo:
+    decide la clase con `sdd_catalog.clase_de` y, si es `plantilla` y
+    `force=True`, la política de conflicto (`decidir_plantilla`) contra el
+    lock existente en vez de pisar a ciegas.
+    """
+    text = _substitute(src.read_text(encoding="utf-8"), name, domain)
+    clase = sdd_catalog.clase_de(dst_rel) if dst_rel else Clase.PLANTILLA
+
+    if dst.exists():
+        if clase == Clase.SEMILLA or not force:
+            if dst.name == ".gitignore" and ensure_gitignore_current_spec(dst):
+                return (
+                    f"  (existe, se conserva) {dst} -- se agrego .sdd/current-spec "
+                    "(SPEC-004 FR-009)"
+                )
+            return f"  (existe, se conserva) {dst}"
+        # PLANTILLA + force: no se pisa a ciegas (FR-US2-013). Se decide contra
+        # el lock existente, con el mismo criterio que `sdd-update`.
+        hash_kit = hash_bytes(text.encode("utf-8"))
+        hash_disco = hash_bytes(dst.read_bytes())
+        hash_lock = lock.plantillas.get(dst_rel) if lock else None
+        decision = sdd_catalog.decidir_plantilla(True, hash_disco, hash_kit, hash_lock)
+        if decision == "sin_cambios":
+            return f"  (sin cambios) {dst}"
+        if decision == "actualizar":
+            write_text_lf(dst, text)
+            return f"  actualizado {dst}"
+        # "conflicto": se conserva y se deja la version del kit al lado.
+        kit_new = dst.with_name(dst.name + KIT_NEW_SUFFIX)
+        write_text_lf(kit_new, text)
+        return (
+            f"  CONFLICTO (editado): {dst} -- se conservo tu version; la del kit "
+            f"queda en {kit_new}"
+        )
+
     dst.parent.mkdir(parents=True, exist_ok=True)
     # Se sustituye en TODO lo que se copia: son todas plantillas de texto. El
     # criterio anterior era la extension, y `.sdd/current-spec` -- el primer
     # archivo que se abre para entender el gate -- no tiene, asi que se instalaba
     # con `{{sdd.core}}` crudo (SPEC-014 FR-US2-001).
-    text = _substitute(src.read_text(encoding="utf-8"), name, domain)
     write_text_lf(dst, text)
     return f"  instalado {dst}"
 
@@ -166,9 +181,14 @@ def _install_config_reference(target: Path) -> str:
 def _write_config(
     target: Path, name: str, language: str, force: bool
 ) -> tuple[str, Layout | None]:
-    """Siembra `.sdd/config.yaml`. Devuelve (linea de log, layout detectado)."""
+    """Siembra `.sdd/config.yaml`. Devuelve (linea de log, layout detectado).
+
+    Es `semilla` (SPEC-025 FR-US2-002): ni siquiera `--force` lo pisa (ANA-014)
+    -- es el archivo que el dueno mas edita, y `--force` fuerza la
+    reinstalacion del andamiaje, no la destruccion de lo que el dueno escribio.
+    """
     dst = target / ".sdd" / "config.yaml"
-    if dst.exists() and not force:
+    if dst.exists():
         return f"  (existe, se conserva) {dst}", None
     example = EXAMPLE_CONFIG.read_text(encoding="utf-8")
     example = _seed_header(example, name)
@@ -575,15 +595,22 @@ def _layout_notice(layout: Layout | None) -> list[str]:
     ]
 
 
-def _gate_wiring_conservado(target: Path, force: bool) -> list[str]:
-    """Archivos de wiring del gate que ya existian en el destino (FR-US1-001).
+def _gate_wiring_conservado(target: Path) -> list[str]:
+    """Archivos de wiring del gate que no cablean la invocacion esperada
+    (FR-US1-001), consultado DESPUES de copiar.
 
-    Hay que consultarlo ANTES de copiar: `sdd-init` es idempotente y no los pisa
-    (por diseno, es del dueno), asi que despues ya no se distingue.
+    Antes se consultaba antes de copiar y `force=True` devolvia `[]` a ciegas
+    (asumiendo que todo se pisaba). Con la politica de conflicto de
+    FR-US2-013, un `--force` sin lock (o sobre una plantilla editada) puede
+    conservar el wiring igual, asi que el chequeo real es sobre lo que quedo
+    en disco, con el mismo criterio de contenido que usa `sdd_doctor`.
     """
-    if force:
-        return []
-    return [rel for rel in GATE_WIRING if (target / rel).exists()]
+    conservado = []
+    for rel, invocacion in GATE_WIRING.items():
+        path = target / rel
+        if not path.exists() or invocacion not in path.read_text(encoding="utf-8"):
+            conservado.append(rel)
+    return conservado
 
 
 def _wiring_notice(conservado: list[str]) -> list[str]:
@@ -606,7 +633,8 @@ def _wiring_notice(conservado: list[str]) -> list[str]:
     lineas += [
         "  Resolvelo de una de estas dos formas:",
         "    - fusionalo a mano comparando con templates/wiring/ del kit, o",
-        "    - reinstala con --force (pisa tu version; guarda una copia antes).",
+        "    - reinstala con --force: si esta intacto lo pisa; si lo editaste,",
+        "      deja la version del kit en <archivo>.kit-new para fusionar a mano.",
         "  Verificalo con: python tools/sdd/core/sdd_doctor.py",
         "",
     ]
@@ -767,27 +795,63 @@ def _parse_argv(argv: list[str]) -> Opciones:
 
 
 def main(argv: list[str]) -> int:
+    import sdd_lock  # import tardio: sdd_lock importa sdd_init, evita el ciclo
+    from sdd_config import load  # noqa: PLC0415 - mismo import tardio, evita ciclo
+
     opciones = _parse_argv(argv)
     force = opciones.force
     language = opciones.language
     target = opciones.target
-    name = target.name
-    domain = "TODO: describir el dominio"
+
+    # Lock de una instalacion previa (si la hay): solo se usa para decidir
+    # conflicto en un --force sobre plantillas editadas (FR-US2-013). Ilegible
+    # se trata como ausente aca -- ese requisito estricto es de `sdd-update`.
+    try:
+        existing_lock = sdd_lock.load_lock(target)
+    except sdd_lock.LockIlegible:
+        existing_lock = None
 
     print(f"Instalando sdd-first en {target} (language={language})")
-    wiring_conservado = _gate_wiring_conservado(target, force)
+
+    # `.sdd/config.yaml` se escribe primero: `name`/`domain` para sustituir el
+    # resto de las plantillas se leen de ahi (mismo criterio que `sdd-update`,
+    # FR-US2-010), no de un literal aparte que podia divergir del config
+    # sembrado -- y en un `--force` sobre un config ya editado, refleja lo que
+    # el dueno declaro de verdad.
+    config_line, layout = _write_config(target, target.name, language, force)
+    load.cache_clear()
+    cfg = load(target)
+    name = cfg.name
+    domain = cfg.domain
+
     log: list[str] = []
     for src_rel, dst_rel in STATIC_DOCS:
         log.append(
-            _copy_text(TEMPLATES / src_rel, target / dst_rel, name, domain, force)
+            _copy_text(
+                TEMPLATES / src_rel,
+                target / dst_rel,
+                name,
+                domain,
+                force,
+                dst_rel=dst_rel,
+                lock=existing_lock,
+            )
         )
     for src_rel, dst_rel in WIRING:
         log.append(
-            _copy_text(TEMPLATES / src_rel, target / dst_rel, name, domain, force)
+            _copy_text(
+                TEMPLATES / src_rel,
+                target / dst_rel,
+                name,
+                domain,
+                force,
+                dst_rel=dst_rel,
+                lock=existing_lock,
+            )
         )
-        if dst_rel in _EXECUTABLE_WIRING:
+        if dst_rel in _EXECUTABLE_WIRING and (target / dst_rel).exists():
             (target / dst_rel).chmod(0o755)
-    config_line, layout = _write_config(target, name, language, force)
+    wiring_conservado = _gate_wiring_conservado(target)
     log.append(config_line)
     log.append(_install_config_reference(target))
     log.extend(_vendor_kit(target, language, force))
@@ -796,6 +860,10 @@ def main(argv: list[str]) -> int:
 
     for line in log:
         print(line)
+
+    # Toda instalacion (incluida --force) deja lock: es lo que le permite a
+    # una actualizacion futura afirmar que hubo instalacion (SPEC-025 FR-US1-002).
+    sdd_lock.write_lock(target, sdd_lock.build_lock(KIT_ROOT, target, name, domain))
 
     print(_next_steps(target, layout, wiring_conservado))
     return 0

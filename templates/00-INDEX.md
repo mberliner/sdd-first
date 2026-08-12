@@ -40,3 +40,6 @@
 | Workflow de CI | `.github/workflows/ci.yml` (← `.sdd/config.yaml`, generado) |
 | Historial de iteraciones | `historial/sdd.md` |
 | Ideas pre-spec | `docs/IDEAS.md` |
+| Historial de versiones del andamiaje (lo trae `sdd-update`) | `CHANGELOG.md` del clon del kit -- no viaja acá, ver `docs/SDD-OPERACION.md` |
+| Clases de propiedad de cada artefacto instalado | `{{sdd.core}}/sdd_catalog.py` |
+| Manifiesto de esta instalación | `.sdd/kit.lock` (formato en `{{sdd.core}}/sdd_lock.py`) |

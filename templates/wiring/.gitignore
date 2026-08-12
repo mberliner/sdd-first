@@ -24,3 +24,7 @@ coverage.xml
 # reescribe con cada commit y no aporta a la trazabilidad real (esa vive en
 # specs/SPECS_REGISTRY.md + los FR-NNN referenciados en los tests).
 .sdd/current-spec
+
+# Testigos de conflicto de sdd-update (SPEC-025 ANA-013): la version del kit
+# que quedo al lado de una plantilla editada, para fusionar a mano.
+*.kit-new

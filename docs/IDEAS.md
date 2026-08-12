@@ -365,6 +365,17 @@ encontró.
   `kit_version` pero no la compara contra nada; actualizar `tools/sdd/` es
   `--force` manual sin diff. Diseñar `sdd-update` (comparar versión, mostrar
   qué cambia, regenerar).
+  **(ya con spec) → [[SPEC-025-actualizar-kit-en-derivados]]** (2026-08-12). El
+  análisis encontró dos cosas que la idea no registraba, y las dos cambian el
+  planteo: `project.kit_version` es una **constante copiada del ejemplo**
+  (`_write_config` reescribe `name`/`language`/`default_branch`/`steps`/
+  `principles`/`dirs` y nada más), así que todo derivado declara `0.1.0` y no hay
+  nada contra qué compararla —el kit tampoco declara su propia versión en ninguna
+  parte—; y `sdd-init --force`, la ruta "manual" que la idea daba por existente,
+  **destruye datos**: `STATIC_DOCS` incluye `specs/SPECS_REGISTRY.md` y
+  `historial/sdd.md`. Por eso la spec no empieza por el comando sino por el
+  registro (`.sdd/kit.lock`: versión + hash de cada archivo instalado) y por
+  clasificar cada artefacto según quién manda sobre él.
 - **E-3 · Packaging mínimo.** No hay `pyproject.toml`/`requirements` (pyyaml
   solo en prosa), no hay LICENSE (bloqueante para un kit que se copia en
   proyectos ajenos), no hay CI que corra el pipeline del kit.

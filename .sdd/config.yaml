@@ -3,7 +3,6 @@ project:
   name: sdd-first
   domain: andamiaje SDD universal, agnostico y personalizable para otros proyectos
   language: python
-  kit_version: "0.1.0"
 
 dirs:
   # El "codigo fuente" del kit son sus scripts de nucleo y adaptadores.

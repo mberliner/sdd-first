@@ -52,3 +52,24 @@ python tools/sdd/core/pipeline.py
 ```
 
 Corré esto antes de cerrar cualquier iteración.
+
+## Actualizar el andamiaje (`sdd-update`)
+
+`sdd-update` **no vive acá**: es un comando del kit, no una skill de este
+proyecto, porque necesita el clon del kit al lado (no solo la copia
+vendorizada en `tools/sdd/`). Se corre desde ahí, apuntando a este proyecto:
+
+```
+python <clon-del-kit>/core/sdd_update.py <ruta-de-este-proyecto>          # plan
+python <clon-del-kit>/core/sdd_update.py <ruta-de-este-proyecto> --apply  # lo aplica
+```
+
+Trae los arreglos del kit sin pisar lo que adaptaste: una plantilla que
+editaste (`AGENTS.md`, el wiring del gate, los playbooks, etc.) nunca se
+sobrescribe — queda reportada como conflicto y la versión nueva se deja en
+`<archivo>.kit-new`, al lado, para fusionar a mano. `specs/SPECS_REGISTRY.md`,
+`historial/sdd.md` y `.sdd/config.yaml` nunca se tocan.
+
+`.sdd/kit.lock` (versionado, no se edita a mano) es el registro de qué versión
+y qué contenido exacto instaló `sdd-init`: es contra eso que `sdd-update` mide
+si algo cambió. `sdd-doctor` lee la versión instalada de ahí.
