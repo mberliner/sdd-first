@@ -101,6 +101,43 @@ distingue los pasos que verificaron algo de los que se omitieron.
   omiten cuando no hay carpetas—; se le agrega (FR-011). Dos defectos
   encadenados con la misma raíz: el paso nunca se había ejecutado de verdad.
 
+### Session 2026-08-12 (reapertura)
+
+- Q: ¿Por qué se reabre? → A: por C-7 y C-3 de `docs/IDEAS.md`, que son la misma
+  clase de defecto en la puerta de entrada del kit: `sdd_init.main` parte `argv`
+  en "lo que empieza con `--`" y "lo demás", y de los flags solo interpreta
+  `--force` y `--language`. Todo otro flag se descarta sin una palabra. El caso
+  peor es `--target=/otro/lado`: como empieza con `--` no cuenta como
+  posicional, así que el destino cae al **cwd** y el instalador escribe ~40
+  archivos en el directorio equivocado informando que instaló bien. Pasó en vivo
+  el 2026-08-05 (la corrida de SPEC-015 se instaló sobre el propio kit y hubo
+  que borrar a mano `tools/`, `.opencode/plugin/` y cinco `docs/*.md`).
+- Q: ¿`--target` se implementa o se rechaza? → A: se implementa. Rechazarlo
+  sería correcto y seguro, pero el flag ya se tipeó al menos una vez porque es
+  la forma que el resto del kit usa; darle el significado obvio cuesta lo mismo
+  que documentarlo como inválido. El posicional se conserva (lo usan la e2e y el
+  README): si vienen los dos y no coinciden, es error.
+- Q: ¿Y `--language` (C-3)? → A: dos huecos distintos. `--language node` (con
+  espacio) cae en el `else` y se instala **python** en silencio; y con `=`, un
+  lenguaje sin adaptador se acepta y `_vendor_kit` omite el vendorizado sin
+  aviso, dejando un proyecto cuyo config declara un lenguaje que su `tools/sdd/`
+  no puede ejecutar. Se acepta la forma con espacio y se valida el valor contra
+  los adaptadores que existen en disco (`adapters/<lang>/`) más `none`.
+- Q: ¿Por qué la lista de lenguajes se deriva del disco y no se escribe? → A:
+  porque una constante sería un segundo SSOT del catálogo de adaptadores, que ya
+  es el contenido de `adapters/` (Principio IV). Hoy da `python`, `none`; el día
+  que exista `adapters/node/` la validación lo acepta sin tocar código.
+- Q: ¿C-4 (`_slugify` no translitera acentos) entra en esta spec y no en una de
+  `sdd_spec.py`? → A: sí. El origen de SPEC-003 es "las herramientas del kit no
+  deben romper sus propios artefactos", que es exactamente FR-003; un slug
+  `b-squeda` produce un nombre de archivo y un ID de spec distintos de los que
+  el usuario pidió, en silencio. SPEC-022 y SPEC-023 gobiernan `sdd_spec.py`
+  pero por su triage y sus relaciones, no por la forma del artefacto.
+- Q: ¿Se escribe una normalización nueva? → A: no. `core/spec_index.py:81` ya
+  translitera con NFKD para el triage; que el mismo repo tuviera dos criterios
+  de normalización de texto es la duplicación que el Principio IV prohíbe. Se
+  expone el helper existente y `_slugify` lo consume.
+
 ## Acceptance Scenarios
 
 - **Given** un directorio vacío, **When** corre `sdd-init` + render + gen +
@@ -125,6 +162,17 @@ distingue los pasos que verificaron algo de los que se omitieron.
 - **Given** una instalación fresca con `import-linter` instalado, **When** corre
   el paso `layers`, **Then** `lint-imports` lee el `.importlinter` generado y
   evalúa los contratos (no aborta al parsear el archivo).
+- **Given** `sdd_init.py --target=/otro/lado`, **When** corre la instalación,
+  **Then** instala en `/otro/lado` (antes: en el cwd, sin aviso).
+- **Given** `sdd_init.py --flag-que-no-existe`, **When** corre la instalación,
+  **Then** aborta con exit distinto de 0 y el mensaje de uso, sin escribir
+  ningún archivo en el destino.
+- **Given** `sdd_init.py --language node` sin adaptador `adapters/node/`,
+  **When** corre la instalación, **Then** aborta nombrando los lenguajes
+  disponibles (antes: instalaba python, o sembraba `language: node` sin
+  vendorizar adaptador).
+- **Given** `sdd_spec.py "búsqueda semántica"`, **When** crea la spec, **Then**
+  el slug es `busqueda-semantica` (antes: `b-squeda-sem-ntica`).
 
 ## Functional Requirements
 
@@ -179,6 +227,14 @@ distingue los pasos que verificaron algo de los que se omitieron.
   disco, omite con aviso y exit 3 en vez de dejar que la tool aborte. Era el
   único paso de código sin esa guardia.
 
+- **FR-012** MUST: `core/sdd_init.py` valida su línea de comandos antes de
+  escribir nada. Un flag que no conoce, un valor de `--language` sin adaptador
+  en disco (`adapters/<lang>/`, más `none`) o dos destinos en conflicto abortan
+  con exit distinto de 0 y el mensaje de uso, sin tocar el destino. Acepta
+  `--target=<dir>` y `--target <dir>` como destino explícito —equivalentes al
+  posicional, que se conserva— y `--language <lang>` además de
+  `--language=<lang>`. El catálogo de lenguajes válidos se deriva del contenido
+  de `adapters/`, no de una lista escrita aparte.
 ## Key Entities
 
 - `adapters/python/adapter.py` — omisión por targets/tool ausentes.
@@ -192,6 +248,10 @@ distingue los pasos que verificaron algo de los que se omitieron.
 - `adapters/CONTRACT.md` — contrato de exit codes (0 / 3 / otro).
 - `adapters/python/gen_import_linter.py` — traducción de `layers` a contratos;
   desde FR-010, en la sintaxis INI que import-linter realmente lee.
+- `core/sdd_init.py::main` — parseo y validación de la línea de comandos
+  (FR-012); `adapters/` como catálogo de lenguajes soportados.
+- `core/spec_index.py` — normalización NFKD ya existente, consumida por
+  `_slugify` desde FR-013.
 
 ## Success Criteria
 
@@ -212,6 +272,12 @@ distingue los pasos que verificaron algo de los que se omitieron.
   `layers` corre y el pipeline sigue VERDE (antes: ROJO 4/5, `lint-imports`
   abortaba con `While reading from '<string>' : section '' already exists`
   sobre el `.importlinter` recién generado).
+- **SC-008** `sdd_init.py --target=<dir>` sobre un directorio distinto del cwd
+  deja el cwd intacto y el andamiaje en `<dir>` (antes: al revés, en silencio).
+  Un flag desconocido no escribe nada y sale con el uso.
+- **SC-009** Un título con acentos produce un slug legible y sin huecos
+  (`busqueda-semantica`), igual que el que ya deriva el triage de SPEC-022 para
+  el mismo texto.
 
 ## Assumptions
 
@@ -235,6 +301,7 @@ distingue los pasos que verificaron algo de los que se omitieron.
 | FR-009 | tests/unit/test_pipeline_omitidos.py, tests/unit/test_python_adapter.py, tests/unit/test_bootstrap_hooks.py, tests/unit/test_install_brownfield.py |
 | FR-010 | tests/unit/test_gen_import_linter.py |
 | FR-011 | tests/unit/test_python_adapter.py |
+| FR-012 | tests/unit/test_sdd_init_cli.py |
 
 ## Fuera de alcance
 
@@ -247,6 +314,12 @@ distingue los pasos que verificaron algo de los que se omitieron.
   bloque para SPEC-014.
 - Derivar el pre-filtro `files:` de `.pre-commit-config.yaml` desde
   `source_roots` (hoy es `^(src|app|lib)/` fijo) → G-1 de `docs/IDEAS.md`.
+- Migrar el parseo de `sdd_init.py` a `argparse`: FR-012 valida la línea de
+  comandos, no reescribe cómo se lee. El parseo a mano es deliberado —el módulo
+  se vendoriza y se ejecuta suelto— y cambiarlo movería la superficie de los
+  mensajes de uso que la e2e y el README ya citan.
+- El mojibake de la salida en Windows (C-2), que afecta a este mismo instalador
+  → SPEC-012, que ya gobierna la paridad Windows/POSIX del kit.
 
 ## Historial
 
@@ -261,6 +334,11 @@ distingue los pasos que verificaron algo de los que se omitieron.
   referencia (`src/domain`, `tests/unit`) y la omisión con exit 0 de FR-001/FR-004
   hacía indistinguible "no medí" de "medí y pasó". Ítems U-1..U-3 de
   `docs/IDEAS.md`; cierra de paso C-1 (paso desconocido contado como OK).
+- 2026-08-12: **reabierta** (FR-012, FR-013, SC-008/SC-009) por C-7, C-3 y C-4
+  de `docs/IDEAS.md`. Los tres son la misma falla: una herramienta del kit hace
+  algo distinto de lo que se le pidió y lo informa como éxito — instalar en el
+  cwd cuando se pasó `--target`, instalar python cuando se pidió otro lenguaje,
+  y nombrar la spec `b-squeda` cuando se la tituló `búsqueda`.
   Verificado: greenfield sigue VERDE y ahora declara `4/4 pasos OK` + `Omitidos
   (4)` en vez de `VERDE 8/8`; brownfield con `app/` sale ROJO por sus 2
   violaciones reales y el gate bloquea `app/servicio.py` en las tres capas, sin

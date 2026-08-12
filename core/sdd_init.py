@@ -6,7 +6,14 @@ adaptador de lenguaje bajo `tools/sdd/`, instala el wiring de los gates y siembr
 (usá --force para sobrescribir plantillas).
 
 Uso:
-    python core/sdd_init.py [<target_dir>] [--language python|none] [--force]
+    python core/sdd_init.py [<target_dir>] [--target=<dir>]
+                            [--language=<lang>] [--force]
+
+El destino se pasa como posicional o con `--target`; sin ninguno de los dos es
+el directorio actual. `--language` se valida contra los adaptadores que existen
+en `adapters/` (mas `none`). Cualquier otro flag aborta antes de escribir nada
+(SPEC-003 FR-012): el instalador toca ~40 archivos y una invocacion mal leida
+los deja en el directorio equivocado.
 
 Al terminar imprime la secuencia para continuar (`_next_steps`), con el path
 real del destino: esos comandos corren desde el proyecto instalado
@@ -667,16 +674,98 @@ def _next_steps(
     return "\n".join(lines)
 
 
-def main(argv: list[str]) -> int:
-    args = [a for a in argv if not a.startswith("--")]
-    flags = [a for a in argv if a.startswith("--")]
-    force = "--force" in flags
-    language = "python"
-    for f in flags:
-        if f.startswith("--language"):
-            language = f.split("=", 1)[1] if "=" in f else "python"
+USAGE = (
+    "Uso: python core/sdd_init.py [<target_dir>] [--target=<dir>]"
+    " [--language=<lang>] [--force]"
+)
 
-    target = Path(args[0]).resolve() if args else Path.cwd()
+
+def lenguajes_soportados() -> set[str]:
+    """Lenguajes que `--language` acepta: los adaptadores en disco, mas `none`.
+
+    El catalogo es el contenido de `adapters/`, no una lista escrita aparte: una
+    constante seria un segundo SSOT que se desincroniza en cuanto se agregue un
+    adaptador (SPEC-003 FR-012, Principio IV).
+    """
+    adapters = KIT_ROOT / "adapters"
+    en_disco = {d.name for d in adapters.iterdir() if d.is_dir()} if adapters.is_dir() else set()
+    return en_disco | {"none"}
+
+
+def _abortar(motivo: str) -> None:
+    """Sale sin escribir nada. El instalador toca ~40 archivos: ante una
+    invocacion que no entendemos, no hay opcion segura que no sea no empezar."""
+    print(f"ERROR: {motivo}\n{USAGE}", file=sys.stderr)
+    raise SystemExit(2)
+
+
+@dataclass
+class Opciones:
+    target: Path
+    language: str
+    force: bool
+
+
+def _parse_argv(argv: list[str]) -> Opciones:
+    """Parseo estricto: lo que no se reconoce aborta (SPEC-003 FR-012).
+
+    Antes `main` partia argv en "empieza con --" y "el resto", miraba solo
+    `--force`/`--language` y descartaba todo lo demas. `--target=<dir>` caia en
+    ese descarte y el destino terminaba siendo el cwd, en silencio.
+    """
+    posicional: str | None = None
+    target_flag: str | None = None
+    language: str | None = None
+    force = False
+
+    resto = list(argv)
+    while resto:
+        arg = resto.pop(0)
+        if not arg.startswith("--"):
+            if posicional is not None:
+                _abortar(f"destino repetido: '{posicional}' y '{arg}'")
+            posicional = arg
+            continue
+
+        nombre, sep, valor = arg.partition("=")
+        if nombre == "--force":
+            if sep:
+                _abortar("--force no lleva valor")
+            force = True
+        elif nombre in ("--target", "--language"):
+            if not sep:
+                if not resto or resto[0].startswith("--"):
+                    _abortar(f"{nombre} necesita un valor")
+                valor = resto.pop(0)
+            if not valor:
+                _abortar(f"{nombre} necesita un valor")
+            if nombre == "--target":
+                target_flag = valor
+            else:
+                language = valor
+        else:
+            _abortar(f"flag desconocido: {nombre}")
+
+    if language is None:
+        language = "python"
+    elif language not in lenguajes_soportados():
+        disponibles = ", ".join(sorted(lenguajes_soportados()))
+        _abortar(f"lenguaje sin adaptador: '{language}'. Disponibles: {disponibles}")
+
+    if posicional is not None and target_flag is not None:
+        if Path(posicional).resolve() != Path(target_flag).resolve():
+            _abortar(f"dos destinos distintos: '{posicional}' y '{target_flag}'")
+    elegido = target_flag if target_flag is not None else posicional
+    target = Path(elegido).resolve() if elegido else Path.cwd()
+
+    return Opciones(target=target, language=language, force=force)
+
+
+def main(argv: list[str]) -> int:
+    opciones = _parse_argv(argv)
+    force = opciones.force
+    language = opciones.language
+    target = opciones.target
     name = target.name
     domain = "TODO: describir el dominio"
 
