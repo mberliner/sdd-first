@@ -77,7 +77,13 @@ class Candidata:
         return f"  {self.spec_id} — {self.titulo}\n      ({self.motivo})"
 
 
-def _sin_acentos(text: str) -> str:
+def sin_acentos(text: str) -> str:
+    """Translitera diacriticos a ASCII (`búsqueda` -> `busqueda`).
+
+    Publica porque es la unica normalizacion de texto del kit: la consume el
+    triage de aca y el slug de `sdd_spec._slugify` (SPEC-003 FR-013). Dos
+    criterios distintos para el mismo problema es lo que veta el Principio IV.
+    """
     descompuesto = unicodedata.normalize("NFKD", text)
     return "".join(c for c in descompuesto if not unicodedata.combining(c))
 
@@ -89,7 +95,7 @@ def palabras(text: str, config: TriageConfig) -> set[str]:
     palabra a los dos lados de la comparacion (FR-US2-006): sin eso `sdd_spec`
     seria un token unico que ninguna palabra de un titulo alcanzaria.
     """
-    crudas = re.split(r"[^a-z0-9]+", _sin_acentos(text).lower())
+    crudas = re.split(r"[^a-z0-9]+", sin_acentos(text).lower())
     return {
         p for p in crudas if len(p) >= config.min_word_len and p not in config.stopwords
     }

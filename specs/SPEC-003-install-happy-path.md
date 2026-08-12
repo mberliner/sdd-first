@@ -235,6 +235,12 @@ distingue los pasos que verificaron algo de los que se omitieron.
   posicional, que se conserva— y `--language <lang>` además de
   `--language=<lang>`. El catálogo de lenguajes válidos se deriva del contenido
   de `adapters/`, no de una lista escrita aparte.
+- **FR-013** MUST: el slug que `core/sdd_spec.py::_slugify` deriva de un título
+  translitera los acentos y diacríticos en vez de descartarlos (`búsqueda` →
+  `busqueda`, no `b-squeda`). La transliteración es la que ya usa
+  `core/spec_index.py`, expuesta como helper reutilizable; no se escribe una
+  segunda normalización.
+
 ## Key Entities
 
 - `adapters/python/adapter.py` — omisión por targets/tool ausentes.
@@ -302,6 +308,7 @@ distingue los pasos que verificaron algo de los que se omitieron.
 | FR-010 | tests/unit/test_gen_import_linter.py |
 | FR-011 | tests/unit/test_python_adapter.py |
 | FR-012 | tests/unit/test_sdd_init_cli.py |
+| FR-013 | tests/unit/test_sdd_spec.py |
 
 ## Fuera de alcance
 

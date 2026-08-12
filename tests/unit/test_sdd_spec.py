@@ -47,6 +47,23 @@ def test_slugify_normaliza():
     assert sdd_spec._slugify("Mi Capacidad Nueva!") == "mi-capacidad-nueva"
 
 
+def test_slugify_translitera_acentos(tmp_path):
+    """SPEC-003 FR-013: los diacriticos se transliteran, no se descartan.
+
+    Antes cada acento abria un hueco en el slug (`busqueda` -> `b-squeda`), asi
+    que el archivo y el ID de la spec no eran los que el titulo pedia.
+    """
+    assert sdd_spec._slugify("Búsqueda semántica") == "busqueda-semantica"
+    assert sdd_spec._slugify("Integración con ñandú") == "integracion-con-nandu"
+
+
+def test_slugify_usa_la_transliteracion_del_triage():
+    """SPEC-003 FR-013: una sola normalizacion de texto en el kit (Principio IV)."""
+    import spec_index
+
+    assert sdd_spec._slugify("Búsqueda") == spec_index.sin_acentos("Búsqueda").lower()
+
+
 def test_declare_current_spec_preserva_comentarios(tmp_path):
     current = tmp_path / "current-spec"
     current.write_text(CURRENT_SPEC_HEADER, encoding="utf-8")

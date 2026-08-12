@@ -83,7 +83,10 @@ def _build_parser() -> _Parser:
 
 
 def _slugify(text: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    """Slug ASCII del titulo. Los acentos se transliteran, no se descartan:
+    sin eso `búsqueda` daba `b-squeda` y el archivo de la spec no era el que el
+    titulo pedia (SPEC-003 FR-013). La transliteracion es la del triage."""
+    slug = re.sub(r"[^a-z0-9]+", "-", spec_index.sin_acentos(text).lower()).strip("-")
     return slug or "spec"
 
 
