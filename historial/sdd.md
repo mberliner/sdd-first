@@ -1,5 +1,61 @@
 # Historial SDD — sdd-first
 
+## 2026-08-12 — SPEC-009 US3: una corrida de pytest sirve para `tests` y `coverage`
+
+**Scope:** `specs/SPEC-009-coverage-y-ci.md` (nueva US3, FR-US3-001..005),
+`adapters/CONTRACT.md` (nota del mecanismo opcional), `core/sdd_config.py`
+(`PIPELINE_COVERAGE_CACHE_ENV`), `core/pipeline.py` (cache temporal por
+corrida), `adapters/python/adapter.py` (`step_tests` instrumenta y escribe,
+`step_coverage` lee antes de correr pytest), `tests/unit/test_sdd_config.py`,
+`tests/unit/test_python_adapter.py`, `tests/unit/test_pipeline_coverage_step.py`,
+`tests/unit/test_pipeline_omitidos.py`, `tests/unit/test_pipeline_coverage_cache.py`
+(nuevo).
+
+**Qué cambió:** medido en el propio kit, la suite unitaria plana tarda ~74s y
+la misma suite instrumentada con `--cov` ~141s; el pipeline pagaba las dos
+corridas en secuencia (~215s) porque `tests` y `coverage` ejecutaban pytest
+cada uno por su cuenta sobre exactamente las mismas carpetas. Ahora, dentro de
+una corrida de `core/pipeline.py`, `tests` instrumenta su propia corrida con
+`--cov` y deja el reporte en un archivo temporal (ruta en
+`SDD_PIPELINE_COVERAGE_CACHE`); `coverage` lo lee y evalúa los umbrales
+agregando cobertura por `paths` desde ese reporte, sin volver a invocar
+pytest. Verificado en el propio pipeline: el tramo tests+coverage bajó de
+~215s a ~150s (~30%).
+
+**Decisiones de diseño:**
+- **No se fusionan los pasos.** `tests` y `coverage` siguen siendo dos pasos
+  nombrados con su propio veredicto: fusionarlos reintroduce el defecto que
+  [[SPEC-019-tests-integracion-ejecutados]] corrigió (un test roto pintando
+  `coverage` en rojo) y rompe el invariante de `sdd_doctor._tests_sin_ejecutor`
+  (`dirs.tests_unit` tiene que tener *su propio* paso ejecutor). Lo que se
+  comparte es la ejecución de pytest subyacente, no el resultado.
+  Se evaluó primero sacar `tests` de `pipeline.steps` (config-only, cero
+  cambios de código) y se descartó por esa misma razón.
+- **Handshake por variable de entorno, no por contrato nuevo por paso.**
+  `core/pipeline.py` crea un temporal por invocación y lo expone en
+  `SDD_PIPELINE_COVERAGE_CACHE`; sin la variable (paso invocado suelto, como
+  exige `adapters/CONTRACT.md`) cada paso corre exactamente como antes. Es
+  opcional para los adaptadores `node`/`go` (roadmap).
+- **La instrumentación solo se activa si `coverage` mide exactamente lo que
+  `tests` ejecuta.** Si el proyecto también declara `tests_integration`
+  medida, `tests` (que solo corre `dirs.tests_unit` por contrato) dejaría un
+  reporte incompleto; en ese caso se omite la instrumentación y `coverage`
+  cae sola a su loop de pytest por target, sin resultado incorrecto.
+- El cache se borra siempre al terminar `core/pipeline.py` (haya fallado o
+  no): un reporte que ningún paso llegó a leer no es un problema.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-009-coverage-y-ci, SPEC-019-tests-integracion-ejecutados
+- Includes/excludes verificados: core/pipeline.py + core/sdd_config.py +
+  adapters/python/adapter.py + adapters/CONTRACT.md + tests/unit
+- SSOTs afectados: SPEC-009-coverage-y-ci.md, adapters/CONTRACT.md,
+  specs/SPECS_REGISTRY.md (iteración 7)
+- Verificación: python core/pipeline.py → VERDE (11/11), tramo tests+coverage
+  ~150s (antes ~215s); "cobertura evaluada desde el reporte de 'tests' (sin
+  correr pytest de nuevo)" confirmado en la salida
+```
+
 ## 2026-08-12 — SPEC-025: el andamiaje instalado se puede actualizar sin perder lo propio
 
 **Scope:** `specs/SPEC-025-actualizar-kit-en-derivados.md` (30 FR, US1..US4,

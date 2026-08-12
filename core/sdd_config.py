@@ -66,6 +66,17 @@ EXIT_OMITIDO = 3
 # imprime y `core/sdd_coverage_baseline.py` que la lee.
 COVERAGE_BASELINE_PREFIX = "SDD-COVERAGE-BASELINE"
 
+# Variable de entorno con la ruta de un reporte de cobertura compartido entre
+# los pasos `tests` y `coverage` de una misma corrida de `core/pipeline.py`
+# (SPEC-009 FR-US3-001). `core/pipeline.py` la crea una vez por invocacion y la
+# pasa a los pasos de codigo; el adaptador la usa para correr pytest
+# instrumentado una sola vez en `tests` y evaluar los umbrales de `coverage`
+# leyendo ese reporte en vez de correr pytest de nuevo. Sin la variable (paso
+# invocado suelto, fuera de un pipeline completo) cada paso corre pytest por su
+# cuenta, como siempre. Vive aca porque la comparten `core/pipeline.py` y el
+# adaptador, los dos lados del contrato.
+PIPELINE_COVERAGE_CACHE_ENV = "SDD_PIPELINE_COVERAGE_CACHE"
+
 # Marcadores que identifican la raiz de un proyecto con SDD instalado.
 _ROOT_MARKERS = (
     CONFIG_RELPATH,

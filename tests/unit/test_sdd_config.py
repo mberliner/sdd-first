@@ -7,6 +7,7 @@ from sdd_config import (
     DEFAULT_TESTS_UNIT,
     DEFAULT_TRIAGE_MIN_MATCHES,
     DEFAULT_TRIAGE_MIN_WORD_LEN,
+    PIPELINE_COVERAGE_CACHE_ENV,
     SddConfig,
     write_text_lf,
 )
@@ -250,6 +251,20 @@ def test_pipeline_coverage_vacio_por_defecto():
 def test_layers_tolera_listas_nulas():
     cfg = _cfg({"layers": {"domain": None, "app": ["domain"]}})
     assert cfg.layers == {"domain": [], "app": ["domain"]}
+
+
+def test_pipeline_coverage_cache_env_es_el_ssot_del_nombre_de_variable():
+    """FR-US3-001: un único nombre de variable, compartido por pipeline y adaptador.
+
+    `core/pipeline.py` la exporta y `adapters/python/adapter.py` la lee para
+    saltear la segunda corrida de pytest del paso `coverage` (SPEC-009 US3).
+    """
+    import adapter
+    import pipeline
+
+    assert PIPELINE_COVERAGE_CACHE_ENV == "SDD_PIPELINE_COVERAGE_CACHE"
+    assert pipeline.PIPELINE_COVERAGE_CACHE_ENV is PIPELINE_COVERAGE_CACHE_ENV
+    assert adapter.PIPELINE_COVERAGE_CACHE_ENV is PIPELINE_COVERAGE_CACHE_ENV
 
 
 def test_defaults_source_root_y_tests_unit_son_las_constantes_compartidas():

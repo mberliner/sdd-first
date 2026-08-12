@@ -19,7 +19,7 @@ def test_coverage_es_paso_de_codigo():
 def test_coverage_se_delega_al_adaptador_del_lenguaje(tmp_path, monkeypatch):
     invocaciones = []
 
-    def _fake_run(cmd, cwd):
+    def _fake_run(cmd, cwd, extra_env=None):
         invocaciones.append(cmd)
         return 0
 
@@ -32,7 +32,9 @@ def test_coverage_se_delega_al_adaptador_del_lenguaje(tmp_path, monkeypatch):
 
 def test_coverage_se_omite_con_language_none(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        pipeline, "_run", lambda cmd, cwd: pytest_fail("no debía ejecutarse")
+        pipeline,
+        "_run",
+        lambda cmd, cwd, extra_env=None: pytest_fail("no debía ejecutarse"),
     )
     assert pipeline._run_code_step("coverage", "none", tmp_path) == EXIT_OMITIDO
 

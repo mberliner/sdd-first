@@ -56,6 +56,40 @@ la herramienta de piso deja el config con un umbral igual a la cobertura real
 medida (redondeada hacia abajo), y el paso `coverage` pasa a verificar en vez de
 omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
 
+## User Story 3 (Priority P2) — una corrida sirve para los dos pasos
+
+Como mantenedor del propio kit (u otro proyecto con `pipeline.coverage`
+declarado sobre las mismas carpetas que mide `tests`), quiero que el pipeline
+completo no pague dos veces el costo de la suite —una vez sin instrumentar
+para `tests`, otra instrumentada para `coverage`—, para que declarar umbrales
+de cobertura no duplique el tiempo del ciclo rápido sin ganar nada a cambio.
+
+**Why this priority:** medido en el propio kit (2026-08-12), la suite plana
+tarda ~74s y la misma suite instrumentada con `--cov` tarda ~141s; correr las
+dos en secuencia (~215s) para terminar evaluando exactamente la misma
+ejecución dos veces es tiempo que no compra una verificación adicional. No es
+P1 porque no cambia ningún resultado ni corrige un falso verde: es una
+optimización de costo sobre un mecanismo que ya es correcto.
+
+**Why this diseño y no fusionar los pasos:** fusionar `tests` y `coverage` en
+un solo paso de `pipeline.steps` reintroduce el defecto que
+[[SPEC-019-tests-integracion-ejecutados]] corrigió —un fallo de test se
+reportaría bajo el nombre `coverage`, no `tests`— y rompe el invariante de
+`sdd_doctor._tests_sin_ejecutor` (SPEC-019 FR-US2-001), que exige que
+`dirs.tests_unit` tenga *su propio* paso ejecutor. Los dos pasos siguen
+existiendo, nombrados y con su propio veredicto; lo que se comparte es la
+**ejecución** subyacente, no el resultado.
+
+**Independent Test:** con `pipeline.coverage` declarado y `pytest-cov`
+instalado, correr `python core/pipeline.py` invoca pytest instrumentado con
+`--cov` una sola vez (en el paso `tests`); el paso `coverage` que sigue no
+vuelve a invocar pytest, evalúa los umbrales leyendo el reporte que dejó
+`tests`, y un test roto sigue pintando `tests` en rojo (no `coverage`).
+Invocado suelto (`python adapters/python/adapter.py coverage`, sin pasar por
+`core/pipeline.py`), el paso `coverage` sigue corriendo pytest por su cuenta,
+igual que hoy: el mecanismo es una optimización de la corrida completa, no un
+cambio del contrato por paso.
+
 ## Relación con specs existentes
 
 - **Extiende:** — | **Supersede:** — | **Depende de:** —
@@ -115,6 +149,31 @@ omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
   código. Renumerarlos dejaría esas referencias colgadas para ganar simetría
   cosmética. La US2 estrena el prefijo `FR-US2-NNN`.
 
+### Session 2026-08-12
+
+- Q: ¿cómo se comparte una ejecución entre dos pasos que corren como
+  subprocesos separados (`adapter.py tests`, después `adapter.py coverage`),
+  si el contrato de adaptador exige que cada paso sea invocable suelto con un
+  único argumento? → A: una variable de entorno, no un cambio del contrato por
+  paso. `core/pipeline.py` crea un archivo temporal por corrida y expone su
+  ruta en `SDD_PIPELINE_COVERAGE_CACHE` a los pasos de código que invoca. El
+  paso `tests`, si la variable está seteada y hay umbrales declarados, escribe
+  ahí el reporte de cobertura de su propia corrida (sin `--cov-fail-under`: su
+  exit code sigue siendo solo el resultado de los tests). El paso `coverage`,
+  si la variable apunta a un archivo que existe, lo lee en vez de correr
+  pytest. Sin la variable —paso invocado suelto— cada uno se comporta como
+  hoy: es un atajo opcional, no un requisito nuevo del contrato.
+- Q: ¿y si `tests` corre pero `coverage` no está en `pipeline.steps` de ese
+  proyecto, o corre con `--fail-fast` y el pipeline se detiene antes? → A: el
+  archivo temporal lo limpia `core/pipeline.py` al terminar (haya fallado o
+  no); un reporte que nadie leyó no es un problema, es trabajo que ya se hizo
+  gratis por si acaso el siguiente paso lo necesitaba.
+- Q: ¿el reporte cacheado puede quedar desactualizado entre los dos pasos? →
+  A: no hay ventana: es el mismo proceso de `core/pipeline.py`, el archivo lo
+  crea vacío al arrancar y el paso `tests` lo escribe antes de que el paso
+  `coverage` corra. No hay reintento ni corridas en paralelo que lo hagan
+  obsoleto dentro de una misma invocación.
+
 ## Acceptance Scenarios
 
 - **Given** un config sin la clave `pipeline.coverage`, **When** corre el paso
@@ -132,6 +191,20 @@ omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
 - **Given** `sdd-init --language=none`, **When** se instala, **Then** el
   `ci.yml` generado no contiene pasos de código ni instalación de tooling de
   lenguaje.
+
+### US3 — ejecución compartida
+
+- **Given** `pipeline.coverage` declarado y `pytest-cov` instalado, **When**
+  corre `core/pipeline.py`, **Then** pytest se invoca instrumentado con
+  `--cov` una sola vez (dentro del paso `tests`, que deja el reporte en
+  `SDD_PIPELINE_COVERAGE_CACHE`) y el paso `coverage` evalúa los umbrales
+  leyendo ese reporte, sin invocar pytest de nuevo.
+- **Given** ese mismo escenario con un test roto, **When** corre el pipeline,
+  **Then** el paso `tests` sale en rojo por el test, no el paso `coverage`.
+- **Given** el paso `coverage` invocado suelto (`python
+  adapters/python/adapter.py coverage`, sin pasar por `core/pipeline.py`),
+  **When** corre, **Then** evalúa los umbrales corriendo pytest por su cuenta,
+  igual que sin esta optimización.
 
 ### US2 — el piso medido
 
@@ -219,6 +292,33 @@ omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
   `pipeline.coverage` del catálogo de config nombran la herramienta, en vez de
   decir solamente "descomentar cuando la suite esté madura".
 
+## Functional Requirements — US3 (una corrida sirve para los dos pasos)
+
+- **FR-US3-001** MUST: `core/sdd_config.py` expone `PIPELINE_COVERAGE_CACHE_ENV`,
+  el nombre de la variable de entorno que comunica la ruta del reporte
+  compartido entre `core/pipeline.py` y el adaptador. SSOT único, igual que
+  `EXIT_OMITIDO` y `COVERAGE_BASELINE_PREFIX`.
+- **FR-US3-002** MUST: `core/pipeline.py` crea un archivo temporal por
+  invocación, expone su ruta en esa variable a los pasos de código que
+  ejecuta, y lo borra al terminar (con o sin fallos).
+- **FR-US3-003** MUST: el paso `tests` del adaptador Python, cuando la
+  variable está seteada, hay `pipeline.coverage` con targets existentes y
+  `pytest-cov` está instalado, corre pytest una sola vez sobre `dirs.tests_unit`
+  con `--cov` de la unión de los `paths` declarados y
+  `--cov-report=json:<ruta>`, sin `--cov-fail-under`: el exit code del paso
+  sigue siendo únicamente el resultado de los tests. Sin esas condiciones,
+  corre como hoy (FR de US1, sin tocar).
+- **FR-US3-004** MUST: el paso `coverage`, cuando la variable apunta a un
+  archivo JSON legible, evalúa cada target agregando `covered_lines` y
+  `num_statements` de los archivos del reporte cuyo path cae bajo alguno de
+  sus `paths`, y compara el porcentaje resultante contra `minimum` — sin
+  invocar pytest. Sin variable, sin archivo, o con un archivo no parseable,
+  cae al comportamiento de FR-001 (una corrida de pytest por target).
+- **FR-US3-005** MUST: el mecanismo es interno a la corrida de
+  `core/pipeline.py`. Invocado suelto (`python adapters/python/adapter.py
+  coverage`), sin la variable de entorno, el paso se comporta exactamente
+  como antes de esta User Story.
+
 ## Key Entities
 
 - **Umbral de cobertura** — par `{paths, min}`: una o más carpetas medidas
@@ -269,6 +369,11 @@ omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
 | FR-US2-005 | tests/unit/test_sdd_coverage_baseline.py |
 | FR-US2-006 | tests/unit/test_sdd_doctor_coverage_inerte.py |
 | FR-US2-007 | tests/unit/test_example_config.py |
+| FR-US3-001 | tests/unit/test_sdd_config.py |
+| FR-US3-002 | tests/unit/test_pipeline_coverage_cache.py |
+| FR-US3-003 | tests/unit/test_python_adapter.py |
+| FR-US3-004 | tests/unit/test_python_adapter.py |
+| FR-US3-005 | tests/unit/test_python_adapter.py |
 
 ## Fuera de alcance
 
@@ -289,3 +394,10 @@ omitirse. Corrida sobre un proyecto que ya declara umbrales, no los toca.
   con `--force`; el mecanismo real es que `render.py` lo genera siempre como
   artefacto derivado, igual que `CONSTITUTION.md`. Coverage mapping actualizado
   de `test_sdd_init.py` a `test_render.py`.
+- 2026-08-12: agregada la US3. Medido en el propio kit: suite plana ~74s,
+  misma suite instrumentada con `--cov` ~141s; el pipeline pagaba las dos
+  corridas en secuencia (~215s) para un resultado que una sola corrida
+  instrumentada ya da. `tests` y `coverage` siguen siendo pasos separados y
+  nombrados (no se toca la decisión de [[SPEC-019-tests-integracion-ejecutados]]);
+  lo que se comparte es la ejecución de pytest subyacente, vía
+  `SDD_PIPELINE_COVERAGE_CACHE`.

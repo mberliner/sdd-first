@@ -1,10 +1,11 @@
 """Tests del dispatcher del adaptador python (SPEC-003 FR-001/FR-002/FR-004)."""
 
+import json
 from pathlib import Path
 
 import adapter
 import pytest
-from sdd_config import EXIT_OMITIDO, SddConfig
+from sdd_config import EXIT_OMITIDO, PIPELINE_COVERAGE_CACHE_ENV, SddConfig
 
 
 def _cfg(tmp_path: Path, raw: dict) -> SddConfig:
@@ -19,6 +20,18 @@ def sin_subprocesos(monkeypatch):
         raise AssertionError(f"no debía ejecutarse: {cmd}")
 
     monkeypatch.setattr(adapter, "_run", _explota)
+
+
+@pytest.fixture(autouse=True)
+def sin_cache_ambiental(monkeypatch):
+    """Aisla de `SDD_PIPELINE_COVERAGE_CACHE` real del proceso que corre la suite.
+
+    Cuando esta misma suite corre bajo el paso `tests` de `core/pipeline.py`
+    (SPEC-009 FR-US3-003), esa variable esta seteada de verdad en el proceso
+    que ejecuta pytest. Sin este fixture, los tests que no la mencionan
+    heredarian ese valor ambiental y dejarian de ser herméticos.
+    """
+    monkeypatch.delenv(PIPELINE_COVERAGE_CACHE_ENV, raising=False)
 
 
 def test_naming_sin_targets_se_omite_con_exit_omitido(tmp_path):
@@ -244,6 +257,211 @@ def test_coverage_sin_pytest_cov_se_omite(tmp_path, monkeypatch):
     monkeypatch.setattr(adapter, "_module_available", lambda m: m != "pytest_cov")
     (tmp_path / "tests" / "unit").mkdir(parents=True)
     assert adapter.step_coverage(tmp_path, _cfg_coverage(tmp_path)) == EXIT_OMITIDO
+
+
+# -- cache compartido entre `tests` y `coverage` (SPEC-009 FR-US3) --------------
+
+
+def test_tests_instrumenta_y_deja_el_reporte_cuando_corresponde(tmp_path, monkeypatch):
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    cache = tmp_path / "cache.json"
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(cache))
+
+    assert adapter.step_tests(tmp_path, _cfg_coverage(tmp_path)) == 0
+    cmd = llamadas[0]
+    assert "--cov=core" in cmd
+    assert f"--cov-report=json:{cache}" in cmd
+    # el exit code del paso `tests` es solo el de los tests: nunca --cov-fail-under.
+    assert not any(c.startswith("--cov-fail-under") for c in cmd)
+
+
+def test_tests_no_instrumenta_sin_variable_de_entorno(tmp_path, monkeypatch):
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+
+    assert adapter.step_tests(tmp_path, _cfg_coverage(tmp_path)) == 0
+    assert llamadas[0] == [adapter.sys.executable, "-m", "pytest", "tests/unit", "-q"]
+
+
+def test_tests_no_instrumenta_sin_umbrales_declarados(tmp_path, monkeypatch):
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(tmp_path / "cache.json"))
+
+    cfg = _cfg(tmp_path, {"dirs": {"tests_unit": "tests/unit"}})
+    assert adapter.step_tests(tmp_path, cfg) == 0
+    assert not any(c.startswith("--cov") for c in llamadas[0])
+
+
+def test_tests_no_instrumenta_sin_pytest_cov(tmp_path, monkeypatch):
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: m != "pytest_cov")
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(tmp_path / "cache.json"))
+
+    assert adapter.step_tests(tmp_path, _cfg_coverage(tmp_path)) == 0
+    assert not any(c.startswith("--cov") for c in llamadas[0])
+
+
+def test_tests_no_instrumenta_si_coverage_mide_mas_que_la_carpeta_unitaria(
+    tmp_path, monkeypatch
+):
+    """Con `tests_integration` tambien medida, instrumentar solo `tests_unit`
+    dejaria un reporte incompleto: mejor no instrumentar y que `coverage` mida
+    por su cuenta (fallback de FR-US3-004)."""
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "tests" / "integration").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(tmp_path / "cache.json"))
+
+    cfg = _cfg(
+        tmp_path,
+        {
+            "dirs": {
+                "tests_unit": "tests/unit",
+                "tests_integration": "tests/integration",
+            },
+            "pipeline": {"coverage": [{"paths": ["core"], "min": 80}]},
+        },
+    )
+    assert adapter.step_tests(tmp_path, cfg) == 0
+    assert not any(c.startswith("--cov") for c in llamadas[0])
+
+
+def _escribir_reporte(path: Path, files: dict) -> None:
+    path.write_text(json.dumps({"files": files}), encoding="utf-8")
+
+
+def test_coverage_lee_el_cache_y_no_corre_pytest(tmp_path, monkeypatch):
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    cache = tmp_path / "cache.json"
+    _escribir_reporte(
+        cache, {"core/a.py": {"summary": {"covered_lines": 8, "num_statements": 10}}}
+    )
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(cache))
+
+    assert adapter.step_coverage(tmp_path, _cfg_coverage(tmp_path, minimo=80)) == 0
+
+
+def test_coverage_del_cache_falla_nombrando_el_porcentaje_medido(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    cache = tmp_path / "cache.json"
+    _escribir_reporte(
+        cache, {"core/a.py": {"summary": {"covered_lines": 5, "num_statements": 10}}}
+    )
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(cache))
+
+    assert adapter.step_coverage(tmp_path, _cfg_coverage(tmp_path, minimo=80)) == 1
+    assert "core (< 80%, medido 50.00%)" in capsys.readouterr().out
+
+
+def test_coverage_del_cache_agrega_varios_targets_por_separado(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    (tmp_path / "adapters").mkdir()
+    cache = tmp_path / "cache.json"
+    _escribir_reporte(
+        cache,
+        {
+            "core/a.py": {"summary": {"covered_lines": 9, "num_statements": 10}},
+            "adapters/python/adapter.py": {
+                "summary": {"covered_lines": 4, "num_statements": 10}
+            },
+        },
+    )
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(cache))
+    cfg = _cfg(
+        tmp_path,
+        {
+            "dirs": {"tests_unit": "tests/unit"},
+            "pipeline": {
+                "coverage": [
+                    {"paths": ["core"], "min": 80},
+                    {"paths": ["adapters"], "min": 80},
+                ]
+            },
+        },
+    )
+    assert adapter.step_coverage(tmp_path, cfg) == 1
+    out = capsys.readouterr().out
+    assert "adapters (< 80%" in out
+    assert "core (< 80%" not in out
+
+
+def test_coverage_del_cache_no_confunde_prefijos_parciales(tmp_path, monkeypatch):
+    """`core_extra/a.py` no cuenta como parte del target `core`: prefijo exacto."""
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    cache = tmp_path / "cache.json"
+    _escribir_reporte(
+        cache,
+        {"core_extra/a.py": {"summary": {"covered_lines": 10, "num_statements": 10}}},
+    )
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(cache))
+
+    # el reporte no cubre el target "core": no confia en el cache, cae al loop.
+    assert adapter.step_coverage(tmp_path, _cfg_coverage(tmp_path, minimo=80)) == 0
+    assert "--cov=core" in llamadas[0]
+
+
+def test_coverage_sin_archivo_de_cache_cae_al_loop_de_pytest(tmp_path, monkeypatch):
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(tmp_path / "no-existe.json"))
+
+    assert adapter.step_coverage(tmp_path, _cfg_coverage(tmp_path)) == 0
+    assert "--cov=core" in llamadas[0]
+
+
+def test_coverage_con_cache_corrupto_cae_al_loop_de_pytest(tmp_path, monkeypatch):
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+    cache = tmp_path / "cache.json"
+    cache.write_text("no es json", encoding="utf-8")
+    monkeypatch.setenv(PIPELINE_COVERAGE_CACHE_ENV, str(cache))
+
+    assert adapter.step_coverage(tmp_path, _cfg_coverage(tmp_path)) == 0
+    assert "--cov=core" in llamadas[0]
+
+
+def test_coverage_invocado_suelto_sin_variable_corre_como_siempre(
+    tmp_path, monkeypatch
+):
+    """FR-US3-005: sin `core/pipeline.py` de por medio no hay variable de entorno,
+    y el paso se comporta exactamente como antes de esta User Story (una corrida
+    de pytest por target, contrato de FR-001 intacto)."""
+    llamadas = _grabador(monkeypatch)
+    monkeypatch.setattr(adapter, "_module_available", lambda m: True)
+    (tmp_path / "tests" / "unit").mkdir(parents=True)
+    (tmp_path / "core").mkdir()
+
+    assert adapter.step_coverage(tmp_path, _cfg_coverage(tmp_path)) == 0
+    assert "--cov=core" in llamadas[0]
+    assert "--cov-fail-under=80" in llamadas[0]
 
 
 # -- main(): el dispatcher ------------------------------------------------------

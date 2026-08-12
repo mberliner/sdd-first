@@ -66,6 +66,17 @@ puede no ofrecer una consulta: el núcleo lo trata como omisión, no como error.
   otro. Qué pasos corren de verdad lo decide `pipeline.steps` del proyecto; que
   una carpeta declarada quede sin ejecutor es un problema que reporta `sdd-doctor`
   (SPEC-019), no algo que el adaptador resuelva por su cuenta.
+- **Optimización opcional `tests` + `coverage` (SPEC-009 FR-US3, no forma parte
+  del contrato por si misma):** `core/pipeline.py` puede exponer la variable de
+  entorno `PIPELINE_COVERAGE_CACHE_ENV` (`SDD_PIPELINE_COVERAGE_CACHE`,
+  `core/sdd_config.py`) a los pasos de código de una misma corrida, con la ruta
+  de un archivo temporal de esa invocación. Un adaptador puede usarla para que
+  `tests` instrumente su propia corrida con cobertura y deje ahí el reporte, y
+  que `coverage` lo lea en vez de volver a correr la suite. Es enteramente
+  opcional: sin la variable (paso invocado suelto, como exige el contrato) cada
+  paso se comporta exactamente como si la optimización no existiera, y un
+  adaptador que no la implemente sigue siendo válido. El adaptador Python la
+  implementa; `node`/`go` no están obligados a hacerlo.
 
 ## Adaptadores
 

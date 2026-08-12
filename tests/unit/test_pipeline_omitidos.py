@@ -32,7 +32,9 @@ def _correr(monkeypatch, proyecto, steps, resultados):
         pipeline, "_run_process_step", lambda step, root: resultados[step]
     )
     monkeypatch.setattr(
-        pipeline, "_run_code_step", lambda step, lang, root: resultados[step]
+        pipeline,
+        "_run_code_step",
+        lambda step, lang, root, extra_env=None: resultados[step],
     )
     return pipeline.main([])
 
