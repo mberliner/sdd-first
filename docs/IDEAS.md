@@ -219,6 +219,14 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   frágil) pero con consecuencia peor: escribe archivos en el directorio
   equivocado sin una sola advertencia. Fix: validar los flags contra los
   conocidos y fallar con mensaje de uso ante cualquier otro.
+  **(cerrado el 2026-08-12)** → [[SPEC-003-install-happy-path]] FR-012, con C-3.
+  Se validó el `argv` entero en vez de solo rechazar lo desconocido: `--target`
+  se implementó (el flag ya se había tipeado una vez, y darle el significado
+  obvio cuesta lo mismo que documentarlo como inválido), el posicional se
+  conservó, y dos destinos distintos abortan en vez de que uno gane callado. Se
+  descartó migrar a `argparse`: el parseo a mano es deliberado —el módulo se
+  vendoriza y se ejecuta suelto— y movería la superficie de los mensajes de uso
+  que la e2e y el README ya citan.
 
 ## P1 — Hallazgos de la primera corrida de la suite e2e (2026-08-07)
 
@@ -279,12 +287,32 @@ encontró.
   `sdd_init.py` imprimen `VERDE �` porque no hacen el
   `reconfigure(encoding="utf-8")` que sí hacen los `check_*`. Extraer un
   helper común en `sdd_config` y usarlo en todos los entrypoints.
+  **(cerrado el 2026-08-12)** → [[SPEC-012-suite-multiplataforma]] FR-005, tal
+  cual estaba planteado, más dos cosas que la idea no registraba. Eran **2 de
+  15** entrypoints los que lo hacían (no solo los tres nombrados), y los 2 con
+  el bloque copiado: el helper desduplica además de arreglar. Y lo que sostiene
+  el fix no es el helper sino el barrido de `test_salida_utf8.py`, que falla
+  nombrando al entrypoint que se olvide — sin eso era un mecanismo correcto que
+  los entrypoints nuevos no adoptan, el patrón que K-3 encontró en la cobertura.
+  Destapó FR-006: `sdd_config` abortaba **al importarse** sin PyYAML, así que
+  darle el helper a `check_traceability` rompía el hook de pre-commit, que corre
+  en un venv sin dependencias; la dependencia se reclama ahora en `load()`.
 - **C-3 · `sdd_init --language` frágil.** La forma `--language node` (espacio)
   se ignora en silencio; con `=` un lenguaje sin adaptador se acepta y el
   vendorizado se omite sin aviso. Validar contra los adaptadores existentes +
   `none` y fallar con mensaje claro.
+  **(cerrado el 2026-08-12)** → [[SPEC-003-install-happy-path]] FR-012, junto
+  con C-7: son el mismo defecto de parseo y arreglarlos por separado habría
+  dejado la mitad del `argv` sin validar. El catálogo de lenguajes se deriva de
+  `adapters/` en disco en vez de escribirse: una constante sería un segundo SSOT
+  del catálogo de adaptadores.
 - **C-4 · `_slugify` no translitera acentos** (`búsqueda` → `b-squeda`).
   Normalizar con NFKD antes de filtrar.
+  **(cerrado el 2026-08-12)** → [[SPEC-003-install-happy-path]] FR-013. No se
+  escribió la normalización: `spec_index` ya transliteraba con NFKD para el
+  triage de SPEC-022 desde su primera versión, o sea que el kit tenía **dos**
+  criterios de normalización de texto y el defecto estaba en el que no lo hacía.
+  Se publicó `spec_index.sin_acentos` y `_slugify` la consume.
 - **C-5 · Constitución con versión hardcodeada.** `render.py` fija `0.1.0` y
   fecha del día: la governance promete semver de enmiendas pero no hay campo
   en el config para bumpear. Agregar `constitution_version` (y fecha de

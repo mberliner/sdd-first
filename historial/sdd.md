@@ -1,5 +1,75 @@
 # Historial SDD — sdd-first
 
+## 2026-08-12 — SPEC-003 + SPEC-012: las herramientas del kit no fallan en silencio
+
+**Scope:** `specs/SPEC-003-install-happy-path.md` (FR-012/FR-013, SC-008/SC-009),
+`specs/SPEC-012-suite-multiplataforma.md` (FR-005/FR-006, SC-004/SC-005),
+`core/sdd_init.py`, `core/sdd_spec.py`, `core/spec_index.py`,
+`core/sdd_config.py`, los 15 entrypoints de `core/` y `adapters/python/`,
+`tests/unit/test_sdd_init_cli.py`, `tests/unit/test_salida_utf8.py`,
+`tests/unit/test_sdd_spec.py`.
+
+**Qué cambió:** C-7, C-3, C-4 y C-2 de `docs/IDEAS.md`, elegidos juntos porque
+comparten un modo de falla: una herramienta del kit hace algo distinto de lo que
+se le pidió y lo reporta como éxito.
+
+- **FR-012** (C-7 + C-3): `sdd_init.main` partía `argv` en "empieza con `--`" y
+  "el resto", y de los flags leía solo `--force`/`--language`. `--target=<dir>`
+  caía en el descarte y el destino terminaba siendo el **cwd**: ~40 archivos en
+  el directorio equivocado, con la instalación informando éxito (pasó en vivo el
+  2026-08-05 durante SPEC-015). Ahora `_parse_argv` valida todo antes de escribir
+  nada. El catálogo de `--language` se deriva de `adapters/` en disco.
+- **FR-013** (C-4): `_slugify` filtraba sobre el título crudo, así que cada
+  acento abría un hueco (`búsqueda` → `b-squeda`) y ese era el nombre del archivo
+  y el ID de la spec. No se escribió normalización nueva: `spec_index` ya
+  transliteraba con NFKD para el triage, o sea que el kit tenía dos criterios y
+  el defecto estaba en el que no lo hacía.
+- **FR-005** (C-2): en Windows la salida cae a `cp1252` cuando no es una consola
+  UTF-8 y todo el texto acentuado sale ilegible. Eran **2 de 15** entrypoints los
+  que hacían `reconfigure`, y los 2 con el bloque copiado. Ahora
+  `sdd_config.forzar_salida_utf8` es el único lugar que sabe cómo se fuerza, y lo
+  sostiene un barrido que falla nombrando al entrypoint que se olvide.
+
+**Decisiones de diseño:**
+- Los tres ítems se **repartieron entre specs vigentes** en vez de abrir una spec
+  nueva que los uniera: el invariante común ("la CLI no falla en silencio")
+  describe bien el trabajo, pero cada fix pertenece a un invariante ya declarado
+  —el happy path de instalación y la paridad Windows/POSIX—, y una spec nueva
+  habría solapado con las dos.
+- El *Fuera de alcance* de SPEC-012 decía "cualquier otro fallo de plataforma que
+  no sea el del wiring ejecutable". Se **enmendó** en vez de esquivarlo: estaba
+  escrito para no arrastrar problemas sin diagnóstico, no para vetar la
+  codificación de la salida, que es paridad Windows/POSIX de manual.
+- Se descartó migrar `sdd_init` a `argparse`: el parseo a mano es deliberado (el
+  módulo se vendoriza y se ejecuta suelto) y movería la superficie de los
+  mensajes de uso que la e2e y el README ya citan.
+
+**Hallazgo destapado al verificar (FR-006):** darle el helper a
+`check_traceability` —el único entrypoint que no importaba `sdd_config`— rompió
+el hook de pre-commit con "requiere PyYAML": el módulo abortaba **al importarse**
+y los hooks corren en un venv sin dependencias. La dependencia se reclama ahora
+en `load()`, que es lo único que lee el YAML. No fue una concesión al fix:
+`sdd_gate._source_roots` y `spec_index` ya capturaban ese `SystemExit` alrededor
+de `load()` para degradar, o sea que el contrato que el resto del kit asumía era
+este y el import lo cumplía por accidente.
+
+**SSOTs afectados:** ninguno nuevo. `spec_index.sin_acentos` pasa a ser el SSOT
+de la transliteración (antes privado) y `sdd_config.forzar_salida_utf8` el de la
+codificación de salida; los dos ya vivían en el módulo que corresponde.
+
+**Deuda anotada:** ninguna nueva. Del tier propuesto en esta sesión quedan
+abiertos "omitido no es VERDE", V-4 (la raíz de `tests/` no la mira ningún paso),
+R-4 (el wiring del kit es copia manual de `templates/wiring/`) y E-2
+(`sdd-update`).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-000-naming, SPEC-003-install-happy-path, SPEC-012-suite-multiplataforma, SPEC-022-reusar-specs-existentes, SPEC-024-traza-fr-en-test
+- Includes/excludes verificados: core/ + adapters/python + tests/unit; templates/ y tests/e2e sin cambios (el fix no toca lo que se siembra, salvo el core vendorizado)
+- SSOTs afectados: specs/SPEC-003-install-happy-path.md, specs/SPEC-012-suite-multiplataforma.md, docs/IDEAS.md (C-2/C-3/C-4/C-7 cerrados)
+- Verificación: python core/pipeline.py → VERDE (11/11); pytest tests/unit → 626 passed, 2 skipped; mojibake del triage verificado a mano antes/después
+```
+
 ## 2026-08-11 — SPEC-004 (reabierta, G-9): `.sdd/current-spec` deja de versionarse
 
 **Scope:** `specs/SPEC-004-enforcement-hardening.md` (FR-008/SC-005),
