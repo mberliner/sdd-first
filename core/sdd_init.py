@@ -36,6 +36,7 @@ from sdd_config import (  # noqa: E402
     GATE_WIRING,
     VENDOR_PREFIX,
     ensure_gitignore_current_spec,
+    forzar_salida_utf8,
     write_text_lf,
 )
 
@@ -688,7 +689,11 @@ def lenguajes_soportados() -> set[str]:
     adaptador (SPEC-003 FR-012, Principio IV).
     """
     adapters = KIT_ROOT / "adapters"
-    en_disco = {d.name for d in adapters.iterdir() if d.is_dir()} if adapters.is_dir() else set()
+    en_disco = (
+        {d.name for d in adapters.iterdir() if d.is_dir()}
+        if adapters.is_dir()
+        else set()
+    )
     return en_disco | {"none"}
 
 
@@ -797,4 +802,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     raise SystemExit(main(sys.argv[1:]))

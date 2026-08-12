@@ -39,6 +39,7 @@ from sdd_config import (  # noqa: E402
     COVERAGE_BASELINE_PREFIX,
     EXIT_OMITIDO,
     find_repo_root,
+    forzar_salida_utf8,
     load,
     script_hint,
     write_text_lf,
@@ -183,4 +184,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     raise SystemExit(main(sys.argv[1:]))

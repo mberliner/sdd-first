@@ -26,6 +26,7 @@ from sdd_config import (  # noqa: E402
     GATE_WIRING,
     TEST_DIRS,
     find_repo_root,
+    forzar_salida_utf8,
     gitignore_has_current_spec_line,
     load,
     script_hint,
@@ -322,4 +323,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     raise SystemExit(main(sys.argv[1:]))

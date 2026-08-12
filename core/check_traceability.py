@@ -30,6 +30,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from sdd_config import forzar_salida_utf8  # noqa: E402
+
 VALID_ESTADOS: frozenset[str] = frozenset(
     {"draft", "active", "superseded", "archived", "notas"}
 )
@@ -440,10 +443,7 @@ def _check_relations(
 
 
 def main(argv: list[str]) -> int:
-    for stream in (sys.stdout, sys.stderr):
-        reconfigure = getattr(stream, "reconfigure", None)
-        if reconfigure is not None:
-            reconfigure(encoding="utf-8")
+    forzar_salida_utf8()
 
     if len(argv) < 2:
         print("Uso: check_traceability.py <specs_dir>", file=sys.stderr)

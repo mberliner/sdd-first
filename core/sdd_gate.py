@@ -25,7 +25,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_traceability import _parse_registry, has_written_requirements  # noqa: E402
-from sdd_config import DEFAULT_SOURCE_ROOT, find_sdd_root, load  # noqa: E402
+from sdd_config import (  # noqa: E402
+    DEFAULT_SOURCE_ROOT,
+    find_sdd_root,
+    forzar_salida_utf8,
+    load,
+)
 
 # Estados de SPECS_REGISTRY.md que dejan pasar el gate (SPEC-017 FR-US2-002).
 _VALID_ESTADOS = frozenset({"draft", "active"})
@@ -303,4 +308,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     sys.exit(main())

@@ -21,6 +21,7 @@ accesos tipados con defaults razonables para que un config parcial no rompa.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -28,10 +29,12 @@ from typing import Any
 
 try:
     import yaml
-except ModuleNotFoundError as exc:  # pragma: no cover - dependencia declarada
-    raise SystemExit(
-        "sdd-first requiere PyYAML para leer .sdd/config.yaml (pip install pyyaml)."
-    ) from exc
+except ModuleNotFoundError:  # pragma: no cover - se reporta al usar load()
+    yaml = None  # type: ignore[assignment]
+
+_SIN_PYYAML = (
+    "sdd-first requiere PyYAML para leer .sdd/config.yaml (pip install pyyaml)."
+)
 
 CONFIG_RELPATH = Path(".sdd") / "config.yaml"
 
@@ -296,6 +299,23 @@ def ensure_gitignore_current_spec(gitignore_path: Path) -> bool:
     )
     write_text_lf(gitignore_path, text)
     return True
+
+
+def forzar_salida_utf8() -> None:
+    """Emite `stdout`/`stderr` en UTF-8 sea cual sea la codificacion del sistema.
+
+    En Windows, un proceso cuya salida no es una consola UTF-8 cae a `cp1252`:
+    todo el texto acentuado del kit sale ilegible (`VERDE �`, `agn�stica`) o
+    aborta con `UnicodeEncodeError`. Lo llama cada entrypoint al arrancar
+    (SPEC-012 FR-005); el test lo verifica por barrido, no por convencion.
+
+    Tolera streams sin `reconfigure` (los que instala pytest al capturar la
+    salida, o un stream ya envuelto): ahi no hay codificacion que forzar.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
 
 
 def write_text_lf(path: Path, text: str) -> None:
@@ -608,7 +628,18 @@ class SddConfig:
 
 @lru_cache(maxsize=8)
 def load(repo_root: Path | None = None) -> SddConfig:
-    """Carga `.sdd/config.yaml` desde la raiz del proyecto (o la detecta)."""
+    """Carga `.sdd/config.yaml` desde la raiz del proyecto (o la detecta).
+
+    PyYAML se exige aca y no al importar el modulo: importarlo es lo que hace
+    todo entrypoint para acceder a los helpers de stdlib (`forzar_salida_utf8`,
+    `find_repo_root`, `write_text_lf`), y varios corren en entornos sin
+    dependencias -- los hooks de pre-commit, sin ir mas lejos. Que solo falle
+    quien de verdad necesita leer el config es ademas lo que ya asumian
+    `sdd_gate._source_roots` y `spec_index`, que capturan este SystemExit para
+    degradar en vez de romperse.
+    """
+    if yaml is None:
+        raise SystemExit(_SIN_PYYAML)
     root = find_repo_root() if repo_root is None else Path(repo_root).resolve()
     config_path = root / CONFIG_RELPATH
     raw: dict[str, Any] = {}

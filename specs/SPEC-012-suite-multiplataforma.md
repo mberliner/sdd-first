@@ -45,6 +45,44 @@ de `sdd_init.py` (la protección no se pierde, cambia de forma).
 - Q: ¿El paso `coverage` también hay que arreglarlo? → A: no, falla en cascada
   del paso `tests`. Medido deseleccionando el test roto, da 55% ≥ 50%.
 
+### Session 2026-08-12
+
+- Q: ¿Por qué entra el mojibake (C-2 de `docs/IDEAS.md`) en una spec cuyo
+  alcance era el wiring ejecutable? → A: porque el invariante de esta spec es la
+  paridad Windows/POSIX del kit, y el mojibake es el otro caso donde Windows
+  degrada la señal: `sys.stdout` cae a `cp1252` cuando la salida no es una
+  consola UTF-8, y todo texto acentuado sale ilegible o revienta con
+  `UnicodeEncodeError`. Se enmienda el *Fuera de alcance*, que estaba escrito
+  para no arrastrar problemas de plataforma sin diagnóstico, no para vetarlos.
+- Q: ¿Qué tan real es? → A: se reprodujo en esta misma sesión: el triage de
+  `sdd_spec.py` imprimió `SPEC-000-naming � Nomenclatura agn�stica` con la
+  salida redirigida. La campaña de usabilidad ya lo había confirmado por bytes
+  (`docs/IDEAS.md`, C-2 en la lista de reproducidos): con `stdout` redirigido,
+  `sys.stdout.encoding` es `cp1252` y lo emitido **no es UTF-8 válido**. Afecta
+  al aviso más importante del kit —el de `sdd_spec.py`: "Editá la spec ANTES de
+  tocar código"— y a todo `_next_steps` de la instalación.
+- Q: ¿Se arregla en cada entrypoint o de una vez? → A: de una vez. Hoy dos
+  módulos (`check_constitution.py`, `check_traceability.py`) repiten el mismo
+  bloque de `reconfigure` y los otros trece no lo tienen; copiarlo trece veces
+  más sería la duplicación del Principio IV con forma de fix. El helper vive en
+  `core/sdd_config.py`, que es donde ya viven `write_text_lf` y los defaults
+  compartidos.
+- Q (descubierto al verificar): `check_traceability.py` no importaba
+  `sdd_config`, y al hacerlo para usar el helper el hook de pre-commit se cayó
+  con "requiere PyYAML": el módulo abortaba **al importarse** si falta la
+  dependencia, y los hooks corren en un venv sin ella. → A: el chequeo se mueve
+  a `load()`, que es quien de verdad lee el YAML. Importar `sdd_config` da
+  acceso a helpers de stdlib (`forzar_salida_utf8`, `find_repo_root`,
+  `write_text_lf`) que no necesitan PyYAML para nada. No es una concesión al
+  fix: `sdd_gate._source_roots` y `spec_index` ya capturaban ese `SystemExit`
+  alrededor de `load()` para degradar, o sea que el contrato que asumía el resto
+  del kit era este, y el import lo cumplía por accidente.
+- Q: ¿Alcanza con un helper que nadie obligue a llamar? → A: no — sería el
+  patrón que K-3 encontró en la cobertura: un mecanismo correcto que los
+  entrypoints nuevos no adoptan. El test barre los módulos con bloque
+  `__main__` y exige que cada uno lo invoque, así que un entrypoint futuro que
+  se olvide sale en rojo.
+
 ## Acceptance Scenarios
 
 - **Given** un entorno Windows, **When** corre `python core/pipeline.py`,
@@ -54,6 +92,12 @@ de `sdd_init.py` (la protección no se pierde, cambia de forma).
   sigue viva.
 - **Given** un entorno POSIX, **When** corre la suite, **Then** además se
   verifica el bit real en `st_mode` del hook instalado.
+- **Given** un entorno cuya codificación de salida no es UTF-8 (Windows con la
+  salida redirigida, `PYTHONIOENCODING=cp1252`), **When** un entrypoint del kit
+  imprime texto acentuado, **Then** lo emitido es UTF-8 válido y legible (antes:
+  `VERDE �`, `agn�stica`).
+- **Given** un entrypoint nuevo que se olvida de forzar la codificación,
+  **When** corre la suite, **Then** falla nombrando el módulo.
 
 ## Functional Requirements
 
@@ -68,12 +112,25 @@ de `sdd_init.py` (la protección no se pierde, cambia de forma).
 - **FR-004** SHOULD: el criterio "esta plataforma expresa permisos POSIX" se
   declara una sola vez y de forma reutilizable, para que el próximo test con el
   mismo problema no re-derive la condición.
+- **FR-005** MUST: todo entrypoint del kit —cada módulo de `core/` y de
+  `adapters/<lang>/` con bloque `__main__`— fuerza la codificación UTF-8 de
+  `stdout` y `stderr` al arrancar, invocando un helper único de
+  `core/sdd_config.py`. El helper es tolerante: si el stream no expone
+  `reconfigure` (redirigido a un buffer, capturado por la suite), no falla. Un
+  test barre los entrypoints y falla nombrando al que no lo invoque, para que la
+  garantía no dependa de acordarse.
+- **FR-006** MUST: importar `core/sdd_config.py` no exige PyYAML; la dependencia
+  se reclama en `load()`, que es lo único que lee el YAML. Un entrypoint que
+  solo usa sus helpers de stdlib —el caso de los hooks de pre-commit, que corren
+  en un venv sin dependencias— tiene que poder importarlo sin abortar.
 
 ## Key Entities
 
 - `tests/unit/test_sdd_init_seeded_steps.py` — el test defectuoso.
 - `tests/unit/conftest.py` — sede del criterio compartido de FR-004.
 - `core/sdd_init.py::_EXECUTABLE_WIRING` — contrato verificado; no se modifica.
+- `core/sdd_config.py::forzar_salida_utf8` — helper único de FR-005; reemplaza
+  el bloque repetido en `check_constitution.py` y `check_traceability.py`.
 
 ## Success Criteria
 
@@ -82,6 +139,11 @@ de `sdd_init.py` (la protección no se pierde, cambia de forma).
 - **SC-002** Quitar el `chmod` de `sdd_init.py` hace fallar la suite en
   Windows (verificación manual de que FR-001 no es un test vacío).
 - **SC-003** `pytest tests/unit` sin fallos ni errores en Windows.
+- **SC-004** Un entrypoint invocado con `PYTHONIOENCODING=cp1252` y la salida
+  redirigida emite bytes UTF-8 válidos (antes: `cp1252`, con los acentos
+  reemplazados por `?`/`�` o un `UnicodeEncodeError`).
+- **SC-005** Los 15 entrypoints de `core/` y `adapters/python/` invocan el
+  helper (antes: 2 de 15, con el bloque copiado).
 
 ## Assumptions
 
@@ -98,12 +160,17 @@ de `sdd_init.py` (la protección no se pierde, cambia de forma).
 | FR-002 | tests/unit/test_sdd_init_seeded_steps.py |
 | FR-003 | tests/unit/test_sdd_init_seeded_steps.py |
 | FR-004 | tests/unit/conftest.py (consumido por el test anterior) |
+| FR-005 | tests/unit/test_salida_utf8.py |
+| FR-006 | tests/unit/test_salida_utf8.py |
 
 ## Fuera de alcance
 
-- Cualquier otro fallo de plataforma que no sea el del wiring ejecutable.
 - Matriz de CI multiplataforma (hoy corre solo Linux) — anotable en
   `docs/IDEAS.md`.
+- *(Hasta 2026-08-12: "cualquier otro fallo de plataforma que no sea el del
+  wiring ejecutable". Enmendado al incorporar FR-005: el alcance es la paridad
+  Windows/POSIX del kit, y la codificación de la salida es parte de ella. Lo que
+  sigue fuera es un fallo de plataforma sin diagnóstico ni reproducción.)*
 
 ## Historial
 
@@ -113,3 +180,8 @@ de `sdd_init.py` (la protección no se pierde, cambia de forma).
   Windows (SC-001), 139 passed + 1 skip justificado (SC-003). SC-002 verificado
   a mano: parcheando `sdd_init.py` para no aplicar el `chmod`, la suite falla
   en Windows con `no se aplico chmod a .claude/sdd_gate_hook.sh`.
+- 2026-08-12: **ampliada** (FR-005, SC-004/SC-005; enmienda del *Fuera de
+  alcance*) con C-2 de `docs/IDEAS.md`, el otro modo en que Windows degrada la
+  señal del kit: la salida cae a `cp1252` y el texto acentuado se vuelve
+  ilegible. Estaba reproducido por bytes desde la campaña de usabilidad y volvió
+  a aparecer en esta sesión, en el triage de `sdd_spec.py`.

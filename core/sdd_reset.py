@@ -16,7 +16,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from sdd_config import find_repo_root  # noqa: E402
+from sdd_config import find_repo_root, forzar_salida_utf8  # noqa: E402
 
 
 def main() -> int:
@@ -34,4 +34,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     sys.exit(main())

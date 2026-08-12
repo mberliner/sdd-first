@@ -33,6 +33,7 @@ from sdd_config import (  # noqa: E402
     SddConfig,
     declared_test_dirs,
     find_repo_root,
+    forzar_salida_utf8,
     load,
     script_hint,
     write_text_lf,
@@ -334,4 +335,5 @@ def _strip_dates(text: str) -> str:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     raise SystemExit(main(sys.argv[1:]))

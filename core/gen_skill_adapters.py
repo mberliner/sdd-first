@@ -27,7 +27,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sdd_config import find_repo_root, script_hint, write_text_lf  # noqa: E402
+from sdd_config import (  # noqa: E402
+    find_repo_root,
+    forzar_salida_utf8,
+    script_hint,
+    write_text_lf,
+)
 
 PLAYBOOK_TEMPLATE = "docs/playbooks/{name}.md"
 
@@ -253,4 +258,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     raise SystemExit(main(sys.argv[1:]))

@@ -9,7 +9,6 @@ de docs/IDEAS.md).
 from __future__ import annotations
 
 import pytest
-
 import sdd_init
 
 
@@ -133,5 +132,7 @@ def test_lenguajes_validos_salen_del_disco_no_de_una_lista(tmp_path):
     """
     validos = sdd_init.lenguajes_soportados()
 
-    en_disco = {d.name for d in (sdd_init.KIT_ROOT / "adapters").iterdir() if d.is_dir()}
+    en_disco = {
+        d.name for d in (sdd_init.KIT_ROOT / "adapters").iterdir() if d.is_dir()
+    }
     assert validos == en_disco | {"none"}

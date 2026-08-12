@@ -22,7 +22,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "core"))
-from sdd_config import declared_test_dirs, find_repo_root, load  # noqa: E402
+from sdd_config import (  # noqa: E402
+    declared_test_dirs,
+    find_repo_root,
+    forzar_salida_utf8,
+    load,
+)
 
 
 class _NameCollector(ast.NodeVisitor):
@@ -172,4 +177,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     sys.exit(main(sys.argv))

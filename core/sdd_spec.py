@@ -30,7 +30,7 @@ from check_traceability import (  # noqa: E402
     parse_relations,
     spec_id_of,
 )
-from sdd_config import find_repo_root, write_text_lf  # noqa: E402
+from sdd_config import find_repo_root, forzar_salida_utf8, write_text_lf  # noqa: E402
 from sdd_gate import is_source_path  # noqa: E402
 
 _USO = (
@@ -549,4 +549,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     raise SystemExit(main(sys.argv[1:]))

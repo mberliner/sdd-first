@@ -23,7 +23,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "core"))
-from sdd_config import find_repo_root, load, write_text_lf  # noqa: E402
+from sdd_config import (  # noqa: E402
+    find_repo_root,
+    forzar_salida_utf8,
+    load,
+    write_text_lf,
+)
 
 
 def _module_of(repo_root: Path, layer_path: str) -> str:
@@ -81,4 +86,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    forzar_salida_utf8()
     raise SystemExit(main(sys.argv[1:]))

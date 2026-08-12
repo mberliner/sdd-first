@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sdd_config import load  # noqa: E402
+from sdd_config import forzar_salida_utf8, load  # noqa: E402
 
 _BACKTICK = re.compile(r"`([^`]+)`")
 _SEMVER = re.compile(r"\b\d+\.\d+\.\d+\b")
@@ -121,10 +121,7 @@ def _check_references(
 
 
 def main(argv: list[str]) -> int:
-    for stream in (sys.stdout, sys.stderr):
-        reconfigure = getattr(stream, "reconfigure", None)
-        if reconfigure is not None:
-            reconfigure(encoding="utf-8")
+    forzar_salida_utf8()
 
     if len(argv) < 2:
         print("Uso: check_constitution.py <CONSTITUTION.md>", file=sys.stderr)
