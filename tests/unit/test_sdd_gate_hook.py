@@ -18,6 +18,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from conftest import ejecutable_sh
 
 KIT_ROOT = Path(__file__).resolve().parents[2]
 KIT_HOOK = KIT_ROOT / ".claude" / "sdd_gate_hook.sh"
@@ -44,7 +45,7 @@ def _run_hook(
         env["PATH"] = path
     if bypass is not None:
         env["SDD_GATE_BYPASS"] = bypass
-    sh = shutil.which("sh") or "/bin/sh"
+    sh = ejecutable_sh()
     return subprocess.run(
         [sh, str(script)],
         input=payload,
@@ -168,7 +169,7 @@ def _run_hook_antigravity(
         env["PATH"] = path
     if bypass is not None:
         env["SDD_GATE_BYPASS"] = bypass
-    sh = shutil.which("sh") or "/bin/sh"
+    sh = ejecutable_sh()
     return subprocess.run(
         [sh, str(script)],
         input=payload,

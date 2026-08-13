@@ -57,3 +57,16 @@ def test_main_no_pisa_readme_existente_sin_force(tmp_path):
     assert (tmp_path / "README.md").read_text(
         encoding="utf-8"
     ) == "contenido del usuario\n"
+
+
+def test_main_siembra_fechas_reales_en_plantillas(tmp_path):
+    """SPEC-014 FR-US2-007: sdd_init reemplaza YYYY-MM-DD con la fecha de hoy."""
+    sdd_init.main([str(tmp_path), "--language=none"])
+
+    import datetime as _dt
+
+    today = _dt.date.today().isoformat()
+
+    historial = (tmp_path / "historial" / "sdd.md").read_text(encoding="utf-8")
+    assert today in historial
+    assert "YYYY-MM-DD" not in historial

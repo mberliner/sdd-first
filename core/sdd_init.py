@@ -77,11 +77,15 @@ def _substitute(text: str, name: str, domain: str) -> str:
     vendorizado, que es donde vive en un proyecto instalado — no en `core/`
     como en el repo del kit (SPEC-010 FR-007).
     """
+    import datetime as _dt
+
+    today = _dt.date.today().isoformat()
     return (
         text.replace("{{project.name}}", name)
         .replace("{{project.domain}}", domain)
         .replace("{{sdd.core}}", f"{VENDOR_PREFIX}/core")
         .replace("{{sdd.adapters}}", f"{VENDOR_PREFIX}/adapters")
+        .replace("YYYY-MM-DD", today)
     )
 
 
@@ -194,6 +198,13 @@ def _write_config(
     example = _seed_header(example, name)
     example = example.replace("name: mi-proyecto", f"name: {name}")
     example = example.replace("language: python", f"language: {language}")
+
+    import datetime as _dt
+
+    today = _dt.date.today().isoformat()
+    example = example.replace("ratified: 2026-01-01", f"ratified: {today}")
+    example = example.replace("amended: 2026-01-01", f"amended: {today}")
+
     example = _seed_default_branch(example, target)
     layout = _detect_layout(target, language)
     example = _seed_pipeline_steps(example, layout)

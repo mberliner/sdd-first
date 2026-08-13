@@ -230,6 +230,10 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   plantilla instalada guarda una copia sustituida en la instalación, que quedaría
   congelada al primer valor. `render --check` detecta el drift como con cualquier
   otro artefacto generado.
+- **FR-US2-007** MUST: `sdd-init` siembra las fechas de ratificación/enmienda de la
+  constitución en `.sdd/config.yaml` y la fecha de instalación en `historial/sdd.md`
+  con la fecha real del día, en lugar de arrastrar valores fijos como `2026-01-01`
+  o `YYYY-MM-DD` que dejan al derivado afirmando fechas irreales.
 
 ## Success Criteria
 
@@ -274,6 +278,7 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 | FR-US2-004 | `tests/unit/test_sdd_init_seeded_config.py` |
 | FR-US2-005 | `tests/unit/test_render.py`, `tests/unit/test_sdd_init_seeded_config.py` |
 | FR-US2-006 | `tests/unit/test_render.py`, `tests/e2e/escenarios/test_configuracion.py` |
+| FR-US2-007 | `tests/unit/test_sdd_init.py` |
 
 ## Fuera de alcance
 

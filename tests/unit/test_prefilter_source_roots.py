@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from conftest import ejecutable_sh
 
 KIT_ROOT = Path(__file__).resolve().parents[2]
 HOOK_SH = KIT_ROOT / "templates" / "wiring" / "sdd_gate_hook.sh"
@@ -70,7 +71,7 @@ def caso(request, tmp_path):
 
 
 def _roots_sh(root: Path) -> list[str]:
-    sh = shutil.which("sh") or "/bin/sh"
+    sh = ejecutable_sh()
     res = subprocess.run(
         [sh, str(HOOK_SH), "--source-roots", str(root)],
         capture_output=True,
