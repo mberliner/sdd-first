@@ -29,7 +29,9 @@ def _correr(monkeypatch, proyecto, steps, resultados):
     )
     monkeypatch.setattr(pipeline, "find_repo_root", lambda: proyecto)
     monkeypatch.setattr(
-        pipeline, "_run_process_step", lambda step, root: resultados[step]
+        pipeline,
+        "_run_process_step",
+        lambda step, root, extra_env=None: resultados[step],
     )
     monkeypatch.setattr(
         pipeline,

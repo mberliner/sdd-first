@@ -145,9 +145,18 @@ pipeline:
   # Pasos del pipeline local. Los de proceso (constitution/traceability/gate/
   # skills) son agnosticos; naming/layers/lint/types/security/tests/coverage los
   # provee el adaptador del lenguaje activo.
+  #
+  # `constitution` va DESPUES de los pasos que enforzan principios (los `step:`
+  # declarados arriba) y despues de `render`, su precondicion: ademas de
+  # verificar que cada enforcement este declarado, verifica que haya CORRIDO
+  # (SPEC-020 US2). Declararlo antes no rompe nada, pero el paso reporta sus
+  # principios "sin enforcement ejecutado" en cada corrida.
+  #
+  # Ojo al editar esta lista: el instalador la reemplaza entera y corta en la
+  # primera linea que no sea un item, asi que los comentarios van aca arriba y
+  # no intercalados entre los pasos.
   steps:
     - hooks
-    - constitution
     - traceability
     - naming
     - layers
@@ -159,6 +168,7 @@ pipeline:
     - tests
     - integration    # corre dirs.tests_integration; sin esa clave, se omite
     - coverage
+    - constitution
     # - e2e         # corre dirs.tests_e2e; sin esa clave, se omite. Va ultimo:
                     # es el paso mas caro del ciclo.
 

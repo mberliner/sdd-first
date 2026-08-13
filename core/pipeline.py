@@ -13,10 +13,13 @@ Con `language: none`, los pasos de codigo se omiten con aviso (modo doc-solo:
 quedan activos solo los gates de proceso). Contrato: exit 0 si todos los pasos
 pasan; 1 si alguno falla (sigue corriendo salvo --fail-fast).
 
-Un paso puede terminar en tres estados (SPEC-003 FR-009): OK, FALLO u OMITIDO.
-Omitido es "no se pudo verificar" -- sin targets, sin tool, sin umbrales, sin
-repo git -- y no se cuenta entre los pasos OK: contarlo hacia parecer verificado
-lo que nadie miro. El resumen final informa cuantos se omitieron.
+Un paso puede terminar en cuatro estados: OK, FALLO, OMITIDO (SPEC-003 FR-009) y
+OK CON RESERVAS (SPEC-020 FR-US2-004). Omitido es "no se pudo verificar" -- sin
+targets, sin tool, sin umbrales, sin repo git -- y no se cuenta entre los pasos
+OK: contarlo hacia parecer verificado lo que nadie miro. Con reservas es
+"verifique lo mio, pero algo que presupongo no paso en esta corrida": cuenta
+entre los OK y condiciona el verde del resumen, sin cambiar el exit code. El
+resumen final informa las dos cosas.
 
 Uso:
     python core/pipeline.py [--fail-fast]
@@ -37,7 +40,9 @@ sys.path.insert(0, str(HERE))
 from sdd_config import (  # noqa: E402
     CODE_STEPS,
     EXIT_OMITIDO,
+    EXIT_RESERVAS,
     PIPELINE_COVERAGE_CACHE_ENV,
+    PIPELINE_STEPS_RUN_ENV,
     find_repo_root,
     forzar_salida_utf8,
     load,
@@ -54,13 +59,19 @@ def _run(cmd: list[str], cwd: Path, extra_env: dict[str, str] | None = None) -> 
     return subprocess.call(cmd, cwd=str(cwd))  # nosec B603 - comandos fijos del pipeline
 
 
-def _run_process_step(step: str, repo_root: Path) -> int:
+def _run_process_step(
+    step: str, repo_root: Path, extra_env: dict[str, str] | None = None
+) -> int:
     if step == "hooks":
         return _run([sys.executable, str(HERE / "bootstrap_hooks.py")], repo_root)
     if step == "constitution":
+        # Recibe el canal con los pasos ya ejecutados (SPEC-020 FR-US2-001):
+        # es lo unico que le permite distinguir un enforcement declarado de uno
+        # que efectivamente corrio.
         return _run(
             [sys.executable, str(HERE / "check_constitution.py"), "CONSTITUTION.md"],
             repo_root,
+            extra_env,
         )
     if step == "traceability":
         return _run(
@@ -108,14 +119,21 @@ def main(argv: list[str]) -> int:
     try:
         failed: list[str] = []
         omitidos: list[str] = []
+        con_reservas: list[str] = []
+        ejecutados: list[str] = []
         total = 0
         for step in steps:
             total += 1
             print(f"\n--- {step} ---")
-            if step in PROCESS_STEPS:
-                code = _run_process_step(step, repo_root)
+            # Los pasos ya ejecutados viajan a los de proceso (SPEC-020
+            # FR-US2-001). Se arma por paso, no una vez: lo que importa es el
+            # estado al llegar a este punto de la corrida.
+            paso_env = {**extra_env, PIPELINE_STEPS_RUN_ENV: ",".join(ejecutados)}
+            es_proceso = step in PROCESS_STEPS
+            if es_proceso:
+                code = _run_process_step(step, repo_root, paso_env)
             elif step in CODE_STEPS:
-                code = _run_code_step(step, language, repo_root, extra_env)
+                code = _run_code_step(step, language, repo_root, paso_env)
             else:
                 print(f"    (paso desconocido: {step})")
                 total -= 1
@@ -123,12 +141,27 @@ def main(argv: list[str]) -> int:
 
             if code == EXIT_OMITIDO:
                 # No verificado: no suma a los OK ni al total (SPEC-003 FR-009).
+                # Tampoco cuenta como ejecutado: corrio, pero no miro nada.
                 total -= 1
                 omitidos.append(step)
                 print(f"[OMITIDO] {step}")
+            elif code == EXIT_RESERVAS and es_proceso:
+                # Verifico lo suyo, asi que cuenta entre los OK, pero algo que
+                # presupone no paso en esta corrida (SPEC-020 FR-US2-004). El
+                # detalle lo imprimio el propio paso: aca solo se traduce el
+                # codigo, sin recalcular ningun criterio.
+                #
+                # Solo de pasos de proceso: el contrato de adaptador declara tres
+                # estados (adapters/CONTRACT.md) y un paso de codigo no tiene de
+                # que hacer reservas, asi que ese exit code suyo es una falla.
+                ejecutados.append(step)
+                con_reservas.append(step)
+                print(f"[OK*]   {step} (con reservas)")
             elif code == 0:
+                ejecutados.append(step)
                 print(f"[OK]    {step}")
             else:
+                ejecutados.append(step)
                 failed.append(step)
                 print(f"[FALLO] {step}")
                 if fail_fast:
@@ -138,7 +171,10 @@ def main(argv: list[str]) -> int:
         print("\n" + "=" * 50)
         ok = total - len(failed)
         if not failed:
-            print(f"Pipeline local: VERDE — {ok}/{total} pasos OK")
+            # El verde deja de ser incondicional cuando algun paso no pudo
+            # afirmar todo lo suyo (SPEC-020 FR-US2-004).
+            estado = "VERDE con reservas" if con_reservas else "VERDE"
+            print(f"Pipeline local: {estado} — {ok}/{total} pasos OK")
         else:
             print(f"Pipeline local: ROJO — {ok}/{total} OK, {len(failed)} fallo(s):")
             for f in failed:
@@ -146,6 +182,8 @@ def main(argv: list[str]) -> int:
         if omitidos:
             # Visible en verde y en rojo: son los pasos que NADIE verifico.
             print(f"Omitidos ({len(omitidos)}, no verificados): {', '.join(omitidos)}")
+        if con_reservas:
+            print(f"Con reservas ({len(con_reservas)}): {', '.join(con_reservas)}")
         return 1 if failed else 0
     finally:
         shutil.rmtree(cache_dir, ignore_errors=True)

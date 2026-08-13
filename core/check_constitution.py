@@ -13,20 +13,35 @@ Que tool corresponde a que paso tambien sale del config: cada principio declara
 su `step` (SPEC-020). Este modulo no conoce ninguna tool por nombre, asi que un
 principio propio obtiene la misma verificacion que los del kit.
 
+Declarado no es ejecutado (SPEC-020 US2): corriendo dentro de `core/pipeline.py`
+tambien verifica que el paso de cada principio haya corrido de verdad, leyendo
+los pasos ya ejecutados del canal que el pipeline publica. Un paso declarado
+pero omitido en runtime -- sin tool, sin targets, sin umbrales -- deja el
+principio sin verificar: no es un error de la constitucion, pero tampoco un
+verde limpio. Por eso conviene declarar `constitution` DESPUES de los pasos que
+enforzan principios; si corre antes, lo reporta en vez de callarlo.
+
 Uso:
     python core/check_constitution.py CONSTITUTION.md
 
-Exit code 0 si todo OK, 1 si hay referencia rota o version malformada.
+Exit codes: 0 todo OK, 1 referencia rota o version malformada, 4 principios sin
+enforcement ejecutado en esta corrida (EXIT_RESERVAS).
 """
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sdd_config import forzar_salida_utf8, load  # noqa: E402
+from sdd_config import (  # noqa: E402
+    EXIT_RESERVAS,
+    PIPELINE_STEPS_RUN_ENV,
+    forzar_salida_utf8,
+    load,
+)
 
 _BACKTICK = re.compile(r"`([^`]+)`")
 _SEMVER = re.compile(r"\b\d+\.\d+\.\d+\b")
@@ -120,6 +135,51 @@ def _check_references(
                 )
 
 
+def _check_ejecucion(
+    principles: list[_Principle],
+    pipeline_steps: list[str],
+    enforcement_steps: dict[str, str],
+    reservas: list[str],
+) -> None:
+    """Principios cuyo paso de enforcement no llego a correr (SPEC-020 FR-US2-002).
+
+    Complementa a `_check_references`, que verifica que el enforcement este
+    *declarado*: un paso declarado pero omitido en runtime -- sin tool, sin
+    targets, sin umbrales -- deja el principio sin verificar, y hasta esta
+    historia el pipeline decia VERDE igual.
+
+    Solo corre dentro de un pipeline: la lista de pasos ejecutados la publica
+    `core/pipeline.py` (FR-US2-001). Sin la variable de entorno no hay nada que
+    evaluar y el llamador no invoca esta funcion (FR-US2-005).
+    """
+    ejecutados = {s for s in os.environ[PIPELINE_STEPS_RUN_ENV].split(",") if s}
+    # Frontera entre lo que quedo atras y lo que falta: la posicion del ultimo
+    # paso ejecutado en el orden declarado. Un paso ausente antes de esa marca
+    # se omitio; despues, todavia no le toco. Asi el mensaje es exacto tambien
+    # cuando `constitution` corre en el medio, que es el caso que una
+    # heuristica del tipo "¿ya corrio alguno?" contaba mal.
+    ultimo = max(
+        (i for i, s in enumerate(pipeline_steps) if s in ejecutados), default=-1
+    )
+
+    for p in principles:
+        for token in p.enforcement:
+            step = enforcement_steps.get(token.rsplit("/", 1)[-1])
+            # Sin `step`, el enforcement no pasa por el pipeline (FR-004): no
+            # hay paso que esperar. Sin cablear ya es error de _check_references,
+            # y no hay que decirlo dos veces.
+            if step is None or step not in pipeline_steps or step in ejecutados:
+                continue
+            # Distinguir el omitido del pendiente le dice al lector si le falta
+            # tooling o si tiene `constitution` declarado demasiado temprano.
+            motivo = (
+                f"el paso '{step}' se omitio: no verifico nada"
+                if pipeline_steps.index(step) < ultimo
+                else f"el paso '{step}' todavia no se ejecuto en esta corrida"
+            )
+            reservas.append(f"Principio '{p.title}' ({token}): {motivo}.")
+
+
 def main(argv: list[str]) -> int:
     forzar_salida_utf8()
 
@@ -140,10 +200,17 @@ def main(argv: list[str]) -> int:
     wired_steps = set(cfg.pipeline_steps)
 
     errors: list[str] = []
+    reservas: list[str] = []
     _check_version(version_line, errors)
     if not principles:
         errors.append("No se encontraron principios bajo '## Principios'.")
     _check_references(principles, repo_root, wired_steps, cfg.enforcement_steps, errors)
+    # Solo dentro de un pipeline: sin el canal no hay corrida de la que hablar y
+    # el check se comporta como antes de SPEC-020 US2 (FR-US2-005).
+    if PIPELINE_STEPS_RUN_ENV in os.environ:
+        _check_ejecucion(
+            principles, cfg.pipeline_steps, cfg.enforcement_steps, reservas
+        )
 
     print(f"Constitucion: {len(principles)} principio(s) activo(s)")
     for p in principles:
@@ -158,6 +225,19 @@ def main(argv: list[str]) -> int:
             file=sys.stderr,
         )
         return 1
+
+    if reservas:
+        # No es violacion de integridad: la constitucion esta bien escrita y bien
+        # cableada. Lo que falta es que el enforcement haya corrido, asi que el
+        # paso no falla -- condiciona el verde (SPEC-020 FR-US2-003).
+        print("\nPrincipios sin enforcement ejecutado en esta corrida:")
+        for r in reservas:
+            print(f"  ! {r}")
+        print(
+            f"\nTotal: {len(reservas)} principio(s) sin verificar. "
+            "El paso no falla, pero el verde del pipeline queda con reservas."
+        )
+        return EXIT_RESERVAS
 
     return 0
 

@@ -77,19 +77,30 @@ def _veredicto_sin_pasos_inventados(res) -> None:  # type: ignore[no-untyped-def
 
     El falso verde original salia justamente de que el resumen contaba pasos
     que el pipeline nunca habia corrido.
+
+    Son cuatro estados desde SPEC-020 FR-US2-004: el cuarto, `[OK*]`, es el paso
+    que verifico lo suyo pero no pudo afirmarlo todo. En una instalacion limpia
+    es el caso normal de `constitution` --los pasos que enforzan los principios
+    se omiten los dos, sin codigo que mirar ni umbrales declarados-- y por eso se
+    verifica aca: la instalacion fresca sale con reservas y sigue saliendo 0
+    (SC-US2-007), en vez de arrancar en ROJO.
     """
     secciones = re.findall(r"^--- (\S+) ---$", res.salida, flags=re.MULTILINE)
-    medidos = res.salida.count("[OK]")
+    con_reservas = res.salida.count("[OK*]")
+    medidos = res.salida.count("[OK]") + con_reservas
     omitidos = res.salida.count("[OMITIDO]")
     fallidos = res.salida.count("[FALLO]")
     assert secciones, f"el pipeline no reporto ningun paso{res.detalle()}"
     assert medidos + omitidos + fallidos == len(secciones), (
-        f"{len(secciones)} pasos ejecutados pero {medidos} OK + {omitidos} omitidos"
-        f" + {fallidos} fallidos reportados{res.detalle()}"
+        f"{len(secciones)} pasos ejecutados pero {medidos} OK ({con_reservas} con"
+        f" reservas) + {omitidos} omitidos + {fallidos} fallidos"
+        f" reportados{res.detalle()}"
     )
     dice(res, "VERDE", f"{medidos}/{medidos} pasos OK")
     if omitidos:
         dice(res, f"Omitidos ({omitidos}, no verificados)")
+    if con_reservas:
+        dice(res, "VERDE con reservas", f"Con reservas ({con_reservas})")
 
 
 def test_el_config_sembrado_es_el_ssot_del_proyecto(repo: Path) -> None:

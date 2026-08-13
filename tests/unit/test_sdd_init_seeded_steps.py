@@ -81,3 +81,34 @@ def test_el_wiring_queda_ejecutable_en_disco(tmp_path):
     hook = tmp_path / ".claude" / "sdd_gate_hook.sh"
     assert hook.exists()
     assert hook.stat().st_mode & 0o111  # al menos algun bit de ejecucion
+
+
+def test_constitution_se_siembra_despues_de_los_pasos_que_enforzan_principios():
+    """SPEC-020 FR-US2-006: declarado no es ejecutado.
+
+    El paso verifica que el enforcement de cada principio haya corrido, asi que
+    tiene que correr despues de esos pasos. Sembrado segundo --como estaba--
+    reportaba reservas por todos los principios en cada corrida, y ademas
+    contradecia su propia precondicion documentada (`render` antes).
+    """
+    pasos = sdd_init._SEEDED_STEPS
+    assert pasos.index("constitution") > pasos.index("render")
+    assert pasos.index("constitution") > pasos.index("naming")
+    assert pasos.index("constitution") > pasos.index("traceability")
+    assert pasos.index("constitution") > pasos.index("coverage")
+
+
+def test_e2e_se_siembra_despues_de_constitution():
+    """`e2e` es el mas caro y va ultimo (SPEC-018 FR-US3-003), asi que la
+    posicion de `constitution` no lo desplaza."""
+
+    class _Layout:
+        tests_integration = None
+        tests_e2e = "tests/e2e"
+
+    config_text = "pipeline:\n  steps:\n    - constitution\n"
+    result = sdd_init._seed_pipeline_steps(config_text, _Layout())
+    pasos = [
+        ln.strip()[2:] for ln in result.splitlines() if ln.strip().startswith("- ")
+    ]
+    assert pasos.index("e2e") > pasos.index("constitution")

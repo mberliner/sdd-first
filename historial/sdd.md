@@ -1,5 +1,72 @@
 # Historial SDD — sdd-first
 
+## 2026-08-12 — SPEC-020 US2: un principio sin enforcement ejecutado no deja el pipeline en VERDE a secas
+
+**Scope:** `specs/SPEC-020-enforcement-declarado-en-config.md` (nueva US2,
+FR-US2-001..007, título ampliado), `core/sdd_config.py` (`EXIT_RESERVAS`,
+`PIPELINE_STEPS_RUN_ENV`), `core/check_constitution.py` (`_check_ejecucion`),
+`core/pipeline.py` (canal + cuarto estado), `core/sdd_init.py` (`_SEEDED_STEPS`),
+`.sdd/config.yaml` y `examples/config/config.yaml` (orden de `constitution`),
+`adapters/CONTRACT.md`, `tests/unit/test_pipeline_enforcement_ejecutado.py`
+(nuevo), `tests/unit/test_check_constitution.py`,
+`tests/unit/test_sdd_init_seeded_steps.py`, `tests/unit/test_pipeline_omitidos.py`,
+`tests/e2e/escenarios/test_instalacion_limpia.py`, `docs/IDEAS.md`.
+
+**Qué cambió:** cierra **"Omitido no es VERDE"** de `docs/IDEAS.md`. US1 verificaba
+que el enforcement de cada principio estuviera *declarado* en `pipeline.steps`;
+faltaba que hubiera *corrido*. Un paso declarado pero omitido en runtime —sin
+tool, sin targets, sin umbrales— dejaba el principio sin verificar y el pipeline
+decía VERDE igual. Ahora `check_constitution` recibe los pasos ya ejecutados de la
+corrida y reporta los principios que quedaron sin enforzar; el resumen pasa a
+decir "VERDE con reservas" sin cambiar el exit code.
+
+**Decisiones de diseño:**
+- **La idea, tal como estaba escrita, era irrealizable.** Pedía que
+  `check_constitution` leyera el reporte de omitidos, pero el paso corría segundo
+  y los pasos que enforzan principios cuarto y décimo: cuando el check corría no
+  había reporte. Se movió el paso y se le abrió un canal (variable de entorno con
+  los pasos ejecutados), mismo patrón y mismo degradado que
+  `PIPELINE_COVERAGE_CACHE_ENV` entre `tests` y `coverage`.
+- **En el check, no en el resumen del pipeline.** Se evaluó cruzar `omitidos` ×
+  `enforcement_steps` en `pipeline.py` —tiene los dos datos y no depende del
+  orden— y se descartó para que el mensaje hable en lenguaje de principios y
+  aparezca junto al listado que el lector ya está mirando. El costo aceptado es
+  el canal y la dependencia del orden, que se compensa abajo.
+- **Un exit code dedicado, no un segundo cruce.** El pipeline traduce
+  `EXIT_RESERVAS` a un estado visible pero **no recalcula** el criterio: dos
+  implementaciones del mismo criterio divergen por construcción (Principio IV).
+- **Ni ROJO ni `strict` por principio.** ROJO rompe frontalmente SPEC-003 FR-001
+  —una instalación fresca volvería a arrancar en rojo—; una clave `strict`
+  nacería en `false` para no romper derivados, o sea inerte (K-5). El verde
+  condicionado muerde sin reabrir nada.
+- **La posición del paso es derivable, no una constante.** Es "después del último
+  paso de `enforcement_steps`"; para el kit cae penúltima (antes de `e2e`) porque
+  el Principio V se enforza con `coverage`. Se conserva así la mitad del tiempo
+  de feedback.
+- **El degradado dice la verdad en los dos órdenes.** El criterio es "el paso no
+  se ejecutó todavía", que cubre igual al omitido y al pendiente, así que un
+  derivado que declare `constitution` primero recibe el aviso en vez de recuperar
+  el hueco en silencio. La garantía no queda colgada de un orden que nada
+  verifica —la familia V-1/C-8.
+- **El cuarto estado no toca el contrato de adaptador.** `EXIT_RESERVAS` vale
+  solo para pasos de proceso; de un adaptador cuenta como falla, así que
+  `adapters/CONTRACT.md` sigue declarando tres estados y es cierto.
+
+**Hallazgos:** (a) el orden sembrado ya contradecía su propia precondición
+escrita: `sdd_init.py` documenta que "el paso `constitution` ya exige haber
+corrido `render`" y lo sembraba cinco posiciones antes —el arreglo se sostiene
+solo, sin esta US2—. (b) No era un caso de borde sino **el** caso: en una
+instalación fresca se omiten los dos pasos que enforzan principios, así que el
+primer VERDE de todo derivado se emitía con el 100% de sus principios sin
+enforzar; la e2e de instalación limpia lo confirma y ahora lo afirma. (c)
+Apareció **C-9**, registrado como idea: `_seed_pipeline_steps` corta el bloque
+`steps:` en la primera línea que no es un ítem, así que un comentario intercalado
+duplica los pasos que siguen —se descubrió porque el derivado nacía con
+`constitution` dos veces—.
+
+**Verificación:** `python core/pipeline.py` VERDE 11/11, 745 tests unitarios +
+19 e2e en verde, `sdd-doctor` sano.
+
 ## 2026-08-12 — SPEC-019 US4: la raíz de `tests/` entra al alcance de los pasos estáticos
 
 **Scope:** `specs/SPEC-019-tests-integracion-ejecutados.md` (nueva US4,

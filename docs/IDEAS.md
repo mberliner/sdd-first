@@ -750,6 +750,14 @@ evaluó y se dejó afuera:
 - `check_naming` también podría chequear nombres de paquetes/directorios, no
   solo identificadores y stems de archivo.
 - Adaptadores `node`/`go` (deuda ya registrada en historial y SPEC-001).
+- **Una corrida e2e interrumpida deja el workspace inutilizable.** La marca
+  `.sdd-e2e-workspace` se escribe al final de la generación, así que un Ctrl-C (o
+  un timeout) deja la carpeta con contenido y sin marca, y a partir de ahí la
+  suite aborta en el fixture pidiendo elegir otra carpeta con `SDD_E2E_WORK`. La
+  guarda es correcta —no borrar lo que no dejó la suite— pero el remedio es
+  borrar a mano una carpeta de temp, que es justo lo que la guarda quiere evitar
+  que se haga a ciegas. Escribir la marca **primero**, apenas se crea la carpeta,
+  la vuelve idempotente sin aflojar la guarda.
 - `enforcement`/`detail` de un principio admiten un solo token: `render.py` los
   envuelve en un único code span y `check_constitution._is_path` valida
   existencia sobre él. Un principio con dos SSOTs de detalle (o con enforcement
@@ -770,3 +778,38 @@ evaluó y se dejó afuera:
   la constitución en verde pero sin ejecución real. Hacer que `check_constitution`
   lea el reporte de omitidos y lance un aviso o error para principios no
   enforceados.
+  **(cerrado el 2026-08-12)** → [[SPEC-020-enforcement-declarado-en-config]] US2,
+  como reapertura: esa misma spec había abierto la idea en sus *Assumptions*, y
+  una spec nueva habría dejado dos SSOTs sobre quién verifica que un principio se
+  enforce de verdad. **Tal como estaba escrita era irrealizable**: `constitution`
+  corría en la posición 2 y los pasos que enforzan principios en la 4 y la 10, así
+  que cuando el check corría no había ningún reporte de omitidos que leer. Hubo
+  que mover el paso y abrirle un canal —variable de entorno con los pasos ya
+  ejecutados, mismo patrón y mismo degradado que `PIPELINE_COVERAGE_CACHE_ENV`—.
+  Cuatro cosas que la idea no registraba: (a) la posición correcta **no es una
+  constante**, es "después del último paso de `enforcement_steps`", derivable del
+  config, y para el kit cae penúltima porque el Principio V se enforza con
+  `coverage`; (b) el orden sembrado ya contradecía su propia precondición escrita
+  —`sdd_init.py` documenta que "el paso `constitution` ya exige haber corrido
+  `render`" y lo sembraba cinco posiciones antes—; (c) no es un caso de borde sino
+  **el** caso: en una instalación fresca los dos pasos que enforzan principios se
+  omiten los dos, así que el primer VERDE de todo derivado se emitía con el 100%
+  de sus principios sin enforzar; (d) el criterio es "se ejecutó", no "pasó" — un
+  paso que falla sí corrió su enforcement, y sumarle "principio sin verificar"
+  sería decir algo falso encima de un error real. Se descartó el ROJO (rompe
+  frontalmente SPEC-003 FR-001, que existe para que una instalación fresca no
+  arranque en rojo) y la clave `strict` por principio (nacería en `false` para no
+  romper derivados, o sea inerte: K-5). Quedó un cuarto estado de paso,
+  `EXIT_RESERVAS`, restringido a los de proceso para no ampliar por la ventana el
+  contrato de tres estados del adaptador.
+- **C-9 · Un comentario entre los pasos de `steps:` duplica el resto de la
+  lista.** `sdd_init._seed_pipeline_steps` reemplaza el bloque y **corta en la
+  primera línea que no es un ítem**: los pasos que vengan después de un comentario
+  intercalado no se descartan, así que el instalador los vuelve a escribir y el
+  derivado nace con pasos repetidos. Encontrado al cerrar "Omitido no es VERDE",
+  documentando `- constitution` en `examples/config/config.yaml`: el derivado
+  quedaba con `constitution` dos veces y `e2e` sin ser el último. Se esquivó
+  moviendo el comentario arriba del bloque (y dejando escrito ahí que los
+  comentarios van arriba), pero el parser sigue frágil: la próxima persona que
+  documente un paso en su línea reproduce el bug. Fix: descartar los ítems del
+  bloque hasta la desindentación, no hasta la primera línea que no matchee.

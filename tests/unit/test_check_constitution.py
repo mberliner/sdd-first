@@ -1,4 +1,4 @@
-"""Tests del Constitution Check (SPEC-020 FR-003/FR-004/FR-006).
+"""Tests del Constitution Check (SPEC-020 FR-003/FR-004/FR-006, FR-US2-002/003/005).
 
 El modulo estaba en 0% de cobertura pese a correr en el paso `constitution` de
 todo proyecto instalado (deuda K-3 de docs/IDEAS.md). Se cubre aca, en la misma
@@ -6,6 +6,7 @@ iteracion que le saca el mapa de tools hardcodeado.
 """
 
 import check_constitution as cc
+from sdd_config import EXIT_RESERVAS, PIPELINE_STEPS_RUN_ENV
 
 CONSTITUTION_OK = """# Constitución del proyecto
 
@@ -135,8 +136,11 @@ def test_paso_declarado_y_no_cableado_es_error(tmp_path):
     )
     joined = "\n".join(errors)
     assert "no esta activo" in joined
+    # FR-003 exige los tres datos: sin el enforcement, el lector no sabe cual de
+    # los tokens del principio es el que quedo sin paso.
     assert "'naming'" in joined
     assert "I. Demo" in joined
+    assert "check_naming.py" in joined
 
 
 def test_paso_declarado_y_cableado_pasa(tmp_path):
@@ -219,3 +223,67 @@ def test_main_rojo_sin_principios(tmp_path, capsys):
     destino = _proyecto(tmp_path, constitution=constitution)
     assert cc.main(["check_constitution.py", str(destino)]) == 1
     assert "No se encontraron principios" in capsys.readouterr().err
+
+
+# -- ejecucion del enforcement, no solo su declaracion (SPEC-020 US2) ----------
+#
+# FR-US2-002/003/005. US1 verifica que el paso este declarado en pipeline.steps;
+# esto, que ademas haya corrido. El canal lo publica core/pipeline.py: sin la
+# variable de entorno el check no evalua ejecucion y se comporta como antes.
+
+
+def test_main_con_el_paso_ejecutado_sale_verde(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv(PIPELINE_STEPS_RUN_ENV, "naming")
+    destino = _proyecto(tmp_path)
+    assert cc.main(["check_constitution.py", str(destino)]) == 0
+    assert "sin enforcement ejecutado" not in capsys.readouterr().out
+
+
+def test_main_reserva_cuando_el_paso_se_omitio(tmp_path, monkeypatch, capsys):
+    """FR-US2-002: declarado y cableado, pero no verifico nada en la corrida."""
+    config = CONFIG_OK.replace("    - naming\n", "    - naming\n    - tests\n")
+    monkeypatch.setenv(PIPELINE_STEPS_RUN_ENV, "tests")
+    destino = _proyecto(tmp_path, config=config)
+    assert cc.main(["check_constitution.py", str(destino)]) == EXIT_RESERVAS
+    salida = capsys.readouterr().out
+    assert "Nomenclatura agnostica" in salida
+    assert "check_naming.py" in salida
+    assert "el paso 'naming' se omitio" in salida
+
+
+def test_main_reserva_cuando_constitution_corre_demasiado_temprano(
+    tmp_path, monkeypatch, capsys
+):
+    """FR-US2-002: nada ejecutado todavia -- el mensaje lo dice, no lo calla."""
+    monkeypatch.setenv(PIPELINE_STEPS_RUN_ENV, "")
+    destino = _proyecto(tmp_path)
+    assert cc.main(["check_constitution.py", str(destino)]) == EXIT_RESERVAS
+    salida = capsys.readouterr().out
+    assert "Nomenclatura agnostica" in salida
+    assert "check_naming.py" in salida
+    assert "todavia no se ejecuto en esta corrida" in salida
+
+
+def test_main_sin_la_variable_no_evalua_ejecucion(tmp_path, monkeypatch, capsys):
+    """FR-US2-005: invocado suelto, el comportamiento es el previo a US2."""
+    monkeypatch.delenv(PIPELINE_STEPS_RUN_ENV, raising=False)
+    destino = _proyecto(tmp_path)
+    assert cc.main(["check_constitution.py", str(destino)]) == 0
+
+
+def test_un_principio_sin_step_no_genera_reserva(tmp_path, monkeypatch, capsys):
+    """FR-004 sigue mandando: sin `step` no hay paso que esperar."""
+    config = CONFIG_OK.replace("    step: naming\n", "")
+    monkeypatch.setenv(PIPELINE_STEPS_RUN_ENV, "")
+    destino = _proyecto(tmp_path, config=config)
+    assert cc.main(["check_constitution.py", str(destino)]) == 0
+
+
+def test_un_error_de_integridad_prevalece_sobre_la_reserva(
+    tmp_path, monkeypatch, capsys
+):
+    """FR-US2-003: primero se arregla lo que esta mal escrito."""
+    config = CONFIG_OK.replace("    - naming\n", "    - traceability\n")
+    monkeypatch.setenv(PIPELINE_STEPS_RUN_ENV, "")
+    destino = _proyecto(tmp_path, config=config)
+    assert cc.main(["check_constitution.py", str(destino)]) == 1

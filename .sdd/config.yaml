@@ -105,7 +105,6 @@ pipeline:
   # types/security: deuda (requieren trabajo de tipado/audit aparte, ver SPEC-002).
   steps:
     - hooks
-    - constitution
     - traceability
     - naming
     - lint
@@ -114,6 +113,12 @@ pipeline:
     - render
     - tests
     - coverage
+    # Despues de los pasos que enforzan principios (naming, traceability,
+    # coverage) y despues de render, que es su precondicion: asi verifica que
+    # el enforcement de cada principio haya CORRIDO, no solo que este declarado
+    # (SPEC-020 FR-US2-006). La posicion no es un capricho: es "despues del
+    # ultimo paso de enforcement_steps", derivable del propio config.
+    - constitution
     # Ultimo por costo, no por importancia: ~17 s contra los ~17 s del resto
     # del pipeline junto, asi que un fallo barato aparece antes.
     - e2e

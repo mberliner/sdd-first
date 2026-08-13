@@ -61,6 +61,14 @@ DEFAULT_TRIAGE_MIN_MATCHES = 2
 # Contrato completo en adapters/CONTRACT.md.
 EXIT_OMITIDO = 3
 
+# Cuarto estado, este solo de los pasos de proceso (SPEC-020 FR-US2-003): el
+# paso verifico lo suyo, pero algo que su verificacion presupone no ocurrio en
+# la corrida, asi que su verde no puede afirmar todo lo que afirmaria. Hoy lo
+# usa `check_constitution.py` para un principio cuyo paso de enforcement no se
+# ejecuto. No es falla -- no pone el pipeline en ROJO ni cambia su exit code --
+# ni omision -- el paso si corrio y cuenta entre los OK.
+EXIT_RESERVAS = 4
+
 # Prefijo de la linea con que un adaptador reporta la cobertura medida en la
 # consulta `coverage-baseline` (SPEC-009 FR-US2-001). Igual que EXIT_OMITIDO,
 # vive aca porque lo comparten los dos lados del contrato: el adaptador que la
@@ -77,6 +85,16 @@ COVERAGE_BASELINE_PREFIX = "SDD-COVERAGE-BASELINE"
 # cuenta, como siempre. Vive aca porque la comparten `core/pipeline.py` y el
 # adaptador, los dos lados del contrato.
 PIPELINE_COVERAGE_CACHE_ENV = "SDD_PIPELINE_COVERAGE_CACHE"
+
+# Variable de entorno con los pasos que ya se EJECUTARON en la corrida en curso
+# de `core/pipeline.py`, separados por coma (SPEC-020 FR-US2-001). Ejecutado es
+# "corrio, con cualquier resultado": no entran los omitidos (no verificaron
+# nada) ni los todavia pendientes (declarados despues). La consume
+# `check_constitution.py` para saber si el paso que enforza cada principio
+# llego a correr; sin la variable -- check invocado suelto -- no evalua
+# ejecucion. Mismo patron y mismo degradado que PIPELINE_COVERAGE_CACHE_ENV, y
+# vive aca por el mismo motivo: la comparten los dos lados del canal.
+PIPELINE_STEPS_RUN_ENV = "SDD_PIPELINE_STEPS_RUN"
 
 # Marcadores que identifican la raiz de un proyecto con SDD instalado.
 _ROOT_MARKERS = (

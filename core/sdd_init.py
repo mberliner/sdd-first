@@ -277,9 +277,13 @@ def _seed_default_branch(config_text: str, target: Path) -> str:
 # VERDE sobre una CONSTITUTION.md, un SPEC-000 o un ci.yml que ya no derivan del
 # config. Es lectura pura, no requiere tooling del proyecto, y no agrega
 # precondicion: el paso `constitution` ya exige haber corrido `render`.
+# `constitution` va ANTEPENULTIMO --despues de `render`, su precondicion, y
+# despues de los pasos que enforzan principios-- porque tambien verifica que
+# cada enforcement haya corrido y no solo que este declarado (SPEC-020
+# FR-US2-006). Sembrarlo segundo, como estaba, contradecia esa precondicion ya
+# escrita arriba y dejaba al paso reportando reservas en cada corrida.
 _SEEDED_STEPS = [
     "hooks",
-    "constitution",
     "traceability",
     "naming",
     "layers",
@@ -287,6 +291,7 @@ _SEEDED_STEPS = [
     "render",
     "tests",
     "coverage",
+    "constitution",
 ]
 _OPTIONAL_STEPS = ["lint", "format", "types", "security"]
 

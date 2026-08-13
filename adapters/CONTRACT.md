@@ -59,6 +59,10 @@ puede no ofrecer una consulta: el núcleo lo trata como omisión, no como error.
   que nadie miró: el pipeline no lo cuenta entre los pasos OK y lo informa
   aparte. La constante es `EXIT_OMITIDO` en `core/sdd_config.py` (SSOT).
   Ver SPEC-003 FR-009 y SPEC-001 FR-005.
+- Estos tres son **todos** los estados que un adaptador puede devolver. El
+  pipeline reconoce un cuarto, `EXIT_RESERVAS`, reservado a los pasos de proceso
+  del núcleo (SPEC-020 FR-US2-003): un adaptador que lo devuelva cuenta como
+  FALLO, porque un paso de código no tiene de qué hacer reservas.
 - Parametrización: el adaptador lee `.sdd/config.yaml` vía `core/sdd_config.py`
   (source_roots, dirs, naming, layers). No hardcodea rutas ni palabras excluidas.
 - Cada carpeta de tests declarada en `dirs` tiene **su** paso: `tests` corre la

@@ -100,6 +100,20 @@ def test_los_pasos_declarados_por_los_principios_existen_en_el_pipeline():
             assert p["step"] in pasos, p
 
 
+def test_constitution_se_declara_despues_de_los_pasos_que_enforzan_principios():
+    # SPEC-020 FR-US2-006: el paso verifica que el enforcement de cada principio
+    # haya corrido, asi que declararlo antes hace que todo derivado sembrado
+    # desde este ejemplo reporte reservas por todos sus principios, en cada
+    # corrida. El orden ya esta anclado para `_SEEDED_STEPS`
+    # (tests/unit/test_sdd_init_seeded_steps.py); este es el mismo invariante
+    # sobre el otro artefacto que FR-US2-006 nombra.
+    cargado = _cargado()
+    pasos = cargado["pipeline"]["steps"]
+    for p in cargado["principles"]:
+        if p.get("step"):
+            assert pasos.index(p["step"]) < pasos.index("constitution"), p
+
+
 def test_declara_la_seccion_constitution_con_semver():
     # SPEC-010 FR-003: el procedimiento de enmienda necesita dónde bumpear.
     constitution = _cargado()["constitution"]
