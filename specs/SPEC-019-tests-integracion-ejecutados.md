@@ -18,6 +18,13 @@
 > **SSOT del contrato de los pasos de test del pipeline.** El contrato de
 > adaptador sigue siendo [[adapters/CONTRACT.md]]; esta spec define qué pasos de
 > test existen y qué carpeta corre cada uno.
+>
+> Reabierta el 2026-08-12 por **V-4** de `docs/IDEAS.md`, el caso simétrico del
+> que la abrió: US2 avisa cuando una carpeta **declarada** no la ejecuta ningún
+> paso, y por eso mismo no puede ver la raíz de `tests/`, que no está declarada
+> en ninguna clave. Va acá y no en una spec nueva porque el enunciado de arriba
+> —qué carpeta mira cada paso— es exactamente lo que hay que corregir: una spec
+> aparte dejaría dos SSOTs sobre el mismo contrato.
 
 ## User Story 1 (Priority P1) — el pipeline ejecuta los tests de integración declarados
 
@@ -63,6 +70,24 @@ invisible tanto tiempo.
 `tests/integration`; el `.sdd/config.yaml` sembrado declara las dos y el mensaje
 de layout detectado las nombra.
 
+## User Story 4 (Priority P1) — la infraestructura compartida de tests también se verifica
+
+Como dueño de un proyecto cuyas utilidades de test viven en la raíz de `tests/`
+—`conftest.py`, fixtures, helpers—, quiero que los pasos estáticos las miren
+igual que al resto del código, para que no haya una carpeta que existe, que se
+edita seguido y que ningún paso verifica.
+
+**Why this priority:** es la misma clase de agujero que abrió esta spec (una
+carpeta que existe y nadie mira), pero por el flanco contrario: US2 solo puede
+avisar sobre lo que está **declarado**, y la raíz de `tests/` no lo está. En el
+propio kit `tests/conftest.py` no lo lintaba nadie y `tests/fixtures_proyecto.py`
+solo lo salvaba un paso a mano del workflow e2e —que desapareció al cerrar
+[[SPEC-018-verificacion-e2e]] US3—, así que hoy no queda ninguna red.
+
+**Independent Test:** en un proyecto con `dirs.tests_unit: tests/unit` y un
+archivo con una violación de nomenclatura en `tests/conftest.py`, el paso
+`naming` la reporta; y el paso no visita `tests/unit` dos veces.
+
 ## Relación con specs existentes
 
 - **Extiende:** — | **Supersede:** — | **Depende de:** —
@@ -100,6 +125,35 @@ de layout detectado las nombra.
   configs ajenos (SPEC-003). Se enteran por el aviso de US2, que es exactamente
   el comportamiento buscado.
 
+### Session 2026-08-12 (US4)
+
+- Q: ¿No alcanza con declarar `tests/` a secas en el config? → A: no, y es la
+  trampa del ítem. Con `tests_unit: tests/unit` ya declarada, sumar `tests` deja
+  a los pasos estáticos visitando la subcarpeta dos veces: ruff la lintaría dos
+  veces y `check_naming` reportaría cada violación duplicada. El solape no es un
+  detalle de performance, es ruido en la salida que el operador lee.
+- Q: ¿Clave `tests_root` explícita o derivar la raíz común de lo declarado? → A:
+  derivar. Una clave nueva es superficie de config que hay que sembrar,
+  documentar y que el adoptante tiene que descubrir — la lección que US3 de esta
+  misma spec dejó escrita para `tests_integration`. La raíz **ya es derivable**
+  de lo declarado: no hay dato nuevo que pedirle al proyecto, solo una pregunta
+  que nadie hacía.
+- Q: ¿Y si las carpetas de test declaradas viven en árboles distintos
+  (`pruebas/unit` y `e2e/`)? → A: guarda explícita. Si el ancestro común es la
+  raíz del repo, no se colapsa nada y los pasos reciben las carpetas declaradas
+  tal cual. Barrer el repo entero porque el layout es inusual sería mucho peor
+  que el agujero que se está tapando.
+- Q: ¿Los pasos que **ejecutan** tests también reciben la raíz derivada? → A: no,
+  y es justo la distinción que `TEST_DIRS` ya declara. Los pasos estáticos "ante
+  la duda miran de más y no rompen nada"; ejecutar la raíz entera le haría correr
+  a `tests` la suite de integración, que es el defecto original de esta spec al
+  revés. La derivación alimenta solo a `naming`/`lint`/`format`.
+- Q: ¿La relajación de nomenclatura en tests sigue aplicando si el paso recibe
+  `tests/` en vez de `tests/unit`? → A: tiene que seguir aplicando, y es el
+  riesgo concreto del cambio: `relax_in_tests` ya se rompió una vez por comparar
+  contra el basename equivocado (B-2 de `docs/IDEAS.md`). Por eso es un FR propio
+  y no una nota de implementación.
+
 ## Acceptance Scenarios
 
 ### US1 — ejecución
@@ -131,6 +185,21 @@ de layout detectado las nombra.
   queda en `pipeline.steps`.
 - **Given** un proyecto sin carpeta de integración, **When** se corre `sdd-init`,
   **Then** el config la deja comentada como pista, igual que hoy con `tests_unit`.
+
+### US4 — alcance de los pasos estáticos
+
+- **Given** `dirs.tests_unit: tests/unit` y `dirs.tests_integration:
+  tests/integration` declaradas, **When** corre un paso estático, **Then**
+  recibe `tests/` una sola vez y no recibe además las dos subcarpetas.
+- **Given** una violación de nomenclatura en `tests/conftest.py`, **When** corre
+  `naming`, **Then** la reporta y el paso sale en rojo.
+- **Given** carpetas de test declaradas en árboles distintos (`pruebas/unit` y
+  `e2e/`), **When** corre un paso estático, **Then** recibe esas dos carpetas tal
+  cual y **no** la raíz del repo.
+- **Given** un token relajado por `relax_in_tests`, **When** corre `naming` con
+  la raíz derivada, **Then** sigue relajado para los archivos bajo esa raíz.
+- **Given** el mismo proyecto, **When** corre el paso `tests`, **Then** ejecuta
+  `dirs.tests_unit` como siempre: la raíz derivada no lo alcanza.
 
 ## Functional Requirements
 
@@ -168,10 +237,34 @@ de layout detectado las nombra.
 - **FR-US3-003** SHOULD: el mensaje de layout detectado de `sdd-init` nombra la
   carpeta de integración cuando la encontró.
 
+### US4
+
+- **FR-US4-001** MUST: los pasos estáticos (`naming`, `lint`, `format`) reciben
+  la raíz común de las carpetas de tests declaradas en `dirs`, de modo que los
+  archivos que viven en esa raíz —y no dentro de ninguna subcarpeta declarada—
+  queden dentro del alcance verificado.
+- **FR-US4-002** MUST: ninguna carpeta se visita dos veces. Cuando la raíz
+  derivada contiene a una carpeta declarada, esa carpeta no se pasa además por
+  separado.
+- **FR-US4-003** MUST: si el ancestro común de las carpetas declaradas es la raíz
+  del repositorio, no hay colapso: los pasos reciben las carpetas declaradas tal
+  cual. El kit nunca pasa la raíz del repo como blanco de un paso estático.
+- **FR-US4-004** MUST: la relajación de nomenclatura en tests sigue aplicando a
+  los archivos alcanzados por la raíz derivada; pasarle `tests/` a `check_naming`
+  en lugar de `tests/unit` no des-relaja ningún token.
+- **FR-US4-005** MUST: los pasos que **ejecutan** tests (`tests`, `integration`,
+  `e2e`) siguen recibiendo su carpeta declarada, no la raíz derivada.
+- **FR-US4-006** MUST: la derivación se declara una sola vez en
+  `core/sdd_config.py`, junto a `TEST_DIRS`, y la consumen los adaptadores. Ni el
+  adaptador ni `check_naming` guardan su propia copia del criterio.
+
 ## Key Entities
 
 - **`TEST_DIR_STEP`** (`core/sdd_config.py`): mapa `clave de dirs → paso que la
   ejecuta`. SSOT de qué carpeta corre cada paso; lo consume `sdd_doctor`.
+- **Raíz derivada de tests** (`core/sdd_config.py`): ancestro común de las
+  carpetas de `TEST_DIRS` declaradas, con la guarda de FR-US4-003. Es un
+  **derivado**, no una clave de config: no se declara ni se siembra.
 - **Paso `integration`** (`adapters/<language>/adapter.py`): ejecutor de
   `dirs.tests_integration`, opcional en `pipeline.steps`.
 - **`dirs.tests_integration`** (`.sdd/config.yaml`): carpeta de tests de
@@ -189,6 +282,12 @@ de layout detectado las nombra.
   la declara y un pipeline que la corre, sin intervención manual.
 - **SC-005** El pipeline del kit sigue VERDE con la misma cantidad de pasos: el
   kit no declara la clave y no gana el paso.
+- **SC-006** En el propio kit, `tests/conftest.py` y `tests/fixtures_proyecto.py`
+  quedan dentro del alcance de `naming`, `lint` y `format`: una violación
+  introducida en cualquiera de los dos pinta su paso en rojo.
+- **SC-007** El pipeline del kit sigue VERDE después del cambio, con las mismas
+  violaciones reportadas que antes en las carpetas que ya se miraban: ampliar el
+  alcance no duplica hallazgos.
 
 ## Assumptions
 
@@ -211,6 +310,12 @@ de layout detectado las nombra.
 | FR-US3-002 | `tests/unit/test_sdd_init_seeded_config.py` |
 | FR-US3-003 | `tests/unit/test_sdd_init_seeded_config.py` |
 | SC-001..SC-004 | `tests/e2e/escenarios/test_tests_de_integracion.py` |
+| FR-US4-001 | `tests/unit/test_raiz_de_tests_estatica.py` |
+| FR-US4-002 | `tests/unit/test_raiz_de_tests_estatica.py` |
+| FR-US4-003 | `tests/unit/test_raiz_de_tests_estatica.py` |
+| FR-US4-004 | `tests/unit/test_raiz_de_tests_estatica.py` |
+| FR-US4-005 | `tests/unit/test_raiz_de_tests_estatica.py` |
+| FR-US4-006 | `tests/unit/test_raiz_de_tests_estatica.py` |
 
 ## Fuera de alcance
 
@@ -225,6 +330,11 @@ de layout detectado las nombra.
   derivado ya no necesita declarar su carpeta e2e como `tests_integration` para
   que alguien la corra.
 - Adaptadores de otros lenguajes (no existen).
+- **Una clave `tests_root` en el config.** Evaluada y descartada al abrir US4
+  (ver Clarifications): la raíz es derivable de lo ya declarado.
+- **Ampliar el alcance de los pasos estáticos fuera de `tests/`.** US4 corrige la
+  raíz de las carpetas de test, no la pregunta general de qué archivos sueltos de
+  la raíz del repo debería mirar el pipeline.
 
 ## Historial
 
@@ -235,3 +345,9 @@ de layout detectado las nombra.
   `tests/e2e/escenarios/test_tests_de_integracion.py`, sobre un derivado que sí
   separa sus dos suites. Hallazgo lateral: `pipeline.CODE_STEPS` y el dispatcher
   del adaptador enumeran los pasos por separado y nada los ata (C-8 de IDEAS).
+- 2026-08-12: reabierta con **US4** (FR-US4-001..006), que cierra V-4 de
+  `docs/IDEAS.md` — la raíz de `tests/` fuera del alcance de todos los pasos
+  estáticos. Reapertura y no spec nueva: esta spec ya es el SSOT de qué carpeta
+  mira cada paso. Diseño elegido: derivar el ancestro común de las carpetas
+  declaradas, con guarda contra la raíz del repo; se descartó una clave
+  `tests_root` explícita.

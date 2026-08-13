@@ -110,13 +110,26 @@ def _test_dirs(cfg, repo_root: Path) -> list[Path]:  # type: ignore[no-untyped-d
 
 
 def _is_test_root(root: Path, test_dirs: list[Path]) -> bool:
-    """True si `root` esta bajo un dir de tests del config (SPEC-003 FR-002).
+    """True si `root` es un dir de tests del config, o lo contiene (SPEC-003 FR-002).
+
+    La relacion vale en las **dos** direcciones (SPEC-019 FR-US4-004). Desde que
+    los pasos estaticos reciben la raiz que contiene a las carpetas declaradas
+    --`tests`, no `tests/unit`--, mirar solo hacia abajo perdia la relajacion:
+    `tests` no es relativo a `tests/unit`. Aca lo tapaba el fallback del
+    basename, que no es la garantia sino una casualidad del nombre: un proyecto
+    con `pruebas/unit` habria dejado de relajar sin que nada lo dijera. Es el
+    mismo defecto que B-2 (`docs/IDEAS.md`), que ya se pago una vez comparando
+    contra el basename equivocado.
 
     Fallback para proyectos sin dirs de tests declarados: basename tests/test.
     """
     resolved = root.resolve()
     for test_dir in test_dirs:
-        if resolved == test_dir or resolved.is_relative_to(test_dir):
+        if (
+            resolved == test_dir
+            or resolved.is_relative_to(test_dir)
+            or test_dir.is_relative_to(resolved)
+        ):
             return True
     return root.name in {"tests", "test"}
 

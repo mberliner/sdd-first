@@ -138,6 +138,16 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   `check_traceability.py` para grepear el ID del FR (`FR-NNN`) dentro del
   archivo de test mapeado en `tests/unit/`, y fallar si no aparece —
   trazabilidad requisito↔test auditable por máquina, no solo por convención.
+  **(cerrado el 2026-08-11)** → [[SPEC-024-traza-fr-en-test]]. El grep que la
+  idea planteaba no alcanzaba, y por dos veces: ni el operador `in` (`FR-1`
+  "aparece" dentro de `FR-10`) ni `\bFR-ID\b` de `re` —el `-` no es `\w`, así que
+  ese `\b` se satisface en la transición `1`→`-` y `FR-1` pasa como falso
+  positivo dentro de `FR-1-ALGO`, que es la estructura real de los IDs
+  multi-HU—. El criterio final excluye alfanumérico, `_` y `-` como vecinos. Dos
+  matices que la idea no registraba: una fila que mapea varios archivos se da por
+  cubierta si el FR aparece en **al menos uno**, y las specs `active` que el
+  check nuevo ponía en rojo se migraron en la misma iteración, sin lista de
+  exenciones — hardcodearla la prohíbe el propio `AGENTS.md`.
 - **G-9 · El reset post-commit de `.sdd/current-spec` nunca queda commiteado
   — el working tree SIEMPRE sale sucio tras un commit con spec declarada.**
   `core/sdd_reset.py` (hook `post-commit`, SPEC-004 FR-002) edita el archivo
@@ -275,6 +285,32 @@ encontró.
   con sus propias subcarpetas y los pasos las visitarían dos veces. Opciones:
   una clave `tests_root` que solo alimente los pasos estáticos, o que los pasos
   estáticos deriven la raíz común de las carpetas declaradas.
+  **(cerrado el 2026-08-12)** → [[SPEC-019-tests-integracion-ejecutados]] US4
+  (FR-US4-001..006), como **reapertura**: SPEC-019 ya se
+  declara SSOT de qué carpeta mira cada paso, y una spec nueva habría dejado dos
+  SSOTs sobre el mismo contrato. De las dos opciones se eligió **derivar la raíz
+  común**, con guarda: si el ancestro común es la raíz del repo (carpetas de test
+  en árboles distintos) no hay colapso y los pasos reciben lo declarado tal cual.
+  Se descartó la clave `tests_root` explícita — es superficie de config que hay
+  que sembrar, documentar y que el adoptante tiene que descubrir, que es la
+  lección que US3 de esa misma spec dejó escrita, y la raíz ya es derivable de lo
+  declarado. Dos cosas que la idea no registraba: la relajación de nomenclatura
+  en tests es un riesgo de primer orden del cambio (mover el blanco de
+  `tests/unit` a `tests/` vuelve a mover el basename que B-2 ya rompió una vez),
+  así que quedó como FR propio; y los pasos que **ejecutan** tests siguen
+  recibiendo su carpeta declarada — darles la raíz le haría correr al paso
+  `tests` la suite de integración, que es V-1 al revés.
+  Al implementar apareció lo que el FR sobre `relax_in_tests` estaba buscando, y
+  era un defecto **ya presente**: `check_naming._is_test_root` mira la relación
+  en una sola dirección (¿el root está *dentro* de una carpeta declarada?), así
+  que la raíz derivada no calificaba y solo la salvaba el fallback del basename
+  `{"tests","test"}` — o sea que en el kit funcionaba de casualidad y un proyecto
+  con `pruebas/unit` habría perdido la relajación en silencio. La relación ahora
+  vale en las dos direcciones. Costo lateral: un test de
+  [[SPEC-018-verificacion-e2e]] afirmaba el literal `tests/e2e` en la invocación
+  de `lint`; se reescribió para afirmar el **alcance** (la carpeta queda cubierta
+  por `tests`, que la contiene), porque exigir el literal es pedir exactamente el
+  doble barrido que FR-US4-002 prohíbe.
 
 ## P2 — Bugs y asperezas menores de código
 
@@ -317,6 +353,12 @@ encontró.
   fecha del día: la governance promete semver de enmiendas pero no hay campo
   en el config para bumpear. Agregar `constitution_version` (y fecha de
   ratificación) al config.
+  **(cerrado)** → [[SPEC-010-gobernanza-y-docs]], arrastrado por **F-4**: no se
+  tomó como deuda suelta sino como precondición de la Governance real — un
+  procedimiento de enmienda sin dónde bumpear no es un procedimiento. La forma
+  final fue una sección `constitution` del config (`version`, `ratified`,
+  `amended`), no las dos claves sueltas que la idea pedía; `render.py` las lee y
+  cae al día de hoy solo para las fechas ausentes.
 - **C-6 · Vestigios.** `_module_of(repo_root, …)` con parámetro sin usar
   (`gen_import_linter.py`); `_ = src` en `sdd_init._install_project_skills`;
   estado `notas` en `VALID_ESTADOS` sin convención documentada (¿vestigio del
@@ -379,6 +421,14 @@ encontró.
 - **E-3 · Packaging mínimo.** No hay `pyproject.toml`/`requirements` (pyyaml
   solo en prosa), no hay LICENSE (bloqueante para un kit que se copia en
   proyectos ajenos), no hay CI que corra el pipeline del kit.
+  **(cerrado)** en tres tramos, no en una spec sola: la CI por **F-2**
+  → [[SPEC-009-coverage-y-ci]] (generada desde el config, no escrita a mano), y
+  `LICENSE` (Apache 2.0), `pyproject.toml` y `requirements-dev.txt` sumados al
+  repo — el `pyproject.toml` cita esta deuda en su cabecera. Matiz que la idea no
+  anticipaba: el kit **no** se publica como paquete, así que el `pyproject.toml`
+  no declara distribución; existe solo para fijar la config de las tools, sin lo
+  cual `lint`/`format` dan distinto en cada máquina y el paso arranca ROJO por
+  reglas que nadie eligió.
 - **E-4 · Enforcement de principios custom.** `ENFORCEMENT_STEP` en
   `check_constitution.py` es un mapa hardcodeado tool→paso: un enforcement
   propio (`mi_check.py`) no obtiene verificación de cableado ni error. Mover
@@ -397,6 +447,12 @@ encontró.
   ("`python core/pipeline.py` (o el wrapper `tools/pipeline`)"): en un
   proyecto instalado es `tools/sdd/core/pipeline.py` y el wrapper no existe.
   Corregir la plantilla.
+  **(cerrado)** → [[SPEC-010-gobernanza-y-docs]] FR-007. No alcanzaba con
+  corregir la plantilla nombrada: **F-5** encontró que eran **ocho** las que
+  citaban `core/...`. Por eso no se arregló el texto sino el mecanismo —
+  placeholders `{{sdd.core}}`/`{{sdd.adapters}}` que `render.py` resuelve para el
+  kit y `sdd_init.py` para el destino—, más un test parametrizado que barre
+  `templates/` y falla nombrando la plantilla que reincida.
 - **E-7 · El proyecto derivado no recibe un README humano ni un manual de
   skills.** `sdd_init.py` no instalaba ningún `README.md` (no estaba en
   `STATIC_DOCS`), pese a que `templates/AGENTS.md` ya asume su existencia
@@ -457,6 +513,10 @@ encontró.
   umbrales de F-1: `check_constitution.py`, `gen_skill_adapters.py` y
   `sdd_doctor.py` no tienen ni un test directo (total del kit: 52%). El umbral
   se fijó en el piso actual como trinquete; subirlo requiere cubrirlos.
+  **(superseded el 2026-08-08)** por **K-3**, que reencuadró el problema: F-7 se
+  conformaba con fijar el piso, y el piso fijado en 50 contra un real de 75 no
+  protegía nada. K-3 puso el objetivo en 90% sobre `core`+`adapters` y lo elevó a
+  **Principio V** de la constitución. Cerrado ahí: 75% → 91%.
 
 ## P1/P2 — Hallazgos de la campaña de usabilidad del proyecto derivado
 

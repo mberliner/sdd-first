@@ -44,6 +44,7 @@ from sdd_config import (  # noqa: E402
     EXIT_OMITIDO,
     PIPELINE_COVERAGE_CACHE_ENV,
     CoverageTarget,
+    colapsar_a_raiz_comun,
     declared_test_dirs,
     find_repo_root,
     forzar_salida_utf8,
@@ -81,8 +82,14 @@ def _test_dirs(cfg, *, solo_medidas: bool = False) -> list[str]:  # type: ignore
 
 
 def _source_and_test_dirs(cfg) -> tuple[list[str], list[str]]:  # type: ignore[no-untyped-def]
-    """Blancos de los pasos estaticos: codigo mas las carpetas de tests."""
-    return cfg.source_roots, _test_dirs(cfg)
+    """Blancos de los pasos estaticos: codigo mas las carpetas de tests.
+
+    Las carpetas de test se colapsan a la raiz que las contiene (SPEC-019
+    FR-US4-001): asi entra al alcance la infraestructura compartida que vive
+    ahi y no dentro de ninguna subcarpeta declarada. El criterio --y su guarda--
+    es de `sdd_config`, no de este adaptador (FR-US4-006).
+    """
+    return cfg.source_roots, colapsar_a_raiz_comun(_test_dirs(cfg))
 
 
 def _existing_targets(repo_root: Path, dirs: list[str]) -> list[str]:

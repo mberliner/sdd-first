@@ -119,6 +119,12 @@ def test_los_pasos_estaticos_si_miran_la_suite_e2e(tmp_path, corridas):
 
     Antes de K-4 el lint de `tests/e2e` era un paso a mano del workflow, porque
     la carpeta no estaba en `dirs`. Ahora sale del config, que es su SSOT.
+
+    Lo que se afirma es el **alcance**, no la forma del argumento: desde
+    SPEC-019 FR-US4-001 los pasos estaticos reciben la raiz que contiene a las
+    carpetas declaradas, asi que la suite queda cubierta por `tests` en vez de
+    nombrada una por una. Pedir el literal `tests/e2e` seria pedir justo el
+    doble barrido que FR-US4-002 prohibe.
     """
     (tmp_path / "src").mkdir()
     for sub in ("unit", "e2e"):
@@ -130,7 +136,10 @@ def test_los_pasos_estaticos_si_miran_la_suite_e2e(tmp_path, corridas):
 
     adapter.step_lint(tmp_path, cfg)
 
-    assert "tests/e2e" in corridas[0]
+    blancos = [Path(a) for a in corridas[0] if not a.startswith("-")]
+    assert any(
+        b == Path("tests/e2e") or Path("tests/e2e").is_relative_to(b) for b in blancos
+    ), f"la suite e2e quedo fuera del alcance del paso: {corridas[0]}"
 
 
 def test_el_contrato_documenta_el_paso():

@@ -23,9 +23,10 @@ from __future__ import annotations
 
 import hashlib
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 try:
@@ -183,6 +184,48 @@ def declared_test_dirs(*, solo_medidas: bool = False) -> tuple[str, ...]:
     return tuple(
         clave for clave, meta in TEST_DIRS.items() if not solo_medidas or meta.medida
     )
+
+
+def colapsar_a_raiz_comun(dirs: Sequence[str]) -> list[str]:
+    """Reemplaza las carpetas dadas por la raiz que las contiene a todas.
+
+    Blancos de los pasos **estaticos** (SPEC-019 FR-US4-001): las claves de
+    `dirs` apuntan a subcarpetas (`tests/unit`, `tests/integration`), asi que la
+    infraestructura compartida que vive en la raiz --`conftest.py`, fixtures,
+    helpers-- no caia dentro de ninguna y no la miraba ningun paso.
+
+    Colapsar en vez de sumar la raiz: pasar `tests` junto a `tests/unit` deja al
+    paso visitando la subcarpeta dos veces, y cada violacion se reportaria
+    duplicada en la salida que lee el operador (FR-US4-002).
+
+    Se devuelve `dirs` sin tocar cuando no hay una raiz *propia* que colapsar
+    (FR-US4-003): con una sola carpeta, subir a su ancestro ensancharia el
+    alcance a carpetas hermanas que el proyecto nunca declaro; con carpetas en
+    arboles distintos (`pruebas/unit` y `e2e`) el unico ancestro comun es el
+    repo entero, y barrerlo porque el layout es inusual seria peor que el
+    agujero que esto tapa.
+
+    No aplica a los pasos que **ejecutan** tests: darles la raiz le haria correr
+    al paso `tests` la suite de integracion (FR-US4-005), que es el defecto que
+    abrio esta spec, al reves.
+    """
+    if len(dirs) < 2:
+        return list(dirs)
+    partes = [PurePosixPath(d.replace("\\", "/")).parts for d in dirs]
+    comun: list[str] = []
+    # strict=False a proposito: las rutas tienen profundidades distintas y lo
+    # que se busca es el prefijo comun, asi que cortar en la mas corta es el
+    # comportamiento correcto, no un descuido.
+    for tramo in zip(*partes, strict=False):
+        if len(set(tramo)) != 1:
+            break
+        comun.append(tramo[0])
+    if not comun:
+        return list(dirs)
+    raiz = "/".join(comun)
+    # La raiz coincide con una carpeta declarada: ya las contiene a todas y no
+    # hay nada que colapsar mas alla de deduplicar.
+    return [raiz]
 
 
 def script_hint(module_file: str | Path, repo_root: Path) -> str:

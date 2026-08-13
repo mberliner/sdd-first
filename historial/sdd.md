@@ -1,5 +1,72 @@
 # Historial SDD — sdd-first
 
+## 2026-08-12 — SPEC-019 US4: la raíz de `tests/` entra al alcance de los pasos estáticos
+
+**Scope:** `specs/SPEC-019-tests-integracion-ejecutados.md` (nueva US4,
+FR-US4-001..006), `core/sdd_config.py` (`colapsar_a_raiz_comun`),
+`adapters/python/adapter.py` (`_source_and_test_dirs` la consume),
+`adapters/python/check_naming.py` (`_is_test_root` bidireccional),
+`tests/unit/test_raiz_de_tests_estatica.py` (nuevo),
+`tests/unit/test_adapter_e2e.py`, `docs/IDEAS.md`.
+
+**Qué cambió:** cierra **V-4** de `docs/IDEAS.md`. Las claves de `dirs` apuntan
+a subcarpetas (`tests/unit`, `tests/e2e`), así que la infraestructura compartida
+que vive en la raíz —`tests/conftest.py`, `tests/fixtures_proyecto.py`— no caía
+dentro de ninguna y no la miraba `naming`, `lint` ni `format`. Desde ahora los
+pasos estáticos reciben la raíz que contiene a las carpetas declaradas, derivada
+de lo ya declarado en vez de pedida como clave nueva.
+
+**Decisiones de diseño:**
+- **Derivar la raíz, no declararla.** Se evaluó una clave `tests_root` y se
+  descartó: es superficie de config que hay que sembrar, documentar y que el
+  adoptante tiene que descubrir —la lección que US3 de esta misma spec dejó
+  escrita para `tests_integration`—, y la raíz ya es derivable. No hay dato nuevo
+  que pedirle al proyecto, solo una pregunta que nadie hacía.
+- **Colapsar, no sumar.** Pasar `tests` junto a `tests/unit` deja al paso
+  visitando la subcarpeta dos veces y duplicando cada violación en la salida que
+  lee el operador (FR-US4-002).
+- **Guarda contra la raíz del repo.** Con carpetas en árboles distintos
+  (`pruebas/unit` y `e2e`) el único ancestro común es el repo entero; ahí no se
+  colapsa nada. Con una sola carpeta declarada tampoco: subir a su ancestro
+  ensancharía el alcance a hermanas que el proyecto nunca declaró.
+- **Reapertura y no spec nueva.** SPEC-019 ya se declara SSOT de qué carpeta mira
+  cada paso; una spec aparte dejaba dos SSOTs sobre el mismo contrato.
+
+**Hallazgo:** el FR sobre `relax_in_tests` (FR-US4-004) se escribió como
+precaución por B-2 y encontró un defecto **ya presente**:
+`check_naming._is_test_root` miraba la relación en una sola dirección (¿el root
+está *dentro* de una carpeta declarada?), así que la raíz derivada no calificaba
+y solo la salvaba el fallback del basename `{"tests","test"}`. En este kit
+funcionaba de casualidad —la carpeta se llama `tests`—; un proyecto con
+`pruebas/unit` habría perdido la relajación en silencio. La relación ahora vale
+en las dos direcciones.
+
+**Costo lateral:** un test de [[SPEC-018-verificacion-e2e]] afirmaba el literal
+`tests/e2e` en la invocación de `lint`. Se reescribió para afirmar el *alcance*
+(la carpeta queda cubierta por `tests`, que la contiene): exigir el literal es
+pedir exactamente el doble barrido que FR-US4-002 prohíbe. El invariante que
+protegía —declarar la carpeta sirve para que los pasos estáticos la miren— queda
+intacto.
+
+**Deuda arrastrada:** el ítem #1 con el que V-4 se había agrupado ("omitido no es
+VERDE": `check_constitution` no lee el reporte de omitidos del pipeline, así que
+un principio cuyo paso de enforcement se omite en runtime deja la constitución en
+verde) queda **abierto** en `docs/IDEAS.md`, sin spec.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-019-tests-integracion-ejecutados, SPEC-018-verificacion-e2e,
+  SPEC-003-install-happy-path (FR-002, relajación en tests)
+- Includes/excludes verificados: core/sdd_config.py + adapters/python/adapter.py
+  + adapters/python/check_naming.py + tests/unit; adapters/CONTRACT.md sin cambio
+  (no especifica los blancos de los pasos estáticos, solo qué verifica cada uno)
+- SSOTs afectados: SPEC-019-tests-integracion-ejecutados.md,
+  specs/SPECS_REGISTRY.md (iteración 5), docs/IDEAS.md (V-4 cerrado; G-8, E-3,
+  C-5, E-6 y F-7 anotados con el cierre que ya tenían sin registrar)
+- Verificación: python core/pipeline.py → VERDE (11/11); 729 passed + 2 skipped
+  en la suite unitaria
+```
+
 ## 2026-08-12 — SPEC-009 US3: una corrida de pytest sirve para `tests` y `coverage`
 
 **Scope:** `specs/SPEC-009-coverage-y-ci.md` (nueva US3, FR-US3-001..005),
