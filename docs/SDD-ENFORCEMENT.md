@@ -10,6 +10,7 @@
    en `.sdd/current-spec` con requisitos escritos (criterio abajo).
    Multi-transporte:
    - `PreToolUse` de Claude Code (stdin JSON) — `.claude/settings.json`.
+   - `PreToolUse` de Antigravity CLI (stdin JSON) — `.agents/hooks.json`.
    - `pre-commit` (argv) — `.pre-commit-config.yaml`.
    - plugin opencode (argv) — `.opencode/plugin/sdd-gate.js`.
 
@@ -26,6 +27,18 @@
    preguntar*, no *qué política aplicar*: el SSOT de la política sigue siendo
    `sdd_gate.decide`, y un test de paridad verifica que las tres derivaciones
    coincidan. Si cambiás `dirs`, las tres capas se enteran solas.
+
+   **Antigravity no pre-filtra**: su adaptador (`.agents/agy_gate_hook.py`) es
+   Python, así que le pregunta al gate por cada edición y no duplica la
+   derivación. A cambio tiene una regla propia, porque el CLI es **fail-open**
+   —un hook que falla o cuya salida no parsea deja pasar la edición—: el
+   adaptador sale siempre con 0 y siempre imprime
+   `{"decision": "allow"|"deny"}`, traduciendo cualquier excepción a `deny`. Y
+   como sin intérprete no hay adaptador que corra, el `command` de
+   `.agents/hooks.json` termina en `type agy_deny.json || cat agy_deny.json`:
+   un deny total (no filtrado por `source_roots`) servido desde archivo, porque
+   un `echo` no sobrevive al escapado de `cmd.exe`. Las rutas de ese comando son
+   relativas a `.agents/`, que es el `cwd` con el que Antigravity lo invoca.
 
    La raíz del proyecto se busca por marcadores (`.sdd/config.yaml`,
    `CONSTITUTION.md`, `specs/SPECS_REGISTRY.md`) subiendo desde el `cwd` y, si
@@ -108,6 +121,9 @@ No es un agujero abierto, es un corrimiento de capa: ese archivo igual queda
 bajo el gate de `pre-commit` al commitear y bajo el pipeline al cerrar la
 iteración. Lo que se pierde es la advertencia *en el momento*, no el
 enforcement.
+
+El mismo límite aplica a Antigravity, y ahí se lo vio en vivo: al recibir el
+`deny`, el asistente intentó escribir el archivo con una tool de terminal.
 
 ## Límite: presencia, no adecuación
 

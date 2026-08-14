@@ -1,5 +1,54 @@
 # Historial SDD — sdd-first
 
+## 2026-08-13 — SPEC-015 US2: el gate de Antigravity pasa de decorativo a real
+
+**Scope:** `specs/SPEC-015-wiring-apunta-al-codigo-real.md` (Clarifications
+2026-08-13, escenarios de US2, FR-US2-002/-003/-004 reescritos, FR-US2-006/-007
+nuevos, SC-005, Independent Test), `templates/wiring/agy_gate_hook.py` (nuevo),
+`templates/wiring/agy_deny.json` (nuevo), `templates/wiring/hooks.json`,
+`templates/wiring/sdd_gate_hook.sh`, `core/sdd_gate.py`, `core/sdd_catalog.py`,
+`core/sdd_config.py`, `templates/docs/SDD-ENFORCEMENT.md` (+ derivado),
+`.agents/` (las tres piezas, dogfooding), `tests/unit/test_sdd_gate_hook.py`,
+`tests/unit/test_wiring_prefiltros.py`, `tests/unit/test_sdd_gate.py`.
+
+**Qué cambió:** el soporte de Antigravity era una rama dentro del hook `sh` de
+Claude Code y **nunca bloqueó nada**. Ahora es un adaptador propio,
+`.agents/agy_gate_hook.py`, que traduce el payload del CLI y delega en
+`sdd_gate.main`. El núcleo dejó de conocer `toolCall.args.TargetFile` y el hook
+`sh` volvió a ser sólo de Claude Code.
+
+**Decisiones de diseño:**
+- **Un adaptador Python, no una tercera copia del pre-filtro.** Bash y JS
+  duplican el parseo de `source_roots` porque no pueden invocar Python; acá
+  Python está por definición, así que el adaptador pregunta al gate y no duplica
+  regla ninguna. Delega en `main`, no en `decide`, para heredar el escape hatch
+  y la resolución de raíz.
+- **Medir antes de diseñar.** Los supuestos heredados del hook de Claude Code
+  eran tres, y los tres falsos: Antigravity es **fail-open** (un hook que falla
+  deja pasar la edición), invoca con el `cwd` en **`.agents/`** (así que
+  `python .agents/agy_gate_hook.py` nunca resolvía), y no admite un `echo` como
+  fail-closed (en `cmd.exe` las comillas le llegan escapadas y muere en
+  `protojson`). El experimento y su evidencia:
+  `sdd-testbed/agy-hook-probe/HALLAZGOS.md`.
+- **Fail-closed total para esta capa.** `type agy_deny.json || cat agy_deny.json`
+  bloquea todo cuando falta el intérprete, incluidos archivos que no son código.
+  Contradice a propósito el "descartado el fail-closed total" de la Clarification
+  del 2026-08-05: aquel argumento era un checkout irreparable, y acá el alcance
+  es un asistente concreto — el proyecto se sigue editando con cualquier otro.
+- **Los tests corren el adaptador desde `.agents/`**, que es como lo corre el
+  CLI. Correrlo desde la raíz era lo que mantenía la suite verde con el gate
+  apagado.
+
+**Deuda:**
+- SC-005 (testigo real conducido por `agy`) se verifica a mano; no hay e2e
+  automatizado que maneje el CLI.
+- El bypass por terminal quedó documentado como límite conocido, igual que el de
+  `Bash` en Claude Code: el asistente, al ser bloqueado, intentó escribir el
+  archivo con un comando de shell.
+
+**SSOTs afectados:** `docs/SDD-ENFORCEMENT.md` (capa de Antigravity),
+`specs/SPEC-015` (política del wiring), `core/sdd_catalog.py` (qué instala el kit).
+
 ## 2026-08-12 — SPEC-020 US2: un principio sin enforcement ejecutado no deja el pipeline en VERDE a secas
 
 **Scope:** `specs/SPEC-020-enforcement-declarado-en-config.md` (nueva US2,

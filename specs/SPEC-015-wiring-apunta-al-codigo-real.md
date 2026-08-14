@@ -35,6 +35,11 @@ Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte pa
 
 **Why this priority:** Antigravity CLI soporta pre-tool hooks via `.agents/hooks.json`, lo que permite replicar la contencion exacta del gate antes de editar. Expandir el soporte asegura que proyectos usando Antigravity tengan el mismo enforcement que los de Claude.
 
+**Independent Test:** en un proyecto instalado sin spec vigente declarada, se le
+pide a `agy` que reescriba un archivo bajo `dirs.source_roots`: la edición
+**no** ocurre y el motivo del gate llega al asistente. Sobre un archivo fuera de
+los roots (`README.md`), la edición ocurre sin fricción.
+
 ## Relación con specs existentes
 
 - **Extiende:** — | **Supersede:** — | **Depende de:** —
@@ -69,6 +74,41 @@ Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte pa
   el bypass por `Bash` queda documentado como límite conocido, con pre-commit
   como backstop.
 
+### Session 2026-08-13 (US2, medida en el testbed)
+
+El soporte de Antigravity se había escrito sobre supuestos heredados del hook de
+Claude Code. Se midió el comportamiento real del CLI (`agy`, Windows) con hooks
+de juguete, un escenario por caso; la evidencia queda en
+`sdd-testbed/agy-hook-probe/HALLAZGOS.md`. Tres supuestos eran falsos:
+
+- Q: si el comando del hook falla (sin Python, exit != 0, stdout no parseable),
+  ¿Antigravity bloquea la edición? → A: **no, es fail-open**. Lo registra como
+  `pre-tool hook failed` en su log y ejecuta la edición igual. El único veredicto
+  que respeta es un JSON `{"decision": "allow"|"deny"}` bien formado por stdout.
+  Consecuencia: el adaptador sale **siempre** con 0 e imprime **siempre** un JSON
+  —una excepción se traduce a `deny`, nunca se propaga—, porque propagar el error
+  equivale a permitir.
+- Q: ¿con qué `cwd` invoca Antigravity el comando del hook? → A: con el
+  directorio `.agents/`, no la raíz del proyecto. `python .agents/agy_gate_hook.py`
+  resuelve a `.agents/.agents/…`, falla, y —por el punto anterior— apaga el gate
+  sin aviso. Las rutas del comando se escriben relativas a `.agents/`, y el
+  adaptador deriva la raíz de su propio `__file__`.
+- Q: ¿cómo se emite el `deny` cuando no hay ningún intérprete y el adaptador no
+  puede correr? → A: desde un archivo, `type agy_deny.json || cat agy_deny.json`.
+  El shell en Windows es `cmd.exe` y cualquier `echo` con comillas le llega a
+  Antigravity con los backslashes literales; muere en su parser
+  (`protojson: syntax error`) y vuelve a caer en fail-open. Se probaron las dos
+  formas de escapado y un wrapper `.cmd`: sólo el archivo funciona, porque no
+  pasa por el escapado del shell.
+- Q: ese `deny` desde archivo no puede pre-filtrar por `source_roots` —no hay con
+  qué parsear el config—, así que bloquea también `README.md`. ¿No contradice el
+  "descartado el fail-closed total" de la sesión anterior? → A: sí, y se acepta
+  sólo para esta capa. Aquel argumento era que un checkout sin Python quedaba
+  inutilizable para repararse; acá el alcance es un asistente concreto, y el
+  proyecto se sigue editando con cualquier otro editor o asistente. La
+  alternativa —replicar el parser de `source_roots` en `cmd` y en `sh`— es la
+  cuarta copia de la regla, justo lo que las otras capas evitan.
+
 ## Acceptance Scenarios
 
 - **Given** un proyecto instalado con `dirs.source_roots: [pkg]` y sin spec
@@ -88,6 +128,19 @@ Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte pa
 - **Given** el hook `PreToolUse` de Claude Code, **When** la edición llega por
   `MultiEdit` o `NotebookEdit` en vez de `Edit`/`Write`, **Then** el gate se
   ejecuta igual.
+- **Given** un proyecto instalado sin spec vigente, **When** Antigravity intenta
+  escribir un archivo bajo `dirs.source_roots`, **Then** el adaptador imprime
+  `{"decision": "deny", "reason": ...}` con el motivo del gate y sale con 0, y la
+  edición no se realiza.
+- **Given** ese mismo proyecto, **When** Antigravity edita `README.md`, **Then**
+  el adaptador imprime `{"decision": "allow"}`.
+- **Given** un proyecto donde el adaptador no puede correr (nucleo ausente,
+  payload corrupto, config ilegible), **When** Antigravity lo invoca, **Then**
+  igual recibe un JSON `deny` bien formado y exit 0 — nunca una excepción, que
+  Antigravity trataría como permiso.
+- **Given** un proyecto sin ningún intérprete Python, **When** Antigravity
+  intenta editar cualquier archivo, **Then** el `||` del comando emite
+  `.agents/agy_deny.json` y la edición queda bloqueada.
 
 ## Functional Requirements
 
@@ -127,10 +180,34 @@ Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte pa
 
 
 - **FR-US2-001** MUST: `sdd_init` debe instalar el wiring de Antigravity en proyectos derivados. El archivo `templates/wiring/hooks.json` debe agregarse a la constante `_WIRING` en `core/sdd_init.py` (copiándolo a `.agents/hooks.json`).
-- **FR-US2-002** MUST: La ruta del script del gate en `hooks.json` debe ser `CLAUDE_PROJECT_DIR=$(pwd) sh .claude/sdd_gate_hook.sh`, apuntando a la ubicación real donde `sdd_init` deposita el hook unificado.
-- **FR-US2-003** MUST: El soporte de Antigravity en `core/sdd_gate.py` (extraer `toolCall.args.TargetFile`) y `sdd_gate_hook.sh` (emitir JSON `{"decision": "allow"|"deny"}` al stdout) debe estar cubierto por tests en `tests/unit/`.
-- **FR-US2-004** MUST: El hook de shell debe ejecutar `cd "$ROOT" || exit 1` antes de la lógica principal para que el fallback de `find_sdd_root` (CWD) resuelva correctamente en Antigravity, que provee rutas relativas sin el context-dir en el payload.
+- **FR-US2-002** MUST: el `command` de `hooks.json` (kit y plantilla) nombra sus
+  archivos **relativos a `.agents/`**, que es el `cwd` con el que Antigravity
+  invoca el hook, y encadena cuatro ramas:
+  `python3 agy_gate_hook.py || python agy_gate_hook.py || type agy_deny.json || cat agy_deny.json`.
+  `python3` antes que `python` porque hay entornos POSIX sin `python`; las dos
+  últimas emiten el `deny` de fail-closed cuando no hay intérprete (`type` en
+  `cmd.exe`, `cat` en POSIX) y no pueden reemplazarse por un `echo`.
+- **FR-US2-003** MUST: el soporte de Antigravity queda aislado del núcleo.
+  `core/sdd_gate.py` no conoce el esquema `toolCall.args.TargetFile`: el
+  adaptador `.agents/agy_gate_hook.py` lo extrae y delega en `sdd_gate.main(argv)`
+  —no en `decide`— para heredar el escape hatch de SPEC-017 (FR-US3-004) y la
+  resolución de raíz. Traduce el exit code a
+  `{"decision": "allow"}` / `{"decision": "deny", "reason": <stderr del gate>}`.
+  Encuentra el núcleo tanto en `core/` (el kit) como en `tools/sdd/core/` (un
+  proyecto derivado). Cubierto por tests en `tests/unit/`.
+- **FR-US2-004** MUST: el adaptador deriva la raíz del proyecto de su propio
+  `__file__` (`.agents/` es el `cwd` que le da Antigravity, no la raíz) y aplica
+  `os.chdir(repo_root)` antes de decidir, para que las rutas relativas del
+  payload se resuelvan contra el proyecto.
 - **FR-US2-005** MUST: `sdd_doctor` debe conocer `.agents/hooks.json` en `GATE_WIRING` dentro de `core/sdd_config.py` para reportar que está cableado en la instalación.
+- **FR-US2-006** MUST: el adaptador sale **siempre** con código 0 y **siempre**
+  imprime un JSON válido por stdout; cualquier excepción se traduce a
+  `{"decision": "deny", "reason": ...}`. Antigravity es fail-open: un exit != 0,
+  un stdout vacío o no parseable dejan pasar la edición, así que propagar el
+  error equivale a permitirla.
+- **FR-US2-007** MUST: `templates/wiring/agy_deny.json` y `.agents/agy_deny.json`
+  existen, son JSON válido con `decision: "deny"`, y su `reason` explica que
+  falta el intérprete y cómo salir del bloqueo.
 
 ## Key Entities
 
@@ -155,6 +232,10 @@ Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte pa
 - **SC-004** El pipeline del kit sigue VERDE y `sdd-doctor` sigue reportando el
   wiring cableado tras el cambio (el doctor verifica que cada archivo invoque al
   gate, SPEC-014 FR-US1-002 — quitar `files:` no debe romper esa detección).
+- **SC-005** En un proyecto real conducido por `agy`, una edición de código sin
+  spec vigente **no** llega al disco — verificado sobre un testigo, no sólo por
+  test unitario, porque los tres supuestos que la Clarification del 2026-08-13
+  corrige eran todos verdes en unitarios mientras el gate estaba apagado.
 
 ## Assumptions
 
@@ -177,9 +258,12 @@ Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte pa
 | FR-US2-001 | tests/unit/test_wiring_prefiltros.py |
 | FR-US2-002 | tests/unit/test_wiring_prefiltros.py |
 | FR-US2-003 | tests/unit/test_sdd_gate.py, tests/unit/test_sdd_gate_hook.py |
-| FR-US2-004 | tests/unit/test_sdd_gate_hook.py |
+| FR-US2-004 | tests/unit/test_sdd_gate_hook.py, tests/unit/test_wiring_prefiltros.py |
 | FR-US2-005 | tests/unit/test_wiring_prefiltros.py |
+| FR-US2-006 | tests/unit/test_sdd_gate_hook.py |
+| FR-US2-007 | tests/unit/test_wiring_prefiltros.py |
 | SC-002 | tests/unit/test_wiring_prefiltros.py |
+| SC-005 | sdd-testbed/agy-hook-probe/HALLAZGOS.md (verificación manual) |
 
 ## Fuera de alcance
 
@@ -210,3 +294,13 @@ Como mantenedor de un proyecto instalado con sdd-first, quiero que el soporte pa
 - 2026-08-09: agregada User Story 2 para unificar el soporte de Antigravity CLI
   y Claude Code. Los hooks shell ahora emiten JSON o texto según el payload y son
   idénticos entre el kit y las plantillas.
+- 2026-08-13: US2 rehecha. El soporte de Antigravity pasó de una rama dentro del
+  hook `sh` —que en Windows ni siquiera arrancaba, porque el comando llevaba
+  sintaxis POSIX (`VAR=$(pwd) sh …`) y `cmd.exe` no la entiende— a un adaptador
+  Python propio, `.agents/agy_gate_hook.py`, que delega en `sdd_gate.main`. El
+  núcleo dejó de conocer `toolCall.args.TargetFile` y el hook `sh` volvió a ser
+  sólo de Claude Code. Medir el CLI en el testbed (`agy-hook-probe/HALLAZGOS.md`)
+  invalidó tres supuestos —fail-open, `cwd` en `.agents/`, imposibilidad de emitir
+  el deny con `echo`— y esas correcciones son FR-US2-002, -004, -006 y -007.
+  El gate llevaba desde el 2026-08-09 apagado en Antigravity sin que ningún test
+  lo notara: de ahí SC-005, que exige verificación sobre un testigo real.
