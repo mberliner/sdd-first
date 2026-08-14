@@ -4,8 +4,11 @@ Cubre FR-001 (pre-commit sin `files:`), FR-003 (plugin de opencode derivando
 del config), FR-006 (matcher de Claude Code sobre todas las tools de edicion),
 FR-007 (la doc lo explica) y SC-002 (ningun rastro de los pre-filtros viejos).
 
-Se verifica sobre el par kit + plantilla: el kit dogfoodea su propio wiring y
-los arreglos tienen que llegar a las dos copias, que es justo lo que fallaba.
+Se verifica sobre `templates/wiring/`, que desde SPEC-005 FR-008 es el unico
+archivo de cada pieza: el wiring del kit se genera desde ahi y `render --check`
+vigila que no diverja. Antes esto recorria el par kit + plantilla porque las dos
+copias podian desincronizarse -- y se desincronizaron; ahora repetir cada caso
+sobre el destino generado verificaria el render, no el wiring.
 """
 
 from __future__ import annotations
@@ -18,35 +21,14 @@ import pytest
 KIT_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = KIT_ROOT / "templates"
 
-PRE_COMMIT = [
-    KIT_ROOT / ".pre-commit-config.yaml",
-    TEMPLATES / "wiring" / ".pre-commit-config.yaml",
-]
-SETTINGS = [
-    KIT_ROOT / ".claude" / "settings.json",
-    TEMPLATES / "wiring" / "claude-settings.json",
-]
-HOOKS_SH = [
-    KIT_ROOT / ".claude" / "sdd_gate_hook.sh",
-    TEMPLATES / "wiring" / "sdd_gate_hook.sh",
-]
-HOOKS_JSON = [
-    KIT_ROOT / ".agents" / "hooks.json",
-    TEMPLATES / "wiring" / "hooks.json",
-]
-AGY_HOOK_PY = [
-    KIT_ROOT / ".agents" / "agy_gate_hook.py",
-    TEMPLATES / "wiring" / "agy_gate_hook.py",
-]
-AGY_DENY_JSON = [
-    KIT_ROOT / ".agents" / "agy_deny.json",
-    TEMPLATES / "wiring" / "agy_deny.json",
-]
+PRE_COMMIT = [TEMPLATES / "wiring" / ".pre-commit-config.yaml"]
+SETTINGS = [TEMPLATES / "wiring" / "claude-settings.json"]
+HOOKS_SH = [TEMPLATES / "wiring" / "sdd_gate_hook.sh"]
+HOOKS_JSON = [TEMPLATES / "wiring" / "hooks.json"]
+AGY_HOOK_PY = [TEMPLATES / "wiring" / "agy_gate_hook.py"]
+AGY_DENY_JSON = [TEMPLATES / "wiring" / "agy_deny.json"]
 PLUGIN_JS = TEMPLATES / "wiring" / "opencode-sdd-gate.js"
-DOCS = [
-    KIT_ROOT / "docs" / "SDD-ENFORCEMENT.md",
-    TEMPLATES / "docs" / "SDD-ENFORCEMENT.md",
-]
+DOCS = [TEMPLATES / "docs" / "SDD-ENFORCEMENT.md"]
 
 # Pre-filtros hardcodeados que esta spec elimina (SC-002).
 PATRONES_VIEJOS = ("^(src|app|lib)/", "isUnderSrc", "resolveSrcPath", "*'\"src/'*")

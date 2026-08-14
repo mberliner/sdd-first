@@ -6,8 +6,10 @@ como hook de `pre-commit`, que **descarta la salida de los hooks que pasan**; co
 `SDD_GATE_BYPASS` el gate sale exit 0, o sea que se tragaba justo el caso que el
 requisito queria hacer visible.
 
-Se verifica sobre el par kit + plantilla, como el resto del wiring: el kit
-dogfoodea el suyo y el arreglo tiene que llegar a las dos copias.
+Se verifica sobre la plantilla, que desde SPEC-005 FR-008 es el unico archivo:
+el `.pre-commit-config.yaml` del kit se genera desde ella y `render --check`
+vigila que no diverja. Verificar tambien la copia generada seria testear el
+render dos veces, no el wiring.
 """
 
 from __future__ import annotations
@@ -23,7 +25,6 @@ import yaml
 KIT_ROOT = Path(__file__).resolve().parents[2]
 
 PRE_COMMIT = [
-    KIT_ROOT / ".pre-commit-config.yaml",
     KIT_ROOT / "templates" / "wiring" / ".pre-commit-config.yaml",
 ]
 
