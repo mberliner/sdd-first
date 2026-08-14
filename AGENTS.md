@@ -55,6 +55,7 @@
 - No hardcodear listas (palabras excluidas, capas, pasos) en `core/` o `adapters/`: van al
   config.
 - No editar a mano `CONSTITUTION.md`, `specs/SPEC-000-naming.md` ni los
-  adaptadores generados en `.claude/`/`.opencode/` (los regenera el kit).
+  adaptadores generados en `.claude/`/`.opencode/`/`.agents/` (los regenera el kit).
+- No sobrescribir a mano `.sdd/current-spec` para destrabar el gate. Siempre se debe usar `python tools/sdd/core/sdd_spec.py` para reusar una spec o crear una nueva. Ante la duda de qué spec aplicar, se debe consultar al usuario.
 - No romper el contrato de adaptador ni el agnosticismo del núcleo.
 - No duplicar SSOT.
