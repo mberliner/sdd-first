@@ -1,8 +1,14 @@
-# Wiring del gate spec-first y los checks de proceso para el PROPIO kit
-# (dogfooding, SPEC-002/SPEC-004). El código fuente del kit vive en core/ y
-# adapters/. `language: python` (no `system`): pre-commit gestiona su propio
-# intérprete aislado, así los hooks no dependen de que el shell invocador
-# tenga `python` en el PATH (solo `python3`, ver docs/SDD-ENFORCEMENT.md).
+# Wiring del gate spec-first y los checks de proceso para pre-commit.
+# El adaptador de lenguaje (ruff/mypy/etc.) se añade según el proyecto.
+#
+# Las rutas del andamiaje las resuelve quien instala este archivo, según dónde
+# viva el núcleo en cada repo: `tools/sdd/core/` en un proyecto instalado,
+# `core/` en el kit dogfoodeando sobre sí mismo. Así es un archivo solo y no dos
+# copias que difieren en el prefijo — SPEC-005 FR-008.
+#
+# `language: python` (no `system`): pre-commit gestiona su propio intérprete
+# aislado, así los hooks no dependen de que el shell invocador tenga `python`
+# en el PATH (solo `python3`, ver docs/SDD-ENFORCEMENT.md).
 #
 # `sdd-gate` NO lleva `files:` a propósito (SPEC-015 FR-001): un pre-filtro acá
 # sería una segunda copia de `dirs.source_roots` y solo puede equivocarse. Se le

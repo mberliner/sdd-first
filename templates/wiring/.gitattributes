@@ -14,6 +14,17 @@ specs/SPEC-000-naming.md text eol=lf
 .importlinter text eol=lf
 .github/workflows/*.yml text eol=lf
 
+# El wiring tambien es generado cuando el kit dogfoodea sobre si mismo
+# (SPEC-005 FR-008): `render.py` lo escribe siempre con LF, asi que sin estas
+# reglas un checkout en Windows lo dejaria en CRLF y el archivo se veria
+# distinto de lo que el kit acaba de escribir.
+.gitattributes text eol=lf
+.pre-commit-config.yaml text eol=lf
+.claude/settings.json text eol=lf
+.agents/*.json text eol=lf
+.agents/*.py text eol=lf
+.opencode/plugin/*.js text eol=lf
+
 # Los scripts de shell DEBEN quedar en LF: `sh` no ejecuta un archivo con CRLF
 # (falla con "\n: not found" / "Syntax error"). Sin esta regla, un checkout en
 # Windows deja el hook del gate spec-first roto en silencio.

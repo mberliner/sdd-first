@@ -7,6 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import render
+import sdd_catalog
 from sdd_config import SddConfig
 
 
@@ -34,6 +35,13 @@ def _make_repo(tmp_path: Path) -> Path:
     (tmp_path / "templates" / "specs" / "SPEC-TEMPLATE.md").write_text(
         "template\n", encoding="utf-8"
     )
+    # El wiring tambien se sincroniza (SPEC-005 FR-008). Se siembra desde el
+    # catalogo y no con una lista propia: sumar un archivo de wiring no deberia
+    # obligar a tocar este fixture.
+    for src_rel in sdd_catalog.wiring_sincronizado().values():
+        origen = tmp_path / "templates" / src_rel
+        origen.parent.mkdir(parents=True, exist_ok=True)
+        origen.write_text(f"wiring {Path(src_rel).name}\n", encoding="utf-8")
     return tmp_path
 
 

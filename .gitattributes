@@ -1,8 +1,8 @@
 # Normalizacion de fin de linea. `text=auto` hace que git guarde SIEMPRE LF en
 # el repositorio y detecte por contenido que es texto y que binario. Sin esta
 # linea, un clon en Windows con core.autocrlf sin configurar deja el arbol en
-# CRLF y todo el repo aparece como modificado (pasó: 96 archivos falsamente
-# sucios, y el hook del gate roto porque `sh` no ejecuta scripts con CRLF).
+# CRLF: todo el repo aparece como modificado y el hook del gate queda roto,
+# porque `sh` no ejecuta scripts con CRLF.
 * text=auto
 
 # Fuerza LF en los artefactos generados para que los --check de drift sean
@@ -13,6 +13,17 @@ CONSTITUTION.md text eol=lf
 specs/SPEC-000-naming.md text eol=lf
 .importlinter text eol=lf
 .github/workflows/*.yml text eol=lf
+
+# El wiring tambien es generado cuando el kit dogfoodea sobre si mismo
+# (SPEC-005 FR-008): `render.py` lo escribe siempre con LF, asi que sin estas
+# reglas un checkout en Windows lo dejaria en CRLF y el archivo se veria
+# distinto de lo que el kit acaba de escribir.
+.gitattributes text eol=lf
+.pre-commit-config.yaml text eol=lf
+.claude/settings.json text eol=lf
+.agents/*.json text eol=lf
+.agents/*.py text eol=lf
+.opencode/plugin/*.js text eol=lf
 
 # Los scripts de shell DEBEN quedar en LF: `sh` no ejecuta un archivo con CRLF
 # (falla con "\n: not found" / "Syntax error"). Sin esta regla, un checkout en

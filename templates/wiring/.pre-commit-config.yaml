@@ -1,5 +1,11 @@
 # Wiring del gate spec-first y los checks de proceso para pre-commit.
 # El adaptador de lenguaje (ruff/mypy/etc.) se añade según el proyecto.
+#
+# Las rutas del andamiaje las resuelve quien instala este archivo, según dónde
+# viva el núcleo en cada repo: `tools/sdd/core/` en un proyecto instalado,
+# `core/` en el kit dogfoodeando sobre sí mismo. Así es un archivo solo y no dos
+# copias que difieren en el prefijo — SPEC-005 FR-008.
+#
 # `language: python` (no `system`): pre-commit gestiona su propio intérprete
 # aislado, así los hooks no dependen de que el shell invocador tenga `python`
 # en el PATH (solo `python3`, ver docs/SDD-ENFORCEMENT.md).
@@ -19,20 +25,20 @@ repos:
     hooks:
       - id: sdd-gate
         name: sdd gate (spec-first)
-        entry: python tools/sdd/core/sdd_gate.py
+        entry: python {{sdd.core}}/sdd_gate.py
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: true
         verbose: true
       - id: sdd-traceability
         name: sdd traceability
-        entry: python tools/sdd/core/check_traceability.py specs
+        entry: python {{sdd.core}}/check_traceability.py specs
         language: python
         pass_filenames: false
         always_run: true
       - id: sdd-reset
         name: sdd-reset (limpia current-spec post-commit)
-        entry: python tools/sdd/core/sdd_reset.py
+        entry: python {{sdd.core}}/sdd_reset.py
         language: python
         additional_dependencies: [pyyaml]
         stages: [post-commit]

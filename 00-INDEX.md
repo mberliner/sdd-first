@@ -32,6 +32,7 @@
 | Verificación e2e del kit instalado | `tests/e2e/README.md` (requisitos: `specs/SPEC-018-verificacion-e2e.md`) |
 | Workflow de CI | `.github/workflows/ci.yml` (← `.sdd/config.yaml`, generado) |
 | Fuente de skills | `.agents/skills/` (genera `.claude/` y `.opencode/`) |
+| Wiring de los gates (hooks, pre-commit, plugin) | `templates/wiring/` (el del propio kit se genera desde ahí con `core/render.py`) |
 | Playbooks de skills | `docs/playbooks/` |
 | Plantillas instalables | `templates/` |
 | Historial de iteraciones | `historial/sdd.md` |

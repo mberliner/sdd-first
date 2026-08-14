@@ -68,6 +68,29 @@ WIRING: list[tuple[str, str]] = [
     ("wiring/current-spec", ".sdd/current-spec"),
 ]
 
+# Destinos de WIRING que el kit NO regenera desde su plantilla al dogfoodear
+# sobre si mismo (SPEC-005 FR-009), con el motivo. El resto se sincroniza:
+# `render.py` deriva su lista de acá, así que un destino nuevo del catálogo
+# entra al sync salvo que se lo excluya explícitamente. Es la guarda que faltaba
+# cuando el wiring del kit era una copia manual: `.claude/sdd_gate_hook.sh`
+# arrastró durante una spec entera una rama que su plantilla ya no tenía.
+WIRING_NO_SINCRONIZADO: dict[str, str] = {
+    ".gitignore": (
+        "semilla: el kit ignora artefactos propios (testbed, cachés locales) que "
+        "un derivado no tiene por qué heredar, y al revés"
+    ),
+    ".sdd/current-spec": (
+        "estado de sesión del gate, no un artefacto instalado: lo reescribe cada "
+        "commit y ni siquiera se versiona (SPEC-004 FR-008)"
+    ),
+}
+
+
+def wiring_sincronizado() -> dict[str, str]:
+    """`{destino en el kit: origen relativo a templates/}` del wiring que se genera."""
+    return {dst: src for src, dst in WIRING if dst not in WIRING_NO_SINCRONIZADO}
+
+
 # Wiring que necesita quedar con permiso de ejecucion tras copiarse/actualizarse.
 EXECUTABLE_WIRING: frozenset[str] = frozenset({".claude/sdd_gate_hook.sh"})
 

@@ -7,10 +7,11 @@ sustitucion simple de `{{project.name}}` / `{{project.domain}}`.
 
 Ademas, cuando el repo tiene su propia carpeta `templates/` (el caso del kit
 dogfoodeando sobre si mismo, no el de un proyecto instalado), este script
-sincroniza un puñado de documentos que existen duplicados entre `templates/`
-(autoritativo) y la raiz del repo (`docs/`, `specs/SPEC-TEMPLATE.md`): SPEC-005
-"desduplicar SSOTs". En un proyecto instalado con `sdd-init` no hay carpeta
-`templates/`, asi que estas entradas son no-op.
+sincroniza lo que existe duplicado entre `templates/` (autoritativo) y la raiz
+del repo: los documentos (`docs/`, `specs/SPEC-TEMPLATE.md`) y el wiring que el
+kit se instala a si mismo (`.claude/`, `.agents/`, `.pre-commit-config.yaml`…) —
+SPEC-005 "desduplicar SSOTs". En un proyecto instalado con `sdd-init` no hay
+carpeta `templates/`, asi que estas entradas son no-op.
 
 Uso:
     python core/render.py [--check]
@@ -29,6 +30,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import sdd_catalog  # noqa: E402
 from sdd_config import (  # noqa: E402
     SddConfig,
     declared_test_dirs,
@@ -265,7 +267,7 @@ _GENERATED = {
 # solo existen duplicados cuando el propio kit dogfoodea sobre si mismo (tiene
 # carpeta templates/). `templates/` es el autoritativo; estos destinos NUNCA
 # se editan a mano.
-_SYNCED_FROM_TEMPLATES = {
+_SYNCED_DOCS = {
     "docs/SDD-ENFORCEMENT.md": "docs/SDD-ENFORCEMENT.md",
     "docs/SKILLS-MULTITOOL.md": "docs/SKILLS-MULTITOOL.md",
     "docs/playbooks/analyze.md": "docs/playbooks/analyze.md",
@@ -275,6 +277,18 @@ _SYNCED_FROM_TEMPLATES = {
     "docs/playbooks/sdd-configure.md": "docs/playbooks/sdd-configure.md",
     "specs/SPEC-TEMPLATE.md": "specs/SPEC-TEMPLATE.md",
 }
+
+# El wiring que el kit instala sobre si mismo es la misma clase de duplicado que
+# los docs de arriba, con dos vueltas de tuerca (SPEC-005 FR-008): no es `.md`
+# —hay `.sh`, `.json`, `.yaml`, `.js`— y el par no siempre es byte-identico,
+# porque `{{sdd.core}}` resuelve distinto en el kit (`core/`) y en un derivado
+# (`tools/sdd/core/`). Ninguna de las dos cosas cambia el mecanismo: el
+# renderizador lee texto, resuelve placeholders y escribe con LF.
+#
+# La lista NO se escribe aca: sale del catalogo de instalacion (FR-009), asi el
+# wiring nuevo entra al sync por defecto en vez de depender de que alguien se
+# acuerde de sumarlo en dos lugares.
+_SYNCED_FROM_TEMPLATES = {**_SYNCED_DOCS, **sdd_catalog.wiring_sincronizado()}
 
 
 def _sync_renderer(source_rel: str):
@@ -313,6 +327,12 @@ def main(argv: list[str]) -> int:
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
             write_text_lf(target, content)
+            # Mismo trato que le dan los otros dos escritores del catalogo
+            # (`sdd_init`, `sdd_update`): regenerar el hook no puede dejarlo con
+            # menos permisos de los que tendria recien instalado. En Windows el
+            # chmod no expresa nada y es inocuo.
+            if rel in sdd_catalog.EXECUTABLE_WIRING:
+                target.chmod(0o755)
             print(f"  generado  {rel}")
 
     if check:

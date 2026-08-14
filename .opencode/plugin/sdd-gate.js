@@ -2,7 +2,7 @@
 //
 // Intercepta las tools de ESCRITURA (edit, write, multiedit, apply_patch y
 // cualquier variante de patch) ANTES de ejecutarse, extrae todas las rutas que
-// tocarian y delega la decision en `{{sdd.core}}/sdd_gate.py` (SSOT
+// tocarian y delega la decision en `core/sdd_gate.py` (SSOT
 // agnostico de asistente, vendorizado por sdd-init, transporte argv) por cada
 // ruta bajo las carpetas de codigo del proyecto. Cuales son NO esta
 // hardcodeado (SPEC-015 FR-003): se derivan de `dirs` en .sdd/config.yaml,
@@ -21,12 +21,12 @@
 import fs from "node:fs"
 import path from "node:path"
 
-// Ruta del nucleo relativa a la raiz, en partes. `{{sdd.core}}` lo resuelve
+// Ruta del nucleo relativa a la raiz, en partes. `core` lo resuelve
 // quien instala este archivo: `tools/sdd/core` en un proyecto derivado,
 // `core` en el kit dogfoodeando sobre si mismo (SPEC-005 FR-008). Hardcodear
 // uno de los dos dejaba el plugin inerte del otro lado: `gate` no existia y el
 // hook salia sin preguntar.
-const GATE_REL = ["{{sdd.core}}", "sdd_gate.py"].flatMap((p) => p.split("/"))
+const GATE_REL = ["core", "sdd_gate.py"].flatMap((p) => p.split("/"))
 
 // Tools que pueden escribir archivos. Enganchar por nombre es una allowlist
 // (las tools de lectura no deben disparar el gate); pre-commit es la red para
@@ -159,7 +159,7 @@ const isUnderRoots = (root, roots, abs) => {
 
 // Resuelve una ruta de tool a su ABSOLUTA bajo un source root, o null si no
 // toca ninguno. Pre-filtro barato (no la politica spec-first, SSOT de
-// {{sdd.core}}/sdd_gate.py) para no depender de Python fuera del codigo.
+// core/sdd_gate.py) para no depender de Python fuera del codigo.
 // Devolver la absoluta es necesario: el gate tambien resuelve contra el root,
 // asi que una relativa como `dummy.py` (apply_patch lanzado con cwd dentro del
 // codigo) se le escaparia.
