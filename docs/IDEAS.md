@@ -124,6 +124,19 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
 - **G-6 · `check_traceability` no exige keyword en los FR.** SPEC-FORMAT
   declara obligatorio `MUST:/SHOULD:/MAY:` pero nada lo verifica. Chequeo de
   una línea; alinear doc y check en cualquier dirección.
+  **(revisado el 2026-08-14, sigue abierto)** El keyword hoy sí se *parsea*,
+  pero para lo contrario de lo que la idea pide: `_FR_KEYWORD`
+  (`core/check_traceability.py:171`) lo **elimina** del cuerpo para medir si al
+  FR le queda texto propio, que es la evidencia de spec-antes-que-código de
+  [[SPEC-017-gate-decision-spec-first]] FR-US3-001. Un FR sin keyword pasa
+  igual: `sub` no quita nada y el cuerpo entero cuenta como texto escrito. O
+  sea que el ítem no está a medio hacer — el mecanismo que lo parece resuelve
+  otra pregunta. Sigue faltando elegir la dirección, y no es gratis en ninguna
+  de las dos: endurecer el check obliga a barrer las specs `active` y migrar en
+  la misma iteración las que queden en rojo (precedente de
+  [[SPEC-024-traza-fr-en-test]], que prohíbe la lista de exenciones); aflojar
+  `templates/docs/SPEC-FORMAT.md` deja `sdd_spec.py:309` sembrando el formato
+  y `sdd_gate.py:227` citándolo en el mensaje de bloqueo.
 - **G-7 · `sdd_spec.py` sobrescribe `.sdd/current-spec` completo.**
   Parcialmente resuelto → [[SPEC-004-enforcement-hardening]] FR-007
   (2026-08-01): ahora preserva el header de comentarios (el síntoma que
