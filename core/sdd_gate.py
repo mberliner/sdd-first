@@ -150,14 +150,6 @@ def _declared_file_path(payload: dict[str, object]) -> str:
     tinput = tool_input if isinstance(tool_input, dict) else {}
     if tinput:
         return str(tinput.get("file_path") or tinput.get("path") or "")
-
-    # Antigravity hook format (PreToolUse)
-    tool_call = payload.get("toolCall")
-    if isinstance(tool_call, dict):
-        args = tool_call.get("args")
-        if isinstance(args, dict):
-            return str(args.get("TargetFile") or "")
-
     return ""
 
 

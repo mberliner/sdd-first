@@ -141,16 +141,6 @@ def test_permite_spec_con_estado_active(tmp_path):
     assert allow, reason
 
 
-def test_extrae_ruta_de_antigravity_payload():
-    payload = {
-        "toolCall": {
-            "name": "replace_file_content",
-            "args": {"TargetFile": "/some/path/file.py"},
-        }
-    }
-    assert sdd_gate._declared_file_path(payload) == "/some/path/file.py"
-
-
 # -- SPEC-022 US3: el motivo del bloqueo dice que specs ya gobiernan el archivo --
 
 

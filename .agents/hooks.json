@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_PROJECT_DIR=$(pwd) sh .claude/sdd_gate_hook.sh"
+            "command": "python3 agy_gate_hook.py || python agy_gate_hook.py || type agy_deny.json || cat agy_deny.json"
           }
         ]
       }

@@ -34,6 +34,14 @@ HOOKS_JSON = [
     KIT_ROOT / ".agents" / "hooks.json",
     TEMPLATES / "wiring" / "hooks.json",
 ]
+AGY_HOOK_PY = [
+    KIT_ROOT / ".agents" / "agy_gate_hook.py",
+    TEMPLATES / "wiring" / "agy_gate_hook.py",
+]
+AGY_DENY_JSON = [
+    KIT_ROOT / ".agents" / "agy_deny.json",
+    TEMPLATES / "wiring" / "agy_deny.json",
+]
 PLUGIN_JS = TEMPLATES / "wiring" / "opencode-sdd-gate.js"
 DOCS = [
     KIT_ROOT / "docs" / "SDD-ENFORCEMENT.md",
@@ -104,17 +112,60 @@ def test_la_doc_explica_el_prefiltro_y_el_limite_de_bash(ruta):
 
 
 @pytest.mark.parametrize("ruta", HOOKS_JSON, ids=lambda p: p.parent.name)
-def test_hooks_json_apunta_al_hook_unificado(ruta):
-    """SPEC-015 FR-US2-001/FR-US2-002: hooks.json invoca sdd_gate_hook.sh via CLAUDE_PROJECT_DIR."""
-    texto = ruta.read_text(encoding="utf-8")
-    assert "CLAUDE_PROJECT_DIR=$(pwd) sh .claude/sdd_gate_hook.sh" in texto
+def test_hooks_json_encadena_las_cuatro_ramas(ruta):
+    """SPEC-015 FR-US2-002: adaptador (python3, python) y fail-closed (type, cat).
+
+    Las rutas van relativas a `.agents/`, que es el `cwd` con el que Antigravity
+    invoca el hook: con `.agents/agy_gate_hook.py` resolvia a `.agents/.agents/`
+    y —siendo el CLI fail-open— el gate quedaba apagado en silencio.
+    """
+    comando = json.loads(ruta.read_text(encoding="utf-8"))["sdd-gate"]["PreToolUse"][0][
+        "hooks"
+    ][0]["command"]
+    assert comando.split(" || ") == [
+        "python3 agy_gate_hook.py",
+        "python agy_gate_hook.py",
+        "type agy_deny.json",
+        "cat agy_deny.json",
+    ]
 
 
-@pytest.mark.parametrize("ruta", HOOKS_SH, ids=lambda p: p.parent.name)
-def test_hook_sh_se_reubica_en_root_antes_de_decidir(ruta):
-    """SPEC-015 FR-US2-004: cd "$ROOT" antes de la logica principal (fallback CWD de Antigravity)."""
+@pytest.mark.parametrize("ruta", AGY_HOOK_PY, ids=lambda p: p.parent.name)
+def test_agy_hook_py_se_reubica_en_la_raiz_y_delega_en_el_gate(ruta):
+    """SPEC-015 FR-US2-004: la raiz sale de `__file__`, no del cwd de Antigravity."""
     texto = ruta.read_text(encoding="utf-8")
-    assert 'cd "$ROOT" || exit 1' in texto
+    assert "os.chdir(repo_root)" in texto
+    assert "Path(__file__).resolve().parent.parent" in texto
+    # `main`, no `decide`: por ahi pasa el escape hatch SDD_GATE_BYPASS.
+    assert "sdd_gate.main(" in texto
+
+
+@pytest.mark.parametrize("ruta", AGY_DENY_JSON, ids=lambda p: p.parent.name)
+def test_agy_deny_json_es_un_deny_bien_formado(ruta):
+    """SPEC-015 FR-US2-007: el fail-closed sin interprete se sirve desde archivo.
+
+    Un `echo` no sirve: en `cmd.exe` las comillas llegan escapadas y Antigravity
+    descarta la respuesta (`protojson: syntax error`), volviendo a fail-open.
+    """
+    data = json.loads(ruta.read_text(encoding="utf-8"))
+    assert data["decision"] == "deny"
+    assert "Python" in data["reason"]
+
+
+def test_el_catalogo_instala_el_wiring_de_antigravity():
+    """SPEC-015 FR-US2-001: sdd_init deposita las tres piezas en `.agents/`.
+
+    Las tres o ninguna: el adaptador sin `hooks.json` no lo invoca nadie, y
+    `hooks.json` sin `agy_deny.json` deja la rama fail-closed sin qué imprimir.
+    """
+    import sdd_catalog
+
+    destinos = {destino for _, destino in sdd_catalog.WIRING}
+    assert {
+        ".agents/hooks.json",
+        ".agents/agy_gate_hook.py",
+        ".agents/agy_deny.json",
+    } <= destinos
 
 
 def test_gate_wiring_conoce_hooks_json():

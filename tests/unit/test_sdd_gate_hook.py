@@ -13,8 +13,10 @@ codigo en `pkg/` queda protegido y `src/` —que no declara— no.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -23,6 +25,7 @@ from conftest import ejecutable_sh
 KIT_ROOT = Path(__file__).resolve().parents[2]
 KIT_HOOK = KIT_ROOT / ".claude" / "sdd_gate_hook.sh"
 TEMPLATE_HOOK = KIT_ROOT / "templates" / "wiring" / "sdd_gate_hook.sh"
+TEMPLATE_AGY_HOOK = KIT_ROOT / "templates" / "wiring" / "agy_gate_hook.py"
 
 
 def _seed_config(root: Path, cuerpo: str) -> Path:
@@ -149,13 +152,17 @@ def test_template_hook_fail_closed_permite_fuera_de_los_roots(tmp_path):
 
 
 def _run_hook_antigravity(
-    script: Path,
     project_dir: Path,
     target_file: str,
     *,
-    path: str | None = None,
     bypass: str | None = None,
 ) -> subprocess.CompletedProcess:
+    """Corre el adaptador de Antigravity como lo corre el CLI.
+
+    Fiel a lo medido en el testbed (SPEC-015, Clarifications 2026-08-13): el
+    `cwd` es `.agents/`, no la raiz del proyecto. Correrlo desde la raiz
+    ocultaria justamente el bug que dejo el gate apagado.
+    """
     payload = json.dumps(
         {
             "toolCall": {
@@ -164,58 +171,93 @@ def _run_hook_antigravity(
             }
         }
     )
-    env = {"CLAUDE_PROJECT_DIR": str(project_dir)}
-    if path is not None:
-        env["PATH"] = path
+    env = {"PATH": os.environ.get("PATH", "")}
     if bypass is not None:
         env["SDD_GATE_BYPASS"] = bypass
-    sh = ejecutable_sh()
+
+    agents_dir = project_dir / ".agents"
+    agents_dir.mkdir(exist_ok=True)
+    agy_hook = agents_dir / "agy_gate_hook.py"
+    shutil.copy(TEMPLATE_AGY_HOOK, agy_hook)
+
     return subprocess.run(
-        [sh, str(script)],
+        [sys.executable, str(agy_hook)],
         input=payload,
         text=True,
         capture_output=True,
         env=env,
-        cwd=str(project_dir),
+        cwd=str(agents_dir),
     )
+
+
+def _seed_proyecto_agy(root: Path, core_en: str = "core") -> None:
+    _seed_config(root, "dirs:\n  source_roots: [src]\n")
+    shutil.copytree(KIT_ROOT / "core", root / core_en)
 
 
 def test_antigravity_hook_permite_salida_json(tmp_path):
-    """SPEC-015 FR-US2-004: corre con `cd "$ROOT"`, asi que rutas relativas resuelven."""
-    _seed_config(tmp_path, "dirs:\n  source_roots: [src]\n")
-    (tmp_path / "core").mkdir()
-    (tmp_path / "core" / "sdd_gate.py").write_text(
-        "import sys\nsys.exit(0)", encoding="utf-8"
-    )
-    res = _run_hook_antigravity(TEMPLATE_HOOK, tmp_path, "README.md")
+    """SPEC-015 FR-US2-004: se reubica en la raiz, asi que `README.md` resuelve."""
+    _seed_proyecto_agy(tmp_path)
+    res = _run_hook_antigravity(tmp_path, "README.md")
     assert res.returncode == 0
-    data = json.loads(res.stdout)
-    assert data["decision"] == "allow"
+    assert json.loads(res.stdout)["decision"] == "allow"
 
 
 def test_antigravity_hook_bloquea_json(tmp_path):
-    _seed_config(tmp_path, "dirs:\n  source_roots: [src]\n")
-    (tmp_path / "core").mkdir()
-    (tmp_path / "core" / "sdd_gate.py").write_text(
-        "import sys\nprint('Edicion de codigo fuente bloqueada', file=sys.stderr)\nsys.exit(2)",
-        encoding="utf-8",
-    )
-    # Forzar un fallo (no spec). PATH real: el hook debe encontrar python y
-    # correr el gate de verdad, no caer en la rama fail-closed.
-    real_path = shutil.os.environ.get("PATH", "")
-    res = _run_hook_antigravity(TEMPLATE_HOOK, tmp_path, "src/foo.py", path=real_path)
+    """SPEC-015 FR-US2-003: sin spec vigente, el motivo del gate llega en el JSON."""
+    _seed_proyecto_agy(tmp_path)
+    res = _run_hook_antigravity(tmp_path, "src/foo.py")
     assert res.returncode == 0
     data = json.loads(res.stdout)
     assert data["decision"] == "deny"
-    assert "Edicion de codigo fuente bloqueada" in data["reason"]
+    assert "no hay spec vigente declarada" in data["reason"]
 
 
-def test_antigravity_hook_fail_closed_json(tmp_path):
+def test_antigravity_hook_respeta_bypass(tmp_path):
+    """SPEC-017 FR-US3-004: el escape hatch vive en `sdd_gate.main`, no en `decide`."""
+    _seed_proyecto_agy(tmp_path)
+    res = _run_hook_antigravity(tmp_path, "src/foo.py", bypass="urgente")
+    assert res.returncode == 0
+    assert json.loads(res.stdout)["decision"] == "allow"
+
+
+def test_antigravity_hook_deriva_core_en_proyecto_derivado(tmp_path):
+    """SPEC-015 FR-US2-003: el nucleo vendorizado vive en tools/sdd/core."""
+    _seed_proyecto_agy(tmp_path, core_en="tools/sdd/core")
+    res = _run_hook_antigravity(tmp_path, "src/foo.py")
+    assert res.returncode == 0
+    assert json.loads(res.stdout)["decision"] == "deny"
+
+
+def test_antigravity_hook_deniega_si_no_puede_decidir(tmp_path):
+    """SPEC-015 FR-US2-006: sin nucleo que importar, deny y exit 0.
+
+    Antigravity es fail-open: propagar la excepcion (exit != 0) dejaria pasar la
+    edicion, que es exactamente lo contrario de lo que este hook existe para
+    hacer.
+    """
     _seed_config(tmp_path, "dirs:\n  source_roots: [src]\n")
-    res = _run_hook_antigravity(
-        TEMPLATE_HOOK, tmp_path, "src/foo.py", path="/nonexistent"
-    )
+    res = _run_hook_antigravity(tmp_path, "src/foo.py")
     assert res.returncode == 0
     data = json.loads(res.stdout)
     assert data["decision"] == "deny"
-    assert data["reason"] == "No se encontro python"
+    assert "no pudo decidir" in data["reason"]
+
+
+def test_antigravity_hook_deniega_con_payload_corrupto(tmp_path):
+    """SPEC-015 FR-US2-006: un payload ilegible tampoco puede terminar en allow."""
+    _seed_proyecto_agy(tmp_path)
+    agents_dir = tmp_path / ".agents"
+    agents_dir.mkdir(exist_ok=True)
+    agy_hook = agents_dir / "agy_gate_hook.py"
+    shutil.copy(TEMPLATE_AGY_HOOK, agy_hook)
+    res = subprocess.run(
+        [sys.executable, str(agy_hook)],
+        input="{ esto no es JSON",
+        text=True,
+        capture_output=True,
+        env={"PATH": os.environ.get("PATH", "")},
+        cwd=str(agents_dir),
+    )
+    assert res.returncode == 0
+    assert json.loads(res.stdout)["decision"] == "deny"

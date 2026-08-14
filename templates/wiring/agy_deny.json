@@ -1,0 +1,1 @@
+{"decision": "deny", "reason": "sdd-gate fail-closed: no se encontro un interprete Python capaz de correr .agents/agy_gate_hook.py. Se BLOQUEA la edicion. Crea el .venv del proyecto o instala python3. Ver docs/SDD-ENFORCEMENT.md."}

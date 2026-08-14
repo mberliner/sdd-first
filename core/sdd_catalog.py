@@ -63,6 +63,8 @@ WIRING: list[tuple[str, str]] = [
     ("wiring/.gitattributes", ".gitattributes"),
     ("wiring/.gitignore", ".gitignore"),
     ("wiring/hooks.json", ".agents/hooks.json"),
+    ("wiring/agy_gate_hook.py", ".agents/agy_gate_hook.py"),
+    ("wiring/agy_deny.json", ".agents/agy_deny.json"),
     ("wiring/current-spec", ".sdd/current-spec"),
 ]
 
