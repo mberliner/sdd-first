@@ -232,6 +232,22 @@ Agrupación sugerida en specs (una spec por iteración, en este orden):
   `_SYNCED_FROM_TEMPLATES` de `render.py`, que ya resuelve el placeholder para
   el kit y para el derivado. Lo caro es que `render.py` hoy sincroniza solo
   `.md`; habría que aceptar `.sh`/`.json`/`.yaml` respetando LF.
+  **(cerrado el 2026-08-14)** → [[SPEC-005-desduplicar-ssot]] FR-008/FR-009.
+  El par ya había divergido sin que nadie lo notara: `.claude/sdd_gate_hook.sh`
+  arrastraba las 37 líneas del bloque `IS_ANTIGRAVITY` que su plantilla perdió
+  en `fc95761` (el soporte de Antigravity se había mudado a `agy_gate_hook.py`);
+  el sync las borró solo. Lo "caro" no existía: `_sync_renderer` ya leía texto,
+  resolvía placeholders y escribía con `write_text_lf` — la extensión nunca
+  entró en la decisión, faltaba la lista de destinos. Esa lista tampoco se
+  escribió a mano: sale de `sdd_catalog.WIRING` menos las excepciones
+  declaradas con motivo (`.gitignore`, semilla del dueño; `.sdd/current-spec`,
+  estado de sesión), y un test falla si un destino nuevo no está de ninguno de
+  los dos lados — sin eso, el séptimo archivo de wiring volvía a quedar
+  huérfano igual que el primero. `{{sdd.core}}` se aplicó solo donde hacía
+  falta: `.pre-commit-config.yaml` y el plugin de opencode hardcodeaban el
+  layout del derivado; el hook `sh` y el de Antigravity ya probaban ambos en
+  runtime y se sincronizan tal cual. De paso el kit pasó a tener instalado
+  `.opencode/plugin/sdd-gate.js`, que le pedía a sus derivados sin usarlo él.
 - **C-7 · `sdd_init.py` ignora en silencio los flags que no conoce, y el target
   es posicional.** `python core/sdd_init.py --target=/otro/lado --language=python`
   no instala en `/otro/lado`: instala en el **cwd**, porque `main` descarta todo

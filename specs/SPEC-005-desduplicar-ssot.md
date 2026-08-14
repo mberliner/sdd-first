@@ -1,16 +1,18 @@
-# SPEC-005-desduplicar-ssot: Desduplicar SSOTs del kit (docs/templates, defaults)
+# SPEC-005-desduplicar-ssot: Desduplicar SSOTs del kit (docs/templates, defaults, wiring)
 
 > Origen: `docs/IDEAS.md` P2 "Duplicación de SSOT dentro del kit" (R-1, R-2,
-> R-3), detectado en la revisión crítica del 2026-07-02.
+> R-3), detectado en la revisión crítica del 2026-07-02; ampliada después con
+> C-8 (vocabularios de código repetidos) y R-4 (el wiring del kit como copia
+> manual de `templates/wiring/`).
 
 ## User Story (Priority P2)
 
-Como mantenedor de sdd-first, quiero que los documentos y defaults que hoy
-existen duplicados dentro del propio repo tengan un único archivo autoritativo
-(el resto se genera o referencia), para que una edición futura no pueda dejar
-`docs/` y `templates/docs/` (o dos constantes de código) divergiendo en
-silencio — justo lo que el Principio "No duplicar SSOT" de `AGENTS.md`
-prohíbe.
+Como mantenedor de sdd-first, quiero que los documentos, defaults y archivos de
+wiring que hoy existen duplicados dentro del propio repo tengan un único archivo
+autoritativo (el resto se genera o referencia), para que una edición futura no
+pueda dejar `docs/` y `templates/docs/`, el wiring de la raíz y
+`templates/wiring/`, o dos constantes de código, divergiendo en silencio — justo
+lo que el Principio "No duplicar SSOT" de `AGENTS.md` prohíbe.
 
 **Why this priority:** hoy no rompe nada en caliente (P2, no P0/P1), pero es
 deuda que compone: cada edición manual a uno de los duplicados y no al otro
@@ -18,10 +20,11 @@ es un drift que nadie detecta hasta que alguien lee las dos versiones y no
 coinciden.
 
 **Independent Test:** correr `python core/render.py --check` sobre el propio
-kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
-`docs/playbooks/analyze.md`, `docs/playbooks/clarify.md` o
-`specs/SPEC-TEMPLATE.md` sin tocar su contraparte en `templates/`; el paso
-`render` del pipeline falla en ese caso.
+kit reporta drift si se edita a mano cualquiera de sus copias sincronizadas
+—`docs/SDD-ENFORCEMENT.md`, `docs/playbooks/analyze.md`,
+`docs/playbooks/clarify.md`, `specs/SPEC-TEMPLATE.md` o un archivo de wiring
+como `.claude/sdd_gate_hook.sh`— sin tocar su contraparte en `templates/`; el
+paso `render` del pipeline falla en ese caso.
 
 ## Relación con specs existentes
 
@@ -72,6 +75,38 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
   con su literal. Se generaliza en vez de sumarle una constante hermana, que
   reintroduciría el mismo drift un nivel más arriba.
 
+### Session 2026-08-14 (R-4)
+
+- Q: ¿El wiring duplicado (`templates/wiring/` ↔ la copia instalada en el propio
+  kit) entra acá o pide una spec nueva? → A: entra. Es la misma clase de
+  duplicación que FR-001 —dos archivos con el mismo contenido y ningún mecanismo
+  que los mantenga juntos— sobre otra superficie. Lo único distinto es que un
+  par difiere por el layout del andamiaje (`core/` en el kit,
+  `tools/sdd/core/` en el derivado), y para eso ya existe `{{sdd.core}}`.
+- Q: ¿Hay evidencia de que el drift ocurre, o es teórico? → A: ocurrió y nadie lo
+  detectó. En `fc95761` la plantilla `sdd_gate_hook.sh` perdió las 37 líneas del
+  bloque `IS_ANTIGRAVITY` (el soporte de Antigravity se mudó a
+  `agy_gate_hook.py`), pero `.claude/sdd_gate_hook.sh` del kit no se tocó: quedó
+  cargando una rama muerta que ninguna plantilla tiene. El par también se pagó
+  doble en SPEC-004 (FR-004) y dos veces en SPEC-015.
+- Q: ¿`render.py` necesita aprender a escribir `.sh`/`.json`/`.yaml`/`.js`? → A:
+  no. `_sync_renderer` ya lee texto plano, resuelve los placeholders de ruta y
+  escribe con `write_text_lf`; la extensión nunca entró en la decisión. Lo que
+  faltaba era **la lista de destinos**, no el mecanismo.
+- Q: ¿Cómo resuelve cada archivo dónde vive el núcleo? → A: por el medio que ya
+  usa, sin uniformar: `.pre-commit-config.yaml` y el plugin de opencode pasan a
+  `{{sdd.core}}` (hoy hardcodean una de las dos rutas); `sdd_gate_hook.sh` y
+  `agy_gate_hook.py` conservan su detección dinámica (prueban ambos layouts en
+  runtime), que ya los hace válidos en los dos lados. Lo que esta spec exige es
+  que haya **un solo archivo**, no una única técnica para ubicar el núcleo.
+- Q: ¿Qué pasa con los destinos de wiring que el kit no tiene o que le son
+  propios? → A: se clasifican explícitamente al lado del catálogo, con el motivo.
+  `.gitignore` queda fuera (el kit ignora cosas que un derivado no tiene por qué
+  heredar, y el catálogo ya lo trata como `semilla`) y `.sdd/current-spec`
+  también (es estado de sesión, no un artefacto). `.opencode/plugin/sdd-gate.js`
+  entra: el kit no lo tenía instalado y pasa a tenerlo, con lo que el gate de
+  opencode deja de ser lo único que el kit le pide a sus derivados sin usarlo él.
+
 ## Acceptance Scenarios
 
 - **Given** el kit con `docs/SDD-ENFORCEMENT.md` editado a mano y
@@ -102,6 +137,30 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
 - **Given** `core/pipeline.py`, **When** se busca la enumeración de pasos de
   código, **Then** no hay literal propio: importa el vocabulario de
   `core/sdd_config.py`.
+- **Given** el kit con `.claude/sdd_gate_hook.sh` (o cualquier otro destino de
+  wiring sincronizado) editado a mano y su plantilla sin tocar, **When** corre
+  `python core/render.py --check`, **Then** reporta drift y sale con exit 1.
+- **Given** `templates/wiring/.pre-commit-config.yaml` con `{{sdd.core}}`,
+  **When** corre `python core/render.py` sobre el kit, **Then**
+  `.pre-commit-config.yaml` de la raíz queda con `python core/sdd_gate.py`; y
+  **When** `sdd-init` lo instala en un derivado, **Then** queda con
+  `python tools/sdd/core/sdd_gate.py`.
+- **Given** una plantilla de wiring con finales de línea CRLF, **When**
+  `render.py` la sincroniza, **Then** el destino queda escrito con LF; y
+  **Given** ese destino ya versionado, **When** se lo saca en un checkout de
+  Windows, **Then** sigue en LF porque `.gitattributes` lo declara `eol=lf`.
+- **Given** una plantilla de `templates/wiring/` que usa `{{project.name}}`,
+  **When** corre la suite unitaria, **Then** falla: el sync no resuelve ese
+  placeholder y lo dejaría crudo en el destino del kit.
+- **Given** el `.opencode/plugin/sdd-gate.js` instalado en el kit, **When** se
+  resuelve la ruta del gate que declara, **Then** ese archivo existe — si no,
+  el plugin no falla: se calla y deja el gate apagado.
+- **Given** `.claude/sdd_gate_hook.sh` regenerado por `render.py` en un sistema
+  POSIX, **When** se miran sus permisos, **Then** conserva el bit de ejecución
+  que le deja `sdd-init`.
+- **Given** un destino nuevo agregado a `sdd_catalog.WIRING`, **When** corre la
+  suite unitaria sin que ese destino se haya clasificado (sincronizado o
+  excluido con motivo), **Then** falla nombrándolo.
 - **Given** una clave de carpeta de test declarada en el SSOT, **When** se
   consultan los cinco consumidores (blancos estáticos del adaptador, corrida de
   cobertura, relajación de `check_naming`, `paths:` del CI generado y cruce de
@@ -145,6 +204,32 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
   de `sdd-doctor` contra `pipeline.steps`— y ninguno enumera las claves por su
   cuenta.
 
+- **FR-008** MUST: los archivos de `templates/wiring/` que el kit también
+  instala sobre sí mismo se sincronizan con el mismo mecanismo de FR-001
+  (`templates/` autoritativo, destino nunca editado a mano, `--check` falla ante
+  drift), resolviendo los placeholders de ruta según el layout. Alcanza a
+  `.claude/settings.json`, `.claude/sdd_gate_hook.sh`, `.pre-commit-config.yaml`,
+  `.gitattributes`, `.agents/hooks.json`, `.agents/agy_gate_hook.py`,
+  `.agents/agy_deny.json` y `.opencode/plugin/sdd-gate.js`.
+- **FR-010** MUST: el LF de esos destinos se sostiene en dos puntos, porque
+  ninguno alcanza solo: `render.py` **escribe** LF aunque la plantilla tenga
+  CRLF, y `.gitattributes` los declara `eol=lf` para que el **checkout** no los
+  vuelva a CRLF (`* text=auto` lo haría en Windows, dejándolos distintos de lo
+  que el render acaba de escribir, y `sh` no ejecuta un script con CRLF).
+- **FR-011** MUST: una plantilla de `templates/wiring/` solo puede usar
+  placeholders de ruta (`{{sdd.core}}`, `{{sdd.adapters}}`). Son los únicos que
+  el sync resuelve: los de proyecto (`{{project.*}}`) los resuelve `sdd-init` al
+  instalar, así que en el kit llegarían crudos al destino generado.
+- **FR-012** MUST: al regenerar un destino declarado en
+  `sdd_catalog.EXECUTABLE_WIRING`, `render.py` le deja el mismo permiso de
+  ejecución que le dejaría `sdd-init`. `render.py` pasa a ser el tercer escritor
+  de ese archivo y no puede degradar lo que los otros dos garantizan.
+- **FR-009** MUST: la clasificación de cada destino de `sdd_catalog.WIRING`
+  —sincronizado con el kit, o excluido con su motivo— es explícita y vive junto
+  al catálogo; `render.py` la deriva de ahí en vez de repetir la lista, y un test
+  falla si un destino nuevo del catálogo no está clasificado de ninguno de los
+  dos lados.
+
 ## Key Entities
 
 - **Archivo autoritativo**: el que un humano edita a mano (`templates/...`).
@@ -156,6 +241,15 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
 - **Declaración de carpetas de test** (`TEST_DIRS` en `core/sdd_config.py`): por
   cada clave de `dirs`, qué paso la ejecuta y si entra a la medición de
   cobertura. Reemplaza a `TEST_DIR_STEP`, que cubría solo la primera pregunta.
+
+- **Wiring sincronizado**: destino del catálogo (`sdd_catalog.WIRING`) que el kit
+  instala sobre sí mismo y que `render.py` regenera desde su plantilla. Mismo
+  contrato que "archivo sincronizado", pero el par no siempre es byte-idéntico:
+  los placeholders de ruta resuelven distinto en el kit y en el derivado.
+- **Excepción de wiring** (`WIRING_NO_SINCRONIZADO` en `core/sdd_catalog.py`):
+  destino que el kit tiene con contenido legítimamente propio, con el motivo
+  escrito. Existe para que "no está sincronizado" sea una decisión registrada y
+  no un olvido.
 
 ## Success Criteria
 
@@ -176,6 +270,18 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
   vez con sus propiedades; ningún consumidor necesita editar una tupla propia, y
   ninguna carpeta queda arrastrada a un paso que no le corresponde por el solo
   hecho de estar declarada.
+
+- **SC-007** Un arreglo del wiring se escribe **una sola vez** (en
+  `templates/wiring/`) y llega al kit por `render.py`: `git diff` tras editar la
+  plantilla y correr el render toca los dos archivos, y `--check` sale en rojo si
+  solo se tocó uno. Verificable sobre el drift que motivó esto: el bloque
+  `IS_ANTIGRAVITY` sobreviviente en `.claude/sdd_gate_hook.sh` desaparece al
+  sincronizar, sin que nadie tenga que ir a buscarlo.
+- **SC-008** **Ningún** archivo de `templates/wiring/` —los de hoy y los que se
+  agreguen— contiene una ruta literal al andamiaje válida en un solo layout: o
+  es `{{sdd.core}}`, o el archivo prueba ambos en runtime y está declarado como
+  tal. Se verifica por barrido de la carpeta, no contra una lista escrita a
+  mano: una lista sería la misma omisión que FR-009 existe para impedir.
 
 ## Assumptions
 
@@ -198,6 +304,11 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
 | FR-005 | tests/unit/test_sdd_config.py |
 | FR-006 | tests/unit/test_vocabulario_de_pasos.py |
 | FR-007 | tests/unit/test_vocabulario_de_pasos.py |
+| FR-008 | tests/unit/test_wiring_sincronizado.py; tests/unit/test_derived_references.py (el lado derivado: el placeholder resuelto al instalar) |
+| FR-009 | tests/unit/test_wiring_sincronizado.py |
+| FR-010 | tests/unit/test_wiring_sincronizado.py |
+| FR-011 | tests/unit/test_wiring_sincronizado.py |
+| FR-012 | tests/unit/test_wiring_sincronizado.py |
 
 ## Fuera de alcance
 
@@ -232,3 +343,23 @@ kit reporta drift si se edita a mano `docs/SDD-ENFORCEMENT.md`,
   distintos). Prerequisito de [[SPEC-018-verificacion-e2e]] US3: sin separar
   "blancos estáticos" de "carpetas que se ejecutan", declarar `tests/e2e` la
   arrastraba a la corrida de cobertura.
+- 2026-08-14: reabierta por R-4 de `docs/IDEAS.md`. FR-008..FR-011 llevan el
+  mecanismo de FR-001 al wiring: los ocho destinos que el kit instala sobre sí
+  mismo se generan desde `templates/wiring/`, y la lista sale de
+  `sdd_catalog.WIRING` menos las excepciones declaradas. El par ya había
+  divergido —`.claude/sdd_gate_hook.sh` conservaba el bloque `IS_ANTIGRAVITY`
+  que la plantilla perdió en `fc95761`— y el sync lo borró solo. `{{sdd.core}}`
+  se aplicó donde había una ruta válida en un solo layout
+  (`.pre-commit-config.yaml`, plugin de opencode); el hook `sh` y el de
+  Antigravity ya probaban ambos en runtime. El kit pasa a tener instalado
+  `.opencode/plugin/sdd-gate.js`. El `/analyze` posterior agregó FR-010 (el LF
+  se sostiene en render **y** en `.gitattributes`, con un test por mitad),
+  FR-011 (el wiring solo admite placeholders de ruta) y convirtió la
+  verificación de SC-008 en un barrido de la carpeta: la lista de cuatro
+  archivos que tenía era la misma omisión que FR-009 existe para impedir.
+  Después cerró los hallazgos menores: FR-012 (render era el único de los tres
+  escritores del hook que no le devolvía el bit de ejecución), un test de que
+  el plugin de opencode del kit apunta a un gate que existe —su modo de falla
+  es callarse— y la baja de la duplicación en `test_wiring_prefiltros.py` y
+  `test_wiring_precommit_verbose.py`, que seguían recorriendo el par kit +
+  plantilla como si fueran dos archivos.

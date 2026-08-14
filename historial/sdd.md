@@ -1,5 +1,55 @@
 # Historial SDD — sdd-first
 
+## 2026-08-14 — SPEC-005 FR-008/FR-009: el wiring del kit deja de ser una copia
+
+**Scope:** `specs/SPEC-005-desduplicar-ssot.md` (Clarifications 2026-08-14,
+4 escenarios, FR-008/FR-009, SC-007/SC-008), `core/sdd_catalog.py`
+(`WIRING_NO_SINCRONIZADO`, `wiring_sincronizado()`), `core/render.py`,
+`templates/wiring/.pre-commit-config.yaml`,
+`templates/wiring/opencode-sdd-gate.js`, `templates/wiring/.gitattributes`,
+el wiring del propio kit (regenerado), `.opencode/plugin/sdd-gate.js` (nuevo),
+`AGENTS.md`, `00-INDEX.md`, `tests/unit/test_wiring_sincronizado.py` (nuevo),
+`tests/unit/test_render.py`.
+
+**Qué cambió:** cada archivo de `templates/wiring/` que el kit se instala a sí
+mismo existía dos veces y nada los mantenía juntos (R-4). Ahora el de la raíz se
+genera con `render.py`, igual que los docs de FR-001: el arreglo se escribe una
+vez, en la plantilla.
+
+**Decisiones de diseño:**
+- **La lista de destinos no se escribe en `render.py`.** Sale de
+  `sdd_catalog.WIRING` menos `WIRING_NO_SINCRONIZADO`, un dict destino → motivo.
+  Enumerarla a mano reintroducía el mismo drift un nivel más arriba: el séptimo
+  archivo de wiring habría quedado huérfano igual que el primero. Un test exige
+  que todo destino del catálogo esté de uno de los dos lados.
+- **No se uniformó cómo cada archivo ubica el núcleo.** `.pre-commit-config.yaml`
+  y el plugin de opencode hardcodeaban `tools/sdd/core` —válido en un solo
+  layout— y pasan a `{{sdd.core}}`; el hook `sh` y `agy_gate_hook.py` ya prueban
+  ambos en runtime y se sincronizan tal cual. Lo que la spec exige es un solo
+  archivo, no una sola técnica.
+- **`.gitignore` y `.sdd/current-spec` quedan fuera, con motivo escrito.** El
+  primero es semilla (el kit ignora cosas propias); el segundo es estado de
+  sesión que se reescribe en cada commit.
+- **Lo "caro" del ítem no existía.** `_sync_renderer` ya leía texto, resolvía
+  placeholders y escribía con `write_text_lf`: la extensión (`.sh`/`.json`/
+  `.yaml`/`.js`) nunca entró en la decisión. Sí hizo falta declarar esos
+  destinos `eol=lf` en `.gitattributes`: con `* text=auto`, un checkout en
+  Windows los dejaba en CRLF, distintos de lo que el render acababa de escribir.
+
+**Evidencia de que el drift era real, no teórico:** `.claude/sdd_gate_hook.sh`
+arrastraba las 37 líneas del bloque `IS_ANTIGRAVITY` que su plantilla perdió en
+`fc95761`, cuando el soporte de Antigravity se mudó a `.agents/agy_gate_hook.py`.
+Rama inalcanzable —a ese `.sh` solo lo invoca Claude Code, que decide por exit
+code— y sobrevivió una spec entera. El sync la borró sin que nadie la buscara.
+
+**Deuda:** el kit pasó a tener instalado `.opencode/plugin/sdd-gate.js`, que le
+pedía a sus derivados sin usarlo él: el gate spec-first ahora también corre en
+sesiones de opencode sobre el kit.
+
+**SSOTs afectados:** `core/sdd_catalog.py` (clasificación del wiring),
+`templates/wiring/` (autoritativo del wiring), `AGENTS.md` y `00-INDEX.md`
+(el wiring de la raíz no se edita a mano).
+
 ## 2026-08-13 — SPEC-015 US2: el gate de Antigravity pasa de decorativo a real
 
 **Scope:** `specs/SPEC-015-wiring-apunta-al-codigo-real.md` (Clarifications
