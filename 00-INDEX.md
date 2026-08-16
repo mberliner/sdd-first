@@ -13,7 +13,8 @@
 6. `docs/SDD-ENFORCEMENT.md` — cómo se obliga el SDD.
 7. `docs/SKILLS-MULTITOOL.md` — cómo una skill sirve a varios asistentes.
 8. `adapters/CONTRACT.md` — contrato de adaptador de lenguaje.
-9. `docs/IDEAS.md` — backlog de ideas pre-spec.
+9. `docs/IDEAS.md` — backlog de ideas pre-spec (abiertas).
+10. `docs/PATRONES.md` — clases de defecto que ya se repitieron en el kit.
 
 ## Mapa de SSOTs
 
@@ -36,7 +37,9 @@
 | Playbooks de skills | `docs/playbooks/` |
 | Plantillas instalables | `templates/` |
 | Historial de iteraciones | `historial/sdd.md` |
-| Ideas pre-spec | `docs/IDEAS.md` |
+| Ideas pre-spec abiertas (backlog, IDs, estados, descartes) | `docs/IDEAS.md` |
+| Ideas cerradas y su post-mortem | `docs/IDEAS-CERRADAS.md` |
+| Patrones recurrentes de defecto | `docs/PATRONES.md` |
 | Historial de versiones del kit | `CHANGELOG.md` |
 | Clases de propiedad de cada artefacto instalado | `core/sdd_catalog.py` |
 | Manifiesto de instalación de un derivado | `.sdd/kit.lock` (formato en `core/sdd_lock.py`) |
