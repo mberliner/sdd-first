@@ -224,6 +224,15 @@ paso `render` del pipeline falla en ese caso.
   `sdd_catalog.EXECUTABLE_WIRING`, `render.py` le deja el mismo permiso de
   ejecución que le dejaría `sdd-init`. `render.py` pasa a ser el tercer escritor
   de ese archivo y no puede degradar lo que los otros dos garantizan.
+- **FR-013** MUST: el permiso de ejecución de los destinos de
+  `sdd_catalog.EXECUTABLE_WIRING` se sostiene en **dos** puntos, porque ninguno
+  alcanza solo — misma forma que FR-010 con el LF: `render.py` lo escribe
+  (FR-012) y el **índice de git** lo declara (modo `100755`), para que un clon o
+  un checkout fresco entregue el archivo ya ejecutable. Sin la segunda mitad, la
+  garantía de FR-012 solo existe en la copia de trabajo donde alguien corrió el
+  render en modo escritura, y se pierde en el primer checkout. El test que la
+  cubre verifica el **índice**, no solo el disco: el disco es propiedad de una
+  copia, el índice es lo que viaja.
 - **FR-009** MUST: la clasificación de cada destino de `sdd_catalog.WIRING`
   —sincronizado con el kit, o excluido con su motivo— es explícita y vive junto
   al catálogo; `render.py` la deriva de ahí en vez de repetir la lista, y un test
@@ -282,6 +291,11 @@ paso `render` del pipeline falla en ese caso.
   es `{{sdd.core}}`, o el archivo prueba ambos en runtime y está declarado como
   tal. Se verifica por barrido de la carpeta, no contra una lista escrita a
   mano: una lista sería la misma omisión que FR-009 existe para impedir.
+- **SC-009** Un clon fresco del kit entrega `.claude/sdd_gate_hook.sh` ejecutable
+  sin correr nada: `git ls-files -s .claude/sdd_gate_hook.sh` muestra `100755`.
+  Antes mostraba `100644` y el bit solo aparecía tras un `render.py` en modo
+  escritura, así que el test que lo afirmaba pasaba o fallaba según qué había
+  corrido antes en esa copia de trabajo.
 
 ## Assumptions
 
@@ -309,6 +323,7 @@ paso `render` del pipeline falla en ese caso.
 | FR-010 | tests/unit/test_wiring_sincronizado.py |
 | FR-011 | tests/unit/test_wiring_sincronizado.py |
 | FR-012 | tests/unit/test_wiring_sincronizado.py |
+| FR-013 | tests/unit/test_wiring_sincronizado.py |
 
 ## Fuera de alcance
 

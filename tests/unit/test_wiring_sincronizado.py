@@ -1,4 +1,4 @@
-"""El wiring del kit se genera desde `templates/wiring/` (SPEC-005 FR-008..FR-012).
+"""El wiring del kit se genera desde `templates/wiring/` (SPEC-005 FR-008..FR-013).
 
 Hasta esta spec, cada archivo de `templates/wiring/` que el kit tambien instala
 sobre si mismo existia dos veces y nada los mantenia juntos: el arreglo habia
@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -265,6 +267,36 @@ def test_render_no_degrada_los_permisos_del_wiring_ejecutable(dst, tmp_path):
         pytest.skip("NTFS no expresa los bits de ejecucion de POSIX")
     destino = KIT_ROOT / dst
     assert destino.stat().st_mode & 0o111, f"{dst} perdio el bit de ejecucion"
+
+
+@pytest.mark.parametrize("dst", sorted(sdd_catalog.EXECUTABLE_WIRING))
+def test_el_bit_de_ejecucion_del_wiring_viaja_en_el_indice(dst):
+    """FR-013: el permiso tiene que sobrevivir a un clon, no solo al render.
+
+    `render.py` le devuelve el bit al escribir (FR-012), pero el pipeline corre
+    `render --check`, que no escribe: en un checkout fresco el archivo llega con
+    el modo que declare el indice. Mientras ese modo fue `100644`, la garantia
+    de FR-012 existia solo en la copia donde alguien habia corrido el render en
+    modo escritura, y se perdia en el primer checkout o stash/restore. Es la
+    misma forma que FR-010 con el LF: lo que escribe el render y lo que entrega
+    el checkout son dos puntos distintos, y ninguno alcanza solo.
+    """
+    if shutil.which("git") is None or not (KIT_ROOT / ".git").exists():
+        pytest.skip("sin checkout de git no hay indice donde declarar el modo")
+    salida = subprocess.run(
+        ["git", "ls-files", "-s", "--", dst],
+        cwd=KIT_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    modo = salida.split(" ", 1)[0] if salida.strip() else "(ausente del indice)"
+    assert modo == "100755", (
+        f"{dst} figura en el indice como {modo}: un clon fresco lo entrega sin "
+        "permiso de ejecucion. Se corrige con "
+        f"`git update-index --chmod=+x {dst}`, no con un chmod suelto "
+        "(un chmod no viaja, y con core.fileMode=false git ni lo ve)."
+    )
 
 
 def test_sync_resuelve_el_placeholder_segun_el_layout(tmp_path):

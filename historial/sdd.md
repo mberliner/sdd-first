@@ -1,5 +1,55 @@
 # Historial SDD — sdd-first
 
+## 2026-08-16 — SPEC-005 FR-013: el bit de ejecución del wiring viaja en el índice
+
+**Scope:** `specs/SPEC-005-desduplicar-ssot.md` (FR-013, SC-009),
+`tests/unit/test_wiring_sincronizado.py`, el modo de
+`.claude/sdd_gate_hook.sh` en el índice de git.
+
+**Qué cambió:** `test_render_no_degrada_los_permisos_del_wiring_ejecutable`
+(FR-012, de la iteración anterior) estaba en rojo. El bit de ejecución de
+`.claude/sdd_gate_hook.sh` **nunca estuvo en el índice**: el archivo figura como
+`100644` desde que nació (`e365aa6`, 2026-08-01), así que cualquier clon o
+checkout lo materializa sin `+x`. Ahora el índice lo declara `100755` y un test
+nuevo lo verifica ahí, no en el disco.
+
+**Decisiones de diseño:**
+- **El test mira el índice, no la copia de trabajo.** FR-012 puso el chmod en
+  `render.py`, pero solo en la rama que **escribe**, y el pipeline corre
+  `render --check`, que no escribe. Por eso el test de disco pasaba en la copia
+  donde alguien acababa de correr el render y volvía a fallar tras el primer
+  checkout o stash/restore de `pre-commit`: afirmaba una propiedad local a una
+  máquina y a un momento. El disco es propiedad de una copia; el índice es lo
+  que viaja.
+- **Es la misma forma que FR-010, aplicada a otro atributo.** El LF ya se
+  sostenía en dos puntos declarados —`render.py` lo escribe y `.gitattributes`
+  hace que el checkout lo entregue así— justamente porque ninguno alcanza solo.
+  FR-012 había hecho una sola mitad de ese par para el permiso; FR-013 escribe
+  la otra.
+- **Se arregla con `git update-index --chmod=+x`, no con un `chmod`.** Este clon
+  tiene `core.fileMode = false`, así que un chmod suelto es invisible para git y
+  no se hubiera commiteado nunca — que es parte de por qué el modo se quedó en
+  `100644` quince días sin que nadie lo notara. El mensaje de fallo del test lo
+  dice explícito para que el próximo no pierda el rato.
+- **`templates/wiring/sdd_gate_hook.sh` sigue en `100644`, a propósito.** La
+  plantilla no se ejecuta desde `templates/`, y el destino instalado en un
+  derivado lo chmodea `sdd_init` (`sdd_init.py:869`). `EXECUTABLE_WIRING` declara
+  destinos, no plantillas, y el alcance del FR es el índice **del kit**: el de un
+  proyecto derivado es de su dueño.
+- **No se tocó `render.py`.** El chmod de FR-012 sigue siendo correcto y
+  necesario para el flujo de escritura; lo que faltaba estaba afuera del código.
+
+**SSOTs afectados:** `specs/SPEC-005-desduplicar-ssot.md`,
+`specs/SPECS_REGISTRY.md`, `docs/PATRONES.md` (patrón 6, evidencia nueva).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-005-desduplicar-ssot (FR-010, FR-012, FR-013), SPEC-000-naming
+- Includes/excludes verificados: wiring ejecutable del kit + tests/unit; plantillas y derivados fuera de alcance
+- SSOTs afectados: SPEC-005, SPECS_REGISTRY.md, docs/PATRONES.md
+- Verificación: .venv/bin/python core/pipeline.py → VERDE (11/11); 774 tests
+```
+
 ## 2026-08-14 — SPEC-005 FR-008/FR-009: el wiring del kit deja de ser una copia
 
 **Scope:** `specs/SPEC-005-desduplicar-ssot.md` (Clarifications 2026-08-14,

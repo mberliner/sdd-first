@@ -82,6 +82,15 @@ comía `pre-commit`) · K-3 (la suite cubría helpers y nunca los `main()`, que 
 los que corren en un proyecto instalado) · G-9/FR-009 (el fix solo estaba probado
 por unidad interna hasta que se sumó un escenario e2e con `sdd_init.py` real).
 
+Variante que apareció el 2026-08-16 y que ninguna de las anteriores cubría: el
+test puede afirmar sobre una propiedad del **working tree que git no
+transporta**. SPEC-005 FR-012 garantizaba el bit de ejecución del hook del gate
+vía `render.py`, pero solo en su rama de escritura —y el pipeline corre
+`render --check`—, mientras el índice lo declaraba `100644`. El test pasaba en la
+copia donde alguien acababa de correr el render y fallaba en cualquier clon
+fresco. Regla: si la garantía tiene que sobrevivir a un `clone`, el test verifica
+lo que se versiona, no lo que hay en disco (FR-013).
+
 ## 7 · Medir antes de cablear, y poner el trinquete en el piso real
 
 Un umbral que no se calibró contra el dato no protege nada, y uno importado de
