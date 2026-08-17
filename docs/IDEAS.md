@@ -48,40 +48,46 @@ Una tanda nueva toma la próxima letra libre; una idea suelta entra como `X-N`.
 
 ### Prioridades
 
-| Prioridad | Criterio |
-|-----------|----------|
+La prioridad de un ítem se declara **solo** en la tabla del backlog: los títulos
+de sección agrupan por tanda, no por prioridad, para que recalibrar un ítem no
+obligue a moverlo de lugar.
+
 | Prioridad | Criterio |
 |-----------|----------|
 | **P0** | El kit se contradice a sí mismo o el happy path de un usuario nuevo está roto. Bloquea la credibilidad del producto. |
 | **P1** | Bug real o hueco de enforcement que un usuario va a pisar en las primeras semanas de uso. |
 | **P2** | Deuda de diseño/duplicación que va a divergir con el tiempo; conviene pagarla antes de que crezca. |
 | **P3** | Mejora de producto/pulido; deseable, no urgente. |
+| **—** | Sin triage: la idea está registrada pero nadie la evaluó todavía. No es "menos que P3", es "sin medir". |
 
 ---
 
 ## Backlog abierto
 
-| ID | Prio | Ítem | Estado | Tanda |
-|----|------|------|--------|-------|
-| T-1 | P1 | No existe métrica de abarcabilidad de una spec | abierta | Abarcabilidad (2026-08-15) |
-| G-6 | P1 | `check_traceability` no exige keyword en los FR | abierta | Enforcement |
-| G-7 | P1 | `sdd_spec.py` sobrescribe `.sdd/current-spec` completo | parcial | Enforcement |
-| C-1 | P2 | `gate` insinuado como paso de pipeline en doc y config | parcial | Código |
-| C-6 | P2 | Vestigios (parámetro sin usar, `_ = src`, estado `notas`) | abierta | Código |
-| C-9 | P2 | Un comentario entre los `steps:` duplica el resto de la lista | abierta | Código |
-| E-5 | P2/P3 | Ajustes de doc del README | abierta | Producto |
-| X-1 | — | `SPEC-000` renderiza secciones vacías | abierta | Suelta |
-| X-2 | — | `check_naming` no mira nombres de paquetes/directorios | abierta | Suelta |
-| X-3 | — | Adaptadores `node`/`go` | abierta | Suelta |
-| X-4 | — | Una corrida e2e interrumpida deja el workspace inutilizable | abierta | Suelta |
-| X-5 | — | `enforcement`/`detail` de un principio admiten un solo token | abierta | Suelta |
-| X-6 | — | El Coverage mapping mapea archivos, no casos | abierta | Suelta |
-| X-7 | — | Índice de ámbitos de las specs | abierta | Suelta |
-| X-9 | P2 | Nada verifica la consistencia del propio backlog | abierta | Suelta |
+La tanda de cada ítem no es una columna: la dice la letra del ID (tabla de
+arriba).
+
+| ID | Prio | Ítem | Estado |
+|----|------|------|--------|
+| T-1 | P1 | No existe métrica de abarcabilidad de una spec | abierta |
+| G-6 | P1 | `check_traceability` no exige keyword en los FR | abierta |
+| G-7 | P1 | `sdd_spec.py` sobrescribe `.sdd/current-spec` completo | parcial |
+| C-1 | P2 | `gate` insinuado como paso de pipeline en doc y config | parcial |
+| C-6 | P2 | Vestigios (parámetro sin usar, `_ = src`, estado `notas`) | abierta |
+| C-9 | P2 | Un comentario entre los `steps:` duplica el resto de la lista | abierta |
+| E-5 | P2/P3 | Ajustes de doc del README | abierta |
+| X-1 | — | `SPEC-000` renderiza secciones vacías | abierta |
+| X-2 | — | `check_naming` no mira nombres de paquetes/directorios | abierta |
+| X-3 | — | Adaptadores `node`/`go` | abierta |
+| X-4 | — | Una corrida e2e interrumpida deja el workspace inutilizable | abierta |
+| X-5 | — | `enforcement`/`detail` de un principio admiten un solo token | abierta |
+| X-6 | — | El Coverage mapping mapea archivos, no casos | abierta |
+| X-7 | — | Índice de ámbitos de las specs | abierta |
+| X-9 | P2 | Nada verifica la consistencia del propio backlog | abierta |
 
 ---
 
-## P1 — Abarcabilidad de una spec (debate del 2026-08-15)
+## Abarcabilidad de una spec (tanda T)
 
 > Salió de preguntarse si el registro necesitaba un mecanismo de **cierre** de
 > specs (24 de 25 en `active`). La premisa se cayó en el primer cruce y el debate
@@ -186,7 +192,7 @@ Una tanda nueva toma la próxima letra libre; una idea suelta entra como `X-N`.
   triage tiene que decidir si esto cabe en SPEC-017 (es su misma pregunta: qué
   autoriza una edición) o si el presupuesto de contexto es capacidad nueva.
 
-## P1 — Huecos de enforcement del gate y la trazabilidad
+## Huecos de enforcement del gate y la trazabilidad (tanda G)
 
 - **G-6 · `check_traceability` no exige keyword en los FR.** SPEC-FORMAT
   declara obligatorio `MUST:/SHOULD:/MAY:` pero nada lo verifica. Chequeo de
@@ -212,7 +218,7 @@ Una tanda nueva toma la próxima letra libre; una idea suelta entra como `X-N`.
   des-declara la primera sin aviso — falta definir append vs replace (con
   flag).
 
-## P2 — Bugs y asperezas menores de código
+## Bugs y asperezas menores de código (tanda C)
 
 - **C-1 · Paso desconocido cuenta como OK.** Resuelto de paso el 2026-08-05 al
   implementar [[SPEC-003-install-happy-path]] FR-009: el `continue` de un step no
@@ -235,13 +241,13 @@ Una tanda nueva toma la próxima letra libre; una idea suelta entra como `X-N`.
   documente un paso en su línea reproduce el bug. Fix: descartar los ítems del
   bloque hasta la desindentación, no hasta la primera línea que no matchee.
 
-## P2/P3 — Producto y distribución
+## Producto y distribución (tanda E)
 
 - **E-5 · Ajustes de doc del README.** El claim de skills para "Cursor…" no
   tiene soporte real (hoy: `.agents/` + Claude + opencode); precisar. Aclarar
   qué tooling requieren los pasos de código del adaptador python.
 
-## Sin prioridad asignada — ideas sueltas
+## Ideas sueltas (tanda X)
 
 - **X-1 ·** Render de `SPEC-000` genera secciones vacías ("Tokens relajados" sin ítems)
   que ensucian el doc; omitir secciones vacías.
