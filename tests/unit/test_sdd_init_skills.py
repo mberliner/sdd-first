@@ -20,6 +20,18 @@ def _instalar(target, language: str = "none") -> None:
     assert sdd_init.main([str(target), f"--language={language}"]) == 0
 
 
+def test_install_project_skills_no_calcula_ruta_de_playbook(tmp_path):
+    # SPEC-016 FR-010: `src` (ruta al playbook) quedo muerta cuando el copiado
+    # de playbooks paso a STATIC_DOCS; no debe calcularse ni descartarse.
+    import inspect
+
+    fuente = inspect.getsource(sdd_init._install_project_skills)
+    assert "_ = src" not in fuente
+    assert "playbooks" not in fuente
+    out = sdd_init._install_project_skills(tmp_path, force=False)
+    assert any("SKILL.md" in linea for linea in out)
+
+
 def test_instala_los_adaptadores_de_las_dos_familias(tmp_path):
     # FR-002: sin estos archivos las skills no son descubribles.
     _instalar(tmp_path)

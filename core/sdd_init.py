@@ -539,7 +539,6 @@ def _seed_principles(config_text: str) -> str:
 def _install_project_skills(target: Path, force: bool) -> list[str]:
     out: list[str] = []
     for skill in PROJECT_SKILLS:
-        src = TEMPLATES / "docs" / "playbooks" / f"{skill}.md"
         # SKILL.md fuente: lo tomamos de .agents/skills del kit.
         skill_src = KIT_ROOT / ".agents" / "skills" / skill / "SKILL.md"
         if skill_src.exists():
@@ -548,7 +547,6 @@ def _install_project_skills(target: Path, force: bool) -> list[str]:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 write_text_lf(dst, skill_src.read_text(encoding="utf-8"))
                 out.append(f"  instalado {dst}")
-        _ = src  # el playbook ya se copió en STATIC_DOCS
     return out
 
 

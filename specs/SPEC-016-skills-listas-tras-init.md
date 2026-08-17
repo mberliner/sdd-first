@@ -82,6 +82,9 @@ nunca el generador a mano.
 - **Given** el `README.md` instalado en el derivado, **When** su dueño lo lee,
   **Then** encuentra el puntero a `docs/SDD-OPERACION.md` para saber qué skills
   tiene y cuándo usar cada una.
+- **Given** `core/sdd_init._install_project_skills`, **When** se instala una
+  skill, **Then** la función no calcula ni descarta una ruta de playbook: solo
+  copia `SKILL.md` desde `.agents/skills/<name>/`.
 
 ## Functional Requirements
 
@@ -115,6 +118,11 @@ nunca el generador a mano.
 - **FR-009** MUST: `templates/docs/SKILLS-MULTITOOL.md` documenta que los
   adaptadores los siembra `sdd-init` y que `gen_skill_adapters.py` se corre a mano
   sólo al agregar o editar una skill.
+- **FR-010** MUST: `core/sdd_init._install_project_skills` no calcula la ruta del
+  playbook fuente (`src`) — quedó muerta cuando el copiado de playbooks pasó a
+  `STATIC_DOCS` (ver Assumptions), y se silenciaba con `_ = src` en vez de
+  borrarse (docs/IDEAS.md C-6). La función solo lee `SKILL.md` desde
+  `.agents/skills/<name>/` (lo que ya hace), sin la variable ni el descarte.
 
 ## Key Entities
 
@@ -155,6 +163,7 @@ nunca el generador a mano.
 | FR-005, FR-006 | tests/unit/test_sdd_init_next_steps.py |
 | FR-007 | tests/unit/test_readme_bootstrap.py |
 | FR-008, FR-009 | tests/unit/test_derived_references.py |
+| FR-010 | tests/unit/test_sdd_init_skills.py |
 | SC-002 | tests/unit/test_sdd_init_skills.py |
 
 ## Fuera de alcance
@@ -183,3 +192,8 @@ nunca el generador a mano.
   `gen_skill_adapters.py --check` sale 0 sin haber corrido el generador a mano,
   `sdd-doctor` reporta sano y el pipeline del derivado sale VERDE. Kit: 251 tests
   y pipeline 10/10 VERDE.
+- 2026-08-17: **reabierta** (FR-010) por C-6 de `docs/IDEAS.md`.
+  `_install_project_skills` calculaba `src` (ruta al playbook) y la descartaba
+  con `_ = src` — quedó muerta cuando el copiado de playbooks pasó a
+  `STATIC_DOCS` (ver Assumptions) y nadie borró la línea. Eliminada. Pipeline
+  VERDE 11/11.
