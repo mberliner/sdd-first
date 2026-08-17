@@ -254,6 +254,13 @@ distingue los pasos que verificaron algo de los que se omitieron.
   `busqueda`, no `b-squeda`). La transliteración es la que ya usa
   `core/spec_index.py`, expuesta como helper reutilizable; no se escribe una
   segunda normalización.
+- **FR-015** MUST: `core/sdd_init.py::_vendor_kit` no vendoriza `__pycache__/`
+  ni `*.pyc` al copiar `core/` y `adapters/<lang>/` al destino (ambos
+  `copytree` reciben `ignore=shutil.ignore_patterns("__pycache__", "*.pyc")`).
+  Sin ese filtro, si el clon del kit tiene bytecode compilado en disco (algo
+  habitual tras correr los tests), `sdd-init` y `sdd-update` —que reusa la
+  misma función— lo copian tal cual al derivado: binarios atados a una versión
+  de CPython específica, no reproducibles, y ajenos al contenido real del kit.
 
 ## Key Entities
 
@@ -324,6 +331,7 @@ distingue los pasos que verificaron algo de los que se omitieron.
 | FR-012 | tests/unit/test_sdd_init_cli.py |
 | FR-013 | tests/unit/test_sdd_spec.py |
 | FR-014 | tests/unit/test_gen_import_linter.py |
+| FR-015 | verificación manual: `sdd-init` sobre un target con `core/__pycache__/` poblado en el kit → destino sin `__pycache__/*.pyc` bajo `tools/sdd/` |
 
 ## Fuera de alcance
 

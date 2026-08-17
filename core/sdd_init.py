@@ -148,17 +148,22 @@ def _copy_text(
 def _vendor_kit(target: Path, language: str, force: bool) -> list[str]:
     """Copia core/ y el adaptador del lenguaje bajo tools/sdd/."""
     out: list[str] = []
+    ignore_cache = shutil.ignore_patterns("__pycache__", "*.pyc")
     dst_core = target / "tools" / "sdd" / "core"
     if dst_core.exists() and not force:
         out.append(f"  (existe, se conserva) {dst_core}")
     else:
-        shutil.copytree(KIT_ROOT / "core", dst_core, dirs_exist_ok=True)
+        shutil.copytree(
+            KIT_ROOT / "core", dst_core, dirs_exist_ok=True, ignore=ignore_cache
+        )
         out.append(f"  vendorizado {dst_core}")
     if language != "none":
         src_adapter = KIT_ROOT / "adapters" / language
         if src_adapter.is_dir():
             dst_adapter = target / "tools" / "sdd" / "adapters" / language
-            shutil.copytree(src_adapter, dst_adapter, dirs_exist_ok=True)
+            shutil.copytree(
+                src_adapter, dst_adapter, dirs_exist_ok=True, ignore=ignore_cache
+            )
             out.append(f"  vendorizado {dst_adapter}")
     return out
 

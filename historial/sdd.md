@@ -1,5 +1,32 @@
 # Historial SDD — sdd-first
 
+## 2026-08-17 — SPEC-003 FR-015: `_vendor_kit` no copia `__pycache__`/`*.pyc`
+
+**Scope:** `core/sdd_init.py` (`_vendor_kit`), `specs/SPEC-003-install-happy-path.md`
+(FR-015, Coverage mapping).
+
+**Qué cambió:** `_vendor_kit` copiaba `core/` y `adapters/<lang>/` al derivado
+con `shutil.copytree(..., dirs_exist_ok=True)` sin filtro, así que si el clon
+del kit tenía bytecode compilado en disco (típico tras correr los tests),
+`sdd-init` y `sdd-update` —que reusa la misma función (`sdd_update.py:440`)—
+vendorizaban `__pycache__/*.pyc` tal cual dentro de `tools/sdd/`: binarios
+atados a una versión de CPython específica, no reproducibles, ajenos al
+contenido real del kit. Se agregó
+`ignore=shutil.ignore_patterns("__pycache__", "*.pyc")` a los dos `copytree`.
+
+**Cobertura:** verificación manual (instalación real con `core/__pycache__/`
+poblado → destino sin rastro de caché); sin test automatizado por decisión
+explícita del usuario al pedir el fix.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-003-install-happy-path (adoptada, FR-015 nuevo)
+- Includes/excludes verificados: core/sdd_init.py::_vendor_kit
+- Verificación: python core/pipeline.py → VERDE (11/11); sdd-init a target
+  temporal con __pycache__ presente en el kit → sin __pycache__/*.pyc en
+  tools/sdd/
+```
+
 ## 2026-08-17 — X-2: `check_naming` también verifica nombres de directorio
 
 **Scope:** `adapters/python/check_naming.py`, `tests/unit/test_check_naming.py`,
