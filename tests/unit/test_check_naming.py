@@ -52,6 +52,47 @@ def test_relax_solo_aplica_a_tokens_relajados(tmp_path):
     assert names == ["parse_gadget"]
 
 
+def test_detecta_token_en_nombre_de_directorio(tmp_path):
+    """SPEC-001 FR-005: el linter tambien mira nombres de directorio."""
+    d = tmp_path / "acme_adapter"
+    d.mkdir()
+    violations = cn._violations_in_dir(
+        d,
+        prohibited=("acme",),
+        allowed=frozenset(),
+        relax_tokens=frozenset(),
+        relax_format=False,
+    )
+    assert violations and violations[0][2] == "acme_adapter"
+    assert violations[0][3] == "acme"
+
+
+def test_directorio_respeta_allowed(tmp_path):
+    d = tmp_path / "acme_adapter"
+    d.mkdir()
+    violations = cn._violations_in_dir(
+        d,
+        prohibited=("acme",),
+        allowed=frozenset({"acme_adapter"}),
+        relax_tokens=frozenset(),
+        relax_format=False,
+    )
+    assert violations == []
+
+
+def test_directorio_relaja_tokens_declarados(tmp_path):
+    d = tmp_path / "acme_adapter"
+    d.mkdir()
+    violations = cn._violations_in_dir(
+        d,
+        prohibited=("acme",),
+        allowed=frozenset(),
+        relax_tokens=frozenset({"acme"}),
+        relax_format=True,
+    )
+    assert violations == []
+
+
 def test_archivo_con_sintaxis_invalida_no_rompe(tmp_path):
     violations = _check(tmp_path, "def acme(:\n")
     assert violations == []
@@ -149,6 +190,19 @@ def test_main_rojo_reporta_ubicacion_y_total(tmp_path, monkeypatch, capsys):
     assert "traer_acme" in err
     assert "'acme'" in err
     assert "Total: 1 violacion(es)" in err
+
+
+def test_main_rojo_por_nombre_de_directorio(tmp_path, monkeypatch, capsys):
+    repo = _repo(tmp_path)
+    (repo / "src" / "acme_adapter").mkdir()
+    (repo / "src" / "acme_adapter" / "m.py").write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.chdir(repo)
+
+    assert cn.main(["check_naming.py", "src"]) == 1
+
+    err = capsys.readouterr().err
+    assert "acme_adapter" in err
+    assert "'acme'" in err
 
 
 def test_main_relaja_los_tokens_declarados_dentro_de_tests(tmp_path, monkeypatch):

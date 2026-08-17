@@ -100,6 +100,27 @@ def _violations_in_file(
     return violations
 
 
+def _violations_in_dir(
+    path: Path,
+    *,
+    prohibited: tuple[str, ...],
+    allowed: frozenset[str],
+    relax_tokens: frozenset[str],
+    relax_format: bool,
+) -> list[tuple[Path, int, str, str]]:
+    name = path.name
+    if name in allowed:
+        return []
+
+    lowered = name.lower()
+    for token in prohibited:
+        if relax_format and token in relax_tokens:
+            continue
+        if token in lowered:
+            return [(path, 0, path.name, token)]
+    return []
+
+
 def _test_dirs(cfg, repo_root: Path) -> list[Path]:  # type: ignore[no-untyped-def]
     """Directorios de tests declarados en el config, resueltos a rutas absolutas."""
     return [
@@ -170,6 +191,17 @@ def main(argv: list[str]) -> int:
                     relax_format=relax,
                 )
             )
+        for path in root.rglob("*"):
+            if path.is_dir():
+                all_violations.extend(
+                    _violations_in_dir(
+                        path,
+                        prohibited=prohibited,
+                        allowed=allowed,
+                        relax_tokens=relax_tokens,
+                        relax_format=relax,
+                    )
+                )
 
     if not all_violations:
         return 0

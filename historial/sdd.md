@@ -1,5 +1,40 @@
 # Historial SDD — sdd-first
 
+## 2026-08-17 — X-2: `check_naming` también verifica nombres de directorio
+
+**Scope:** `adapters/python/check_naming.py`, `tests/unit/test_check_naming.py`,
+`specs/SPEC-001-agnostic-core.md` (FR-005 enmendado, sin FR nuevo),
+`specs/SPECS_REGISTRY.md` (iteración de SPEC-001), `docs/IDEAS.md`,
+`docs/IDEAS-CERRADAS.md`.
+
+**Qué cambió:** el linter de nomenclatura agnóstica solo caminaba
+identificadores AST (clase/función/variable/anotación) y el stem del archivo;
+un directorio como `flask_adapter/` pasaba verde pese a violar la misma regla
+que `SPEC-000-naming.md` declara para "módulo". Se agregó
+`_violations_in_dir` y se la conectó en `main()` junto al recorrido de
+archivos existente, reusando `prohibited`/`allowed`/`relax_in_tests` del
+config sin cambios en `core/`.
+
+**Triage de reuso:** `sdd_spec.py` marcó 6 specs vigentes con solape
+(SPEC-000, SPEC-001, SPEC-002, SPEC-003, SPEC-019, SPEC-021, todas tocando
+`check_naming.py` o su test por motivos distintos). Se adoptó **SPEC-001**
+porque su FR-005 ya describía textualmente el linter de naming del adaptador
+python — se amplió el texto del FR (no se creó uno nuevo), con precedente de
+enmienda análoga en 2026-08-05 (contrato de exit codes).
+
+**Alcance en derivados:** `adapters/<language>/` se vendoriza completo tanto
+en la instalación (`sdd_init.py:158-160`) como en la actualización
+(`sdd_update.py:435`), así que el chequeo llega a todo derivado sin tocar
+`core/`. No es retroactivo: aplica sobre los directorios que el derivado ya
+tenga o cree de ahí en más dentro de sus `dirs.source_roots`.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-001-agnostic-core (adoptada, FR-005 enmendado)
+- Includes/excludes verificados: adapters/python/check_naming.py + tests/unit
+- Verificación: python core/pipeline.py → VERDE (11/11)
+```
+
 ## 2026-08-17 — Correcciones de docs/IDEAS.md: X-1, X-4, C-1, E-5
 
 **Scope:** `core/render.py`, `specs/SPEC-005-desduplicar-ssot.md` (FR-014,

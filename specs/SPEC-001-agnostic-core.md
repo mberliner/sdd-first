@@ -64,7 +64,9 @@ y sale VERDE/ROJO según el resultado agregado.
 - **FR-005** MUST: los validadores de código se delegan al adaptador según el
   contrato `adapters/CONTRACT.md` (`adapter.py <step>`, exit 0 = OK / 3 =
   omitido / otro = falla); el
-  adaptador `python` implementa naming (AST + palabras excluidas del config), layers,
+  adaptador `python` implementa naming (AST + palabras excluidas del config,
+  aplicado también a los nombres de directorio dentro de los roots recorridos —
+  no solo a identificadores y al stem del archivo), layers,
   lint, format, types, security y tests.
 - **FR-006** MUST: `core/gen_skill_adapters.py` genera los adaptadores de
   skills de Claude y opencode desde el SSOT `.agents/skills/`, con `--check`
@@ -127,3 +129,8 @@ y sale VERDE/ROJO según el resultado agregado.
 - 2026-08-10: FR-001 enlazado a [[SPEC-021-config-vacio-no-rompe]]. No cambia el
   requisito: le da destino explícito al caso límite de la clave vacía, que
   quedaba descrito en dos specs sin referencia entre sí (Principio de SSOT único).
+- 2026-08-17: FR-005 enmendado — el linter de naming también verifica nombres
+  de directorio, no solo identificadores AST y stem de archivo (docs/IDEAS.md
+  X-2). Un paquete nombrado con una palabra excluida (p. ej. `flask_adapter/`)
+  pasaba verde porque `check_naming.py` nunca caminaba los directorios de los
+  roots recorridos.

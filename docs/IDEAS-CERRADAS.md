@@ -66,6 +66,7 @@
 | K-5 | El paso `coverage` se siembra sin umbrales, o sea inerte | [[SPEC-009-coverage-y-ci]] |
 | K-6 | No está dicho en ninguna parte que el kit es desechable | `README.md` |
 | X-1 | Render de `SPEC-000` genera secciones vacías | [[SPEC-005-desduplicar-ssot]] |
+| X-2 | `check_naming` no mira nombres de paquetes/directorios | [[SPEC-001-agnostic-core]] |
 | X-4 | Workspace e2e inutilizable tras corrida interrumpida | — (ya resuelto en el código antes del registro) |
 | X-8 | Omitido no es VERDE | [[SPEC-020-enforcement-declarado-en-config]] |
 
@@ -846,6 +847,19 @@ evidencia que les faltaba:
   omite el header + párrafo + bullets completos de una sección cuando su
   lista está vacía, en las dos secciones que podían quedar así (no solo la
   que citaba el ítem original).
+- **X-2 · `check_naming` no miraba nombres de paquetes/directorios**, solo
+  identificadores AST (clase/función/variable/anotación) y el stem del
+  archivo — un directorio `flask_adapter/` pasaba verde.
+  **(cerrado el 2026-08-17)** → [[SPEC-001-agnostic-core]] FR-005 enmendado
+  (no capacidad nueva: el FR ya declaraba el linter de naming del adaptador
+  python, se amplió el texto y el código a que también camine directorios).
+  Se propaga a proyectos derivados en dos vías, no solo `sdd-update`:
+  `adapters/<language>/` se vendoriza completo tanto en `sdd_init.py:158-160`
+  (instalación nueva) como en `sdd_update.py:435` (actualización); en ninguna
+  de las dos se tocan los directorios propios del derivado, así que el
+  chequeo nuevo empieza a aplicar sobre lo que el derivado ya tenga o cree de
+  ahí en más dentro de sus `dirs.source_roots`, no retroactivamente por sí
+  solo.
 - **X-4 · Una corrida e2e interrumpida deja el workspace inutilizable.** La
   marca `.sdd-e2e-workspace` se escribía al final de la generación, así que un
   Ctrl-C (o timeout) dejaba la carpeta con contenido y sin marca, y la guarda

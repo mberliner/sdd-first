@@ -72,7 +72,6 @@ arriba).
 | T-1 | P1 | No existe métrica de abarcabilidad de una spec | abierta |
 | G-6 | P1 | `check_traceability` no exige keyword en los FR | abierta |
 | G-7 | P1 | `sdd_spec.py` sobrescribe `.sdd/current-spec` completo | parcial |
-| X-2 | — | `check_naming` no mira nombres de paquetes/directorios | abierta |
 | X-3 | — | Adaptadores `node`/`go` | abierta |
 | X-5 | — | `enforcement`/`detail` de un principio admiten un solo token | abierta |
 | X-6 | — | El Coverage mapping mapea archivos, no casos | abierta |
@@ -226,8 +225,6 @@ arriba).
 
 ## Ideas sueltas (tanda X)
 
-- **X-2 ·** `check_naming` también podría chequear nombres de paquetes/directorios, no
-  solo identificadores y stems de archivo.
 - **X-3 ·** Adaptadores `node`/`go` (deuda ya registrada en historial y SPEC-001).
 - **X-5 ·** `enforcement`/`detail` de un principio admiten un solo token: `render.py` los
   envuelve en un único code span y `check_constitution._is_path` valida
