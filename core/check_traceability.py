@@ -33,9 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sdd_config import forzar_salida_utf8  # noqa: E402
 
-VALID_ESTADOS: frozenset[str] = frozenset(
-    {"draft", "active", "superseded", "archived", "notas"}
-)
+VALID_ESTADOS: frozenset[str] = frozenset({"draft", "active", "superseded", "archived"})
 
 # Una spec real es SPEC-<numero>-...; SPEC-TEMPLATE.md y otros no numerados se ignoran.
 _SPEC_FILE = re.compile(r"^SPEC-\d+.*\.md$")

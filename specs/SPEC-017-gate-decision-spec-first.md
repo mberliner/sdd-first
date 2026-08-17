@@ -143,6 +143,9 @@ solo tiene los placeholders de la plantilla bloquea.
   la tabla), **When** se edita código, **Then** bloquea.
 - **Given** una fila en estado `archived` o `superseded`, **When** se edita
   código, **Then** bloquea nombrando el estado; con `draft` o `active`, permite.
+- **Given** `core/check_traceability.VALID_ESTADOS`, **When** se lo compara con
+  la lista de estados de `SPECS_REGISTRY.md` (Convenciones), **Then** son el
+  mismo conjunto y ninguno incluye `notas`.
 
 ### US3 — evidencia por contenido
 
@@ -188,6 +191,14 @@ solo tiene los placeholders de la plantilla bloquea.
   otro bloquea nombrando el estado encontrado.
 - **FR-US2-003** MUST: la validez se exige a **todas** las specs declaradas; el
   motivo enumera cada una con su causa.
+- **FR-US2-004** MUST: `core/check_traceability.VALID_ESTADOS` es el origen
+  único de qué estados existen (`draft`, `active`, `superseded`, `archived`);
+  la tabla "Convenciones" de `SPECS_REGISTRY.md` los documenta en prosa citando
+  esa constante como fuente, sin mantener una enumeración independiente que
+  pueda divergir. Se retira `notas`: no aparece en ninguna fila del registro,
+  no tiene semántica documentada en ningún lado y `sdd_gate.decide` (FR-US2-002)
+  nunca lo trató como distinto de cualquier otro estado no habilitante
+  (docs/IDEAS.md C-6).
 
 ### US3
 
@@ -255,6 +266,7 @@ solo tiene los placeholders de la plantilla bloquea.
 | FR-US2-001 | tests/unit/test_sdd_gate.py |
 | FR-US2-002 | tests/unit/test_sdd_gate.py |
 | FR-US2-003 | tests/unit/test_gate_evidencia_contenido.py |
+| FR-US2-004 | tests/unit/test_check_traceability.py |
 | FR-US3-001 | tests/unit/test_gate_evidencia_contenido.py |
 | FR-US3-002 | tests/unit/test_gate_evidencia_contenido.py |
 | FR-US3-003 | tests/unit/test_gate_evidencia_contenido.py |
@@ -281,3 +293,12 @@ solo tiene los placeholders de la plantilla bloquea.
 - 2026-08-07 (iteración 4): FR-US3-007. La suite e2e mostró que el aviso del
   escape hatch no sobrevivía al transporte de `pre-commit` (V-2); el requisito
   extiende la garantía de FR-US3-004 hasta el operador.
+- 2026-08-17 (iteración 5): FR-US2-004, por C-6 de `docs/IDEAS.md`.
+  `check_traceability.VALID_ESTADOS` declaraba `notas` sin que ninguna fila del
+  registro lo usara ni ningún doc explicara su semántica, y `SPECS_REGISTRY.md`
+  mantenía su propia enumeración de estados en prosa que podía divergir de la
+  constante. `VALID_ESTADOS` pasa a ser el origen único (el registro lo cita
+  como fuente) y se retira `notas`. Se corrigió de paso una mención stale del
+  mismo estado en SPEC-023 FR-US2-007 (prosa, sin cambio de comportamiento:
+  ese chequeo compara `!= "active"`, no una lista literal). Pipeline VERDE
+  11/11.

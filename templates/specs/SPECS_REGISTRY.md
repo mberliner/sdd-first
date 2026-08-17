@@ -6,7 +6,8 @@
 ## Convenciones
 
 - **ID:** `SPEC-NNN-slug` (número correlativo + slug agnóstico).
-- **Estados:** `draft` · `active` · `superseded` · `archived` · `notas`.
+- **Estados:** `draft` · `active` · `superseded` · `archived` (origen único:
+  `{{sdd.core}}/check_traceability.py::VALID_ESTADOS`).
 - **Formato:** `hibrido` (secciones de `docs/SPEC-FORMAT.md`) o `casero`.
   Solo las specs `hibrido` en estado `active` exigen Coverage mapping FR→test.
 - Enlaces entre specs con `[[SPEC-NNN-slug]]`.

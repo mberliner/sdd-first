@@ -220,7 +220,7 @@ falla `check_traceability.py` con código 1.
   ausente.
 - **FR-US2-007** MUST: en una spec `active`, `check_traceability.py` rechaza
   `Depende de:` o `Extiende:` apuntando a specs en estado no vigente (`draft`,
-  `superseded`, `archived`, `notas`): ambos expresan apoyo en algo que tiene que
+  `superseded`, `archived`): ambos expresan apoyo en algo que tiene que
   seguir en pie. `Supersede:` queda **fuera de la restricción** —apuntar a una
   spec `superseded` es el desenlace normal de reemplazarla—, igual que los tres
   campos inversos (`Extendida por:`, `Es dependencia de:`, `Superseded por:`),

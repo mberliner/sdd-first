@@ -1,5 +1,7 @@
 """Tests del verificador de trazabilidad (SPEC-002 FR-003/FR-006)."""
 
+from pathlib import Path
+
 import check_traceability as ct
 
 HYBRID_OK = """# SPEC-001: Demo
@@ -78,6 +80,23 @@ def test_consistencia_detecta_estado_invalido(tmp_path):
     errors: list[str] = []
     ct._check_consistency(rows, specs, errors)
     assert any("estado invalido" in e for e in errors)
+
+
+def test_valid_estados_no_incluye_notas():
+    # SPEC-017 FR-US2-004: `notas` no tiene semantica documentada ni fila que lo
+    # use; VALID_ESTADOS es el origen unico y no lo declara.
+    assert "notas" not in ct.VALID_ESTADOS
+    assert ct.VALID_ESTADOS == frozenset({"draft", "active", "superseded", "archived"})
+
+
+def test_registry_estados_documentados_coinciden_con_valid_estados():
+    # SPEC-017 FR-US2-004: SPECS_REGISTRY.md cita VALID_ESTADOS como origen,
+    # no mantiene una enumeracion propia que pueda divergir.
+    repo_root = Path(__file__).resolve().parents[2]
+    texto = (repo_root / "specs" / "SPECS_REGISTRY.md").read_text(encoding="utf-8")
+    for estado in ct.VALID_ESTADOS:
+        assert f"`{estado}`" in texto
+    assert "`notas`" not in texto
 
 
 def test_parse_registry_extrae_filas(tmp_path):
