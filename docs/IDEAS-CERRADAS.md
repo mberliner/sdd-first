@@ -47,6 +47,7 @@
 | E-2 | Ruta de actualización del kit vendorizado | [[SPEC-025-actualizar-kit-en-derivados]] |
 | E-3 | Packaging mínimo (LICENSE, `pyproject.toml`, CI) | [[SPEC-009-coverage-y-ci]] + repo |
 | E-4 | Enforcement de principios custom | [[SPEC-020-enforcement-declarado-en-config]] |
+| E-5 | Ajustes de doc del README (asistentes soportados) | `README.md` |
 | E-6 | `templates/AGENTS.md` referencia rutas inexistentes | [[SPEC-010-gobernanza-y-docs]] |
 | E-7 | El derivado no recibe README humano ni manual de skills | [[SPEC-007-derived-project-onboarding]] |
 | F-1 | Umbrales de cobertura como paso del pipeline | [[SPEC-009-coverage-y-ci]] |
@@ -535,6 +536,17 @@ encontró.
   se vio que no obtendría verificación, y un enforcement decorativo en la
   constitución del propio kit era inaceptable. Se aprovechó el viaje para pagar la
   primera cuota de K-3: `check_constitution.py` de 0% a 99%.
+- **E-5 · Ajustes de doc del README.** El claim de skills para "Cursor…" no
+  tenía soporte real (el soporte real: `.agents/` + Claude Code + opencode +
+  Codex/Antigravity); precisar. Aclarar qué tooling requieren los pasos de
+  código del adaptador python.
+  **(cerrado el 2026-08-17)** — corrección de doc, sin spec: la lista de
+  asistentes soportados (README, encabezado) cambió `Cursor` por
+  `Antigravity`, que sí está descripto más abajo en el mismo README como
+  consumidor de `.agents/skills/`. La segunda mitad del ítem (tooling del
+  adaptador python) ya estaba resuelta — el README documenta
+  ruff/mypy/bandit/pytest/import-linter como opcionales — sin que quedara
+  registrado el cierre; no requirió cambio de texto.
 - **E-6 · `templates/AGENTS.md` referencia rutas inexistentes en el destino**
   ("`python core/pipeline.py` (o el wrapper `tools/pipeline`)"): en un
   proyecto instalado es `tools/sdd/core/pipeline.py` y el wrapper no existe.

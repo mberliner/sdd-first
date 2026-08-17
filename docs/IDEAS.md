@@ -72,7 +72,6 @@ arriba).
 | T-1 | P1 | No existe métrica de abarcabilidad de una spec | abierta |
 | G-6 | P1 | `check_traceability` no exige keyword en los FR | abierta |
 | G-7 | P1 | `sdd_spec.py` sobrescribe `.sdd/current-spec` completo | parcial |
-| E-5 | P2/P3 | Ajustes de doc del README | abierta |
 | X-1 | — | `SPEC-000` renderiza secciones vacías | abierta |
 | X-2 | — | `check_naming` no mira nombres de paquetes/directorios | abierta |
 | X-3 | — | Adaptadores `node`/`go` | abierta |
@@ -225,12 +224,6 @@ arriba).
   pendiente la semántica multi-spec en sí: crear una segunda spec todavía
   des-declara la primera sin aviso — falta definir append vs replace (con
   flag).
-
-## Producto y distribución (tanda E)
-
-- **E-5 · Ajustes de doc del README.** El claim de skills para "Cursor…" no
-  tiene soporte real (hoy: `.agents/` + Claude + opencode); precisar. Aclarar
-  qué tooling requieren los pasos de código del adaptador python.
 
 ## Ideas sueltas (tanda X)
 

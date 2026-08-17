@@ -4,7 +4,7 @@
 el código.** sdd-first lleva el desarrollo guiado por especificaciones (SDD) a
 cualquier proyecto: define principios, obliga a escribir la spec antes de codear,
 verifica la trazabilidad entre spec y código, y trae skills para asistentes de IA
-(Claude Code, Codex, opencode, Cursor…) — todo configurable desde un único
+(Claude Code, opencode, Codex, Antigravity…) — todo configurable desde un único
 archivo.
 
 ## ¿Para quién es?
