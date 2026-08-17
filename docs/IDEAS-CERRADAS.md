@@ -30,6 +30,7 @@
 | G-9 | El reset post-commit deja el working tree sucio | [[SPEC-004-enforcement-hardening]] |
 | R-1..R-3 | Duplicación de SSOT: docs/templates, template de spec, defaults | [[SPEC-005-desduplicar-ssot]] |
 | R-4 | El wiring del kit es una copia manual de `templates/wiring/` | [[SPEC-005-desduplicar-ssot]] |
+| C-1 | Paso desconocido cuenta como OK (+ doc del gate) | [[SPEC-003-install-happy-path]] + `examples/config/config.yaml` |
 | C-2 | Mojibake en Windows | [[SPEC-012-suite-multiplataforma]] |
 | C-3 | `sdd_init --language` frágil | [[SPEC-003-install-happy-path]] |
 | C-4 | `_slugify` no translitera acentos | [[SPEC-003-install-happy-path]] |
@@ -360,6 +361,19 @@ encontró.
 
 ## P2 — Bugs y asperezas menores de código
 
+- **C-1 · Paso desconocido cuenta como OK.** Resuelto de paso el 2026-08-05 al
+  implementar [[SPEC-003-install-happy-path]] FR-009: el `continue` de un step
+  no reconocido ahora decrementa `total`, igual que una omisión. Quedaba
+  pendiente solo la parte de doc: `gate` no es paso de pipeline (decisión ya
+  tomada en `historial/sdd.md`) y `examples/config/config.yaml` lo insinuaba.
+  **(cerrado el 2026-08-17)** — corrección de doc, sin spec (no cambia
+  comportamiento del kit): el comentario de `pipeline:` en
+  `examples/config/config.yaml` sacó `gate` de la enumeración de "pasos de
+  proceso" (quedó `constitution/traceability/skills`) y sumó una línea
+  aclarando que el gate se cablea vía hooks, alineada con la línea vecina que
+  ya lo decía. La búsqueda no encontró la mención en `adapter.py`/
+  `CONTRACT.md` que el ítem original sospechaba — pudo haberse corregido antes
+  sin dejar rastro en este archivo, o la referencia original era imprecisa.
 - **C-2 · Mojibake en Windows.** `pipeline.py`, `sdd_doctor.py` y
   `sdd_init.py` imprimen `VERDE �` porque no hacen el
   `reconfigure(encoding="utf-8")` que sí hacen los `check_*`. Extraer un

@@ -142,9 +142,10 @@ layers:
   ui: [domain, application, adapters]
 
 pipeline:
-  # Pasos del pipeline local. Los de proceso (constitution/traceability/gate/
+  # Pasos del pipeline local. Los de proceso (constitution/traceability/
   # skills) son agnosticos; naming/layers/lint/types/security/tests/coverage los
-  # provee el adaptador del lenguaje activo.
+  # provee el adaptador del lenguaje activo. El gate NO es un paso de pipeline
+  # (se cablea via hooks; su presencia la verifica sdd-doctor).
   #
   # `constitution` va DESPUES de los pasos que enforzan principios (los `step:`
   # declarados arriba) y despues de `render`, su precondicion: ademas de

@@ -72,7 +72,6 @@ arriba).
 | T-1 | P1 | No existe métrica de abarcabilidad de una spec | abierta |
 | G-6 | P1 | `check_traceability` no exige keyword en los FR | abierta |
 | G-7 | P1 | `sdd_spec.py` sobrescribe `.sdd/current-spec` completo | parcial |
-| C-1 | P2 | `gate` insinuado como paso de pipeline en doc y config | parcial |
 | E-5 | P2/P3 | Ajustes de doc del README | abierta |
 | X-1 | — | `SPEC-000` renderiza secciones vacías | abierta |
 | X-2 | — | `check_naming` no mira nombres de paquetes/directorios | abierta |
@@ -226,14 +225,6 @@ arriba).
   pendiente la semántica multi-spec en sí: crear una segunda spec todavía
   des-declara la primera sin aviso — falta definir append vs replace (con
   flag).
-
-## Bugs y asperezas menores de código (tanda C)
-
-- **C-1 · Paso desconocido cuenta como OK.** Resuelto de paso el 2026-08-05 al
-  implementar [[SPEC-003-install-happy-path]] FR-009: el `continue` de un step no
-  reconocido ahora decrementa `total`, igual que una omisión. Queda pendiente
-  solo la parte de doc: `gate` no es paso de pipeline (decisión ya tomada en el
-  historial) y el config de ejemplo y la doc de `adapter.py` lo insinúan.
 
 ## Producto y distribución (tanda E)
 
