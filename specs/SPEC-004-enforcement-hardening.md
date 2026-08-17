@@ -182,6 +182,10 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   `.sdd/current-spec` (por ejemplo, editado a mano después de instalar),
   **When** corre `core/sdd_doctor.py`, **Then** lo reporta como problema,
   igual que reporta un gate no cableado por contenido.
+- **Given** un ejemplo de config con un comentario intercalado entre pasos
+  dentro del bloque `steps:` original, **When** `sdd_init._seed_pipeline_steps`
+  lo procesa, **Then** el resultado trae el set sembrado una sola vez — ningún
+  paso del bloque original (ni antes ni después del comentario) sobrevive.
 
 ## Functional Requirements
 
@@ -248,6 +252,13 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   problema si no — mismo patrón que `_gate_wiring_problems` (FR-US1-002 de
   SPEC-014), que ya audita otros archivos de wiring por contenido y no solo
   por presencia.
+- **FR-010** MUST: `core/sdd_init._seed_pipeline_steps` descarta el bloque
+  `steps:` original comparando la indentación de cada línea contra la de
+  `steps:`, no cortando en la primera línea que no matchea `"- "`. Un
+  comentario intercalado entre los pasos del ejemplo (mismo o mayor nivel de
+  indentación que los ítems) tiene que descartarse igual que un ítem; hoy corta
+  el descarte a mitad de camino y los pasos que siguen al comentario se
+  duplican en el config sembrado (docs/IDEAS.md C-9).
 
 ## Key Entities
 
@@ -287,6 +298,10 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   propio deja ese `.gitignore` con `.sdd/current-spec` incluido, sin perder
   ninguna línea original; `sdd-doctor` sobre un proyecto instalado detecta y
   reporta si esa línea falta.
+- **SC-007** `_seed_pipeline_steps` produce el set sembrado una sola vez
+  incluso cuando el bloque `steps:` original del ejemplo trae un comentario
+  intercalado entre pasos: ningún paso del bloque descartado sobrevive en el
+  resultado.
 
 ## Assumptions
 
@@ -307,6 +322,7 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
 | FR-007, SC-004 | tests/unit/test_sdd_spec.py |
 | FR-008, SC-005 | tests/unit/test_current_spec_no_versionado.py, tests/e2e/escenarios/test_ciclo_spec_first.py |
 | FR-009, SC-006 | tests/unit/test_current_spec_no_versionado.py, tests/e2e/escenarios/test_instalacion_brownfield_gitignore.py |
+| FR-010, SC-007 | tests/unit/test_sdd_init_seeded_steps.py |
 
 ## Fuera de alcance
 
@@ -356,3 +372,10 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   con `pipeline.py` → VERDE 11/11, `check_traceability.py` OK, una instalación
   simulada en `/tmp` sobre un `.gitignore` propio y el escenario e2e
   `test_instalacion_brownfield_gitignore.py`.
+- 2026-08-17: **reabierta** (FR-010/SC-007) por C-9 de `docs/IDEAS.md`.
+  `_seed_pipeline_steps` cortaba el descarte del bloque `steps:` original en la
+  primera línea que no empezaba con `"- "`, así que un comentario intercalado
+  entre pasos dejaba sobrevivir (y duplicarse) los pasos que venían después del
+  comentario. Fix: descarta comparando indentación contra la de `steps:`, no
+  por forma de línea. Test nuevo reproduce el caso (rojo confirmado antes del
+  fix). Pipeline VERDE 11/11.

@@ -98,6 +98,28 @@ def test_constitution_se_siembra_despues_de_los_pasos_que_enforzan_principios():
     assert pasos.index("constitution") > pasos.index("coverage")
 
 
+def test_seed_pipeline_steps_descarta_comentario_intercalado():
+    """SPEC-004 FR-010: un comentario entre pasos del bloque original no corta
+    el descarte a mitad de camino. `_seed_pipeline_steps` debe seguir
+    descartando hasta la desindentacion real, no hasta la primera linea que no
+    matchea '- '."""
+    config_text = (
+        "pipeline:\n"
+        "  steps:\n"
+        "    - constitution\n"
+        "    # comentario intercalado\n"
+        "    - tests\n"
+        "    - coverage\n"
+    )
+    result = sdd_init._seed_pipeline_steps(config_text)
+    pasos = [
+        ln.strip()[2:] for ln in result.splitlines() if ln.strip().startswith("- ")
+    ]
+    assert pasos.count("tests") == 1
+    assert pasos.count("coverage") == 1
+    assert pasos.count("constitution") == 1
+
+
 def test_e2e_se_siembra_despues_de_constitution():
     """`e2e` es el mas caro y va ultimo (SPEC-018 FR-US3-003), asi que la
     posicion de `constitution` no lo desplaza."""

@@ -325,15 +325,20 @@ def _seed_pipeline_steps(config_text: str, layout: Layout | None = None) -> str:
     lines = config_text.splitlines()
     out: list[str] = []
     in_steps = False
+    steps_indent = 0
     replaced = False
     for line in lines:
         stripped = line.strip()
         if in_steps:
-            if stripped.startswith("- "):
-                continue  # descarta los pasos del ejemplo
+            if not stripped:
+                continue  # linea en blanco del bloque original: se descarta
+            linea_indent = len(line) - len(line.lstrip())
+            if linea_indent > steps_indent:
+                continue  # descarta items y comentarios del bloque original
             in_steps = False
         if stripped == "steps:" and not replaced:
             out.append(line)
+            steps_indent = len(line) - len(line.lstrip())
             indent = line[: len(line) - len(line.lstrip())] + "  "
             out.extend(f"{indent}- {s}" for s in pasos)
             out.append(f"{indent}# Habilitá según el tooling del proyecto:")
