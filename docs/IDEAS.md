@@ -73,8 +73,6 @@ arriba).
 | G-6 | P1 | `check_traceability` no exige keyword en los FR | abierta |
 | G-7 | P1 | `sdd_spec.py` sobrescribe `.sdd/current-spec` completo | parcial |
 | C-1 | P2 | `gate` insinuado como paso de pipeline en doc y config | parcial |
-| C-6 | P2 | Vestigios (parámetro sin usar, `_ = src`, estado `notas`) | abierta |
-| C-9 | P2 | Un comentario entre los `steps:` duplica el resto de la lista | abierta |
 | E-5 | P2/P3 | Ajustes de doc del README | abierta |
 | X-1 | — | `SPEC-000` renderiza secciones vacías | abierta |
 | X-2 | — | `check_naming` no mira nombres de paquetes/directorios | abierta |
@@ -237,21 +235,6 @@ arriba).
   reconocido ahora decrementa `total`, igual que una omisión. Queda pendiente
   solo la parte de doc: `gate` no es paso de pipeline (decisión ya tomada en el
   historial) y el config de ejemplo y la doc de `adapter.py` lo insinúan.
-- **C-6 · Vestigios.** `_module_of(repo_root, …)` con parámetro sin usar
-  (`gen_import_linter.py`); `_ = src` en `sdd_init._install_project_skills`;
-  estado `notas` en `VALID_ESTADOS` sin convención documentada (¿vestigio del
-  proyecto de referencia? decidir: documentar o eliminar).
-- **C-9 · Un comentario entre los pasos de `steps:` duplica el resto de la
-  lista.** `sdd_init._seed_pipeline_steps` reemplaza el bloque y **corta en la
-  primera línea que no es un ítem**: los pasos que vengan después de un comentario
-  intercalado no se descartan, así que el instalador los vuelve a escribir y el
-  derivado nace con pasos repetidos. Encontrado al cerrar "Omitido no es VERDE",
-  documentando `- constitution` en `examples/config/config.yaml`: el derivado
-  quedaba con `constitution` dos veces y `e2e` sin ser el último. Se esquivó
-  moviendo el comentario arriba del bloque (y dejando escrito ahí que los
-  comentarios van arriba), pero el parser sigue frágil: la próxima persona que
-  documente un paso en su línea reproduce el bug. Fix: descartar los ítems del
-  bloque hasta la desindentación, no hasta la primera línea que no matchee.
 
 ## Producto y distribución (tanda E)
 

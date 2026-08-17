@@ -6,7 +6,8 @@
 ## Convenciones
 
 - **ID:** `SPEC-NNN-slug`.
-- **Estados:** `draft` · `active` · `superseded` · `archived` · `notas`.
+- **Estados:** `draft` · `active` · `superseded` · `archived` (origen único:
+  `core/check_traceability.VALID_ESTADOS` — SPEC-017 FR-US2-004).
 - **Formato:** `hibrido` o `casero`. Solo `hibrido` + `active` exige Coverage mapping.
 
 ## Specs vigentes
@@ -16,8 +17,8 @@
 | SPEC-000 | Nomenclatura agnóstica | active | 1 | casero | [SPEC-000-naming.md](SPEC-000-naming.md) |
 | SPEC-001 | Núcleo agnóstico + adaptadores | active | 1 | hibrido | [SPEC-001-agnostic-core.md](SPEC-001-agnostic-core.md) |
 | SPEC-002 | Dogfooding íntegro del kit | active | 1 | hibrido | [SPEC-002-dogfooding-integro.md](SPEC-002-dogfooding-integro.md) |
-| SPEC-003 | Happy path de instalación | active | 4 | hibrido | [SPEC-003-install-happy-path.md](SPEC-003-install-happy-path.md) |
-| SPEC-004 | Enforcement hardening (bootstrap hooks, reset post-commit, pre-commit robusto) | active | 11 | hibrido | [SPEC-004-enforcement-hardening.md](SPEC-004-enforcement-hardening.md) |
+| SPEC-003 | Happy path de instalación | active | 5 | hibrido | [SPEC-003-install-happy-path.md](SPEC-003-install-happy-path.md) |
+| SPEC-004 | Enforcement hardening (bootstrap hooks, reset post-commit, pre-commit robusto) | active | 12 | hibrido | [SPEC-004-enforcement-hardening.md](SPEC-004-enforcement-hardening.md) |
 | SPEC-005 | Desduplicar SSOTs del kit (docs/templates, defaults, wiring) | active | 4 | hibrido | [SPEC-005-desduplicar-ssot.md](SPEC-005-desduplicar-ssot.md) |
 | SPEC-006 | El gate verifica el estado (draft/active) de la spec declarada | superseded | 1 | hibrido | [SPEC-006-gate-verifica-estado-spec.md](SPEC-006-gate-verifica-estado-spec.md) |
 | SPEC-007 | README propio y manual de operación SDD en el proyecto derivado | active | 1 | hibrido | [SPEC-007-derived-project-onboarding.md](SPEC-007-derived-project-onboarding.md) |
@@ -29,8 +30,8 @@
 | SPEC-013 | Proyecto derivado coherente: principios elegidos y referencias disponibles | active | 6 | hibrido | [SPEC-013-proyecto-derivado-coherente.md](SPEC-013-proyecto-derivado-coherente.md) |
 | SPEC-014 | El proyecto derivado dice la verdad sobre sí mismo (wiring, rutas, rama) | active | 6 | hibrido | [SPEC-014-derivado-dice-la-verdad.md](SPEC-014-derivado-dice-la-verdad.md) |
 | SPEC-015 | El wiring del gate apunta al código real, en toda superficie que el kit soporta | active | 7 | hibrido | [SPEC-015-wiring-apunta-al-codigo-real.md](SPEC-015-wiring-apunta-al-codigo-real.md) |
-| SPEC-016 | Las skills quedan usables apenas termina sdd-init | active | 3 | hibrido | [SPEC-016-skills-listas-tras-init.md](SPEC-016-skills-listas-tras-init.md) |
-| SPEC-017 | Gate spec-first: qué decide bloquear una edición de código | active | 3 | hibrido | [SPEC-017-gate-decision-spec-first.md](SPEC-017-gate-decision-spec-first.md) |
+| SPEC-016 | Las skills quedan usables apenas termina sdd-init | active | 4 | hibrido | [SPEC-016-skills-listas-tras-init.md](SPEC-016-skills-listas-tras-init.md) |
+| SPEC-017 | Gate spec-first: qué decide bloquear una edición de código | active | 4 | hibrido | [SPEC-017-gate-decision-spec-first.md](SPEC-017-gate-decision-spec-first.md) |
 | SPEC-018 | Verificación de punta a punta del kit instalado | active | 5 | hibrido | [SPEC-018-verificacion-e2e.md](SPEC-018-verificacion-e2e.md) |
 | SPEC-019 | Los tests declarados se ejecutan o el proyecto se entera | active | 5 | hibrido | [SPEC-019-tests-integracion-ejecutados.md](SPEC-019-tests-integracion-ejecutados.md) |
 | SPEC-020 | El enforcement de un principio se declara en el config y se verifica que haya corrido | active | 11 | hibrido | [SPEC-020-enforcement-declarado-en-config.md](SPEC-020-enforcement-declarado-en-config.md) |

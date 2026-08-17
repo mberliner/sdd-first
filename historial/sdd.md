@@ -1,5 +1,66 @@
 # Historial SDD — sdd-first
 
+## 2026-08-17 — C-9/C-6 de docs/IDEAS.md: bug de parser y tres vestigios de código
+
+**Scope:** `specs/SPEC-004-enforcement-hardening.md` (FR-010, SC-007),
+`specs/SPEC-003-install-happy-path.md` (FR-014), `specs/SPEC-016-skills-listas-tras-init.md`
+(FR-010), `specs/SPEC-017-gate-decision-spec-first.md` (FR-US2-004),
+`specs/SPEC-023-relacion-entre-specs.md` (prosa), `core/sdd_init.py`,
+`adapters/python/gen_import_linter.py`, `core/check_traceability.py`,
+`specs/SPECS_REGISTRY.md`, `templates/specs/SPECS_REGISTRY.md`.
+
+**Qué cambió:** cuatro fixes independientes, cada uno reusando la spec que ya
+gobernaba el archivo tocado (sin spec "de higiene" genérica):
+- **C-9 → SPEC-004 FR-010:** `sdd_init._seed_pipeline_steps` cortaba el
+  descarte del bloque `steps:` original en la primera línea que no empezaba
+  con `"- "`; un comentario intercalado entre pasos dejaba sobrevivir (y
+  duplicarse) los pasos siguientes. Fix: descarta por indentación, no por
+  forma de línea.
+- **C-6a → SPEC-003 FR-014:** `gen_import_linter._module_of` recibía
+  `repo_root` sin usarlo desde el commit inicial. Eliminado.
+- **C-6b → SPEC-016 FR-010:** `sdd_init._install_project_skills` calculaba
+  `src` (ruta a un playbook) y la descartaba con `_ = src` — dead code desde
+  que el copiado de playbooks pasó a `STATIC_DOCS`. Eliminado.
+- **C-6c → SPEC-017 FR-US2-004:** `check_traceability.VALID_ESTADOS` incluía
+  `notas`, un estado sin fila que lo usara ni semántica documentada, mientras
+  `SPECS_REGISTRY.md` mantenía su propia enumeración de estados en prosa. Se
+  fija `VALID_ESTADOS` como origen único (el registro lo cita como fuente) y
+  se retira `notas`; de paso se corrigió una mención stale del mismo estado en
+  SPEC-023 FR-US2-007 (prosa, sin cambio de comportamiento).
+
+**Decisiones de diseño:**
+- **Ningún fix creó spec nueva.** El triage de `sdd_spec.py` sobre archivos
+  compartidos (`sdd_init.py`, `check_traceability.py`) devuelve ruido —14+
+  candidatas por coincidencia de archivo, no de capacidad—, así que la regla
+  aplicada fue "por funcionalidad": cada vestigio se rastreó hasta la spec que
+  ya declara la función que lo contiene (SPEC-004 ya tenía FR-005 sobre
+  `_SEEDED_STEPS`; SPEC-003 ya tenía FR-010 sobre este mismo archivo de
+  `gen_import_linter`; SPEC-016 ya gobierna `_install_project_skills`;
+  SPEC-017 ya declara la semántica de estados en FR-US2-002).
+- **Se evaluó y se descartó agregar la regla `ARG` (flake8-unused-arguments)
+  de ruff al `select` global** como prevención automática del vestigio de
+  C-6a: `ruff check --select ARG` sobre `core/adapters/tests` reporta **121**
+  violaciones preexistentes, la enorme mayoría firmas de fixtures/mocks de
+  test que no usan todos sus parámetros a propósito (patrón idiomático de
+  mocking). Habilitarla exige triar esas 121 líneas primero — alcance muy por
+  encima de este cierre. Queda para una spec propia si se decide perseguir.
+- **`_ = src` no lo detectó el linter porque para eso existe el patrón**: `F841`
+  (ya activo) marca variables sin usar, y `_ = x` es exactamente la forma de
+  silenciarlo sin borrar el código muerto. La prevención ahí no es una regla
+  nueva — es no repetir el patrón.
+
+**SSOTs afectados:** las cuatro specs listadas arriba, `SPECS_REGISTRY.md`
+(iteración de cada una), `templates/specs/SPECS_REGISTRY.md` (misma prosa de
+Convenciones, actualizada en paralelo — no hay sync automático entre ambos).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-004-enforcement-hardening (FR-010), SPEC-003-install-happy-path (FR-014), SPEC-016-skills-listas-tras-init (FR-010), SPEC-017-gate-decision-spec-first (FR-US2-004)
+- Includes/excludes verificados: core/sdd_init.py, adapters/python/gen_import_linter.py, core/check_traceability.py; regla ARG evaluada y descartada (fuera de alcance)
+- SSOTs afectados: las 4 specs + SPECS_REGISTRY.md (iteración) + templates/specs/SPECS_REGISTRY.md + SPEC-023 (prosa)
+- Verificación: .venv/bin/python core/pipeline.py → VERDE (11/11)
+```
+
 ## 2026-08-16 — SPEC-005 FR-013: el bit de ejecución del wiring viaja en el índice
 
 **Scope:** `specs/SPEC-005-desduplicar-ssot.md` (FR-013, SC-009),

@@ -36,6 +36,8 @@
 | C-5 | Constitución con versión hardcodeada | [[SPEC-010-gobernanza-y-docs]] |
 | C-7 | `sdd_init.py` ignora en silencio los flags que no conoce | [[SPEC-003-install-happy-path]] |
 | C-8 | Los pasos de código están declarados dos veces | [[SPEC-005-desduplicar-ssot]] |
+| C-9 | Un comentario entre los `steps:` duplica el resto de la lista | [[SPEC-004-enforcement-hardening]] |
+| C-6 | Vestigios: parámetro sin usar, `_ = src`, estado `notas` | [[SPEC-003-install-happy-path]], [[SPEC-016-skills-listas-tras-init]], [[SPEC-017-gate-decision-spec-first]] |
 | V-1 | `tests_integration` estaba cableada a medias | [[SPEC-019-tests-integracion-ejecutados]] |
 | V-2 | El aviso de `SDD_GATE_BYPASS` no le llegaba al operador | [[SPEC-017-gate-decision-spec-first]] |
 | V-3 | Cambiar `project.domain` no propagaba a ningún lado | [[SPEC-014-derivado-dice-la-verdad]] |
@@ -417,6 +419,50 @@ encontró.
   los cuatro hacen preguntas **distintas** sobre la misma carpeta —por eso agregar
   una clase de test nueva no era un renglón—. Ahora `TEST_DIRS` declara la
   carpeta con sus propiedades y cada consumidor filtra por la suya.
+
+- **C-9 · Un comentario entre los pasos de `steps:` duplica el resto de la
+  lista.** `sdd_init._seed_pipeline_steps` reemplazaba el bloque y cortaba en
+  la primera línea que no era un ítem: un comentario intercalado dejaba
+  sobrevivir (y duplicarse) los pasos que venían después.
+  **(cerrado el 2026-08-17)** → [[SPEC-004-enforcement-hardening]] FR-010. El
+  fix planteado en la idea ("descartar hasta la desindentación") era correcto
+  tal cual: se comparó la indentación de cada línea del bloque original contra
+  la de `steps:`, en vez de la forma de la línea (`"- "` vs cualquier otra
+  cosa). Test nuevo reproduce el caso exacto (comentario intercalado entre dos
+  pasos) confirmando rojo antes del fix.
+- **C-6 · Vestigios.** Tres vestigios sin relación entre sí, cada uno cerrado
+  reusando la spec que ya gobernaba el archivo — "por funcionalidad", no una
+  spec de higiene genérica (el triage de `sdd_spec.py` sobre archivos
+  compartidos como `sdd_init.py`/`check_traceability.py` da 14+ candidatas por
+  coincidencia de archivo, ruido que no señala capacidad real).
+  **(cerrado el 2026-08-17)**
+  - `_module_of(repo_root, …)` con parámetro sin usar (`gen_import_linter.py`,
+    muerto desde el commit inicial) → [[SPEC-003-install-happy-path]] FR-014,
+    la spec que ya gobierna ese archivo (FR-010). Se evaluó agregar la regla
+    `ARG` de ruff al `select` global como prevención automática de esta clase
+    de bug y se descartó: reporta **121** violaciones preexistentes, casi
+    todas firmas de fixtures/mocks de test que no usan todos sus parámetros a
+    propósito. El único caso real fuera del archivo tocado
+    (`sdd_init._write_config`, parámetro `force`) está documentado como
+    intencional por SPEC-025 FR-US2-002 — sería un falso positivo, no otro
+    vestigio. Habilitar la regla queda fuera de este cierre.
+  - `_ = src` en `sdd_init._install_project_skills` (dead code desde que el
+    copiado de playbooks pasó a `STATIC_DOCS`) → [[SPEC-016-skills-listas-tras-init]]
+    FR-010, la spec que gobierna esa función. `F841` (ya activo) hubiera
+    marcado la variable sin usar; el patrón `_ = x` es justamente la forma de
+    silenciarlo sin borrar — la prevención no es una regla nueva, es no
+    repetir el patrón.
+  - Estado `notas` en `VALID_ESTADOS` sin convención documentada → no era
+    vestigio del proyecto de referencia, era una tercera copia del mismo dato:
+    `SPECS_REGISTRY.md` mantenía su propia enumeración de estados en prosa,
+    independiente de la constante de código. Se resolvió eliminando `notas`
+    (ninguna fila del registro lo usaba, ninguna semántica lo documentaba) y
+    declarando `check_traceability.VALID_ESTADOS` origen único, citado desde
+    el registro → [[SPEC-017-gate-decision-spec-first]] FR-US2-004, que ya
+    declara la semántica de estados (FR-US2-002). De paso apareció una
+    mención stale del mismo estado en SPEC-023 FR-US2-007 (prosa; el código
+    ya comparaba `!= "active"`, no una lista literal, así que no hubo cambio
+    de comportamiento).
 
 ## P2/P3 — Producto y distribución
 
