@@ -238,6 +238,14 @@ paso `render` del pipeline falla en ese caso.
   al catálogo; `render.py` la deriva de ahí en vez de repetir la lista, y un test
   falla si un destino nuevo del catálogo no está clasificado de ninguno de los
   dos lados.
+- **FR-014** MUST: `render_naming_spec` (el generador de `SPEC-000-naming.md`)
+  omite por completo una sección de la lista —header, párrafo introductorio y
+  bullets— cuando la lista que la alimenta (`naming_allowed` o
+  `naming_relax_in_tests`) está vacía, en vez de emitir un placeholder
+  `- (ninguno)` bajo un header sin contenido real. `SPEC-000-naming.md` es un
+  archivo sincronizado (Key Entities): su única fuente de verdad es
+  `.sdd/config.yaml`, y un header sin ítems no aporta información — ensucia el
+  doc con estructura vacía en vez de reflejar fielmente el config.
 
 ## Key Entities
 
@@ -324,6 +332,7 @@ paso `render` del pipeline falla en ese caso.
 | FR-011 | tests/unit/test_wiring_sincronizado.py |
 | FR-012 | tests/unit/test_wiring_sincronizado.py |
 | FR-013 | tests/unit/test_wiring_sincronizado.py |
+| FR-014 | tests/unit/test_render.py |
 
 ## Fuera de alcance
 

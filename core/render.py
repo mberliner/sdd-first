@@ -151,21 +151,23 @@ def render_naming_spec(cfg: SddConfig) -> str:
         "",
     ]
     lines += [f"- `{t}`" for t in prohibited]
-    lines += [
-        "",
-        "## Identificadores permitidos (excepciones)",
-        "",
-    ]
-    lines += [f"- `{t}`" for t in allowed] or ["- (ninguno)"]
-    lines += [
-        "",
-        "## Palabras excluidas relajadas en tests",
-        "",
-        "En las carpetas de tests se toleran las siguientes palabras excluidas (los",
-        "nombres de tests describen el escenario, no acoplan a tecnología):",
-        "",
-    ]
-    lines += [f"- `{t}`" for t in relax] or ["- (ninguno)"]
+    if allowed:
+        lines += [
+            "",
+            "## Identificadores permitidos (excepciones)",
+            "",
+        ]
+        lines += [f"- `{t}`" for t in allowed]
+    if relax:
+        lines += [
+            "",
+            "## Palabras excluidas relajadas en tests",
+            "",
+            "En las carpetas de tests se toleran las siguientes palabras excluidas (los",
+            "nombres de tests describen el escenario, no acoplan a tecnología):",
+            "",
+        ]
+        lines += [f"- `{t}`" for t in relax]
     lines += [
         "",
         "## Enforcement",

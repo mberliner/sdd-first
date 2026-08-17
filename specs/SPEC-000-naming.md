@@ -22,17 +22,6 @@ tecnología viven detrás de puertos, en la capa de adaptadores.
 - `jwt`
 - `apikey`
 
-## Identificadores permitidos (excepciones)
-
-- (ninguno)
-
-## Palabras excluidas relajadas en tests
-
-En las carpetas de tests se toleran las siguientes palabras excluidas (los
-nombres de tests describen el escenario, no acoplan a tecnología):
-
-- (ninguno)
-
 ## Enforcement
 
 Automático vía `adapters/<language>/check_naming.py` (paso `naming` del

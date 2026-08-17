@@ -72,7 +72,6 @@ arriba).
 | T-1 | P1 | No existe métrica de abarcabilidad de una spec | abierta |
 | G-6 | P1 | `check_traceability` no exige keyword en los FR | abierta |
 | G-7 | P1 | `sdd_spec.py` sobrescribe `.sdd/current-spec` completo | parcial |
-| X-1 | — | `SPEC-000` renderiza secciones vacías | abierta |
 | X-2 | — | `check_naming` no mira nombres de paquetes/directorios | abierta |
 | X-3 | — | Adaptadores `node`/`go` | abierta |
 | X-5 | — | `enforcement`/`detail` de un principio admiten un solo token | abierta |
@@ -227,8 +226,6 @@ arriba).
 
 ## Ideas sueltas (tanda X)
 
-- **X-1 ·** Render de `SPEC-000` genera secciones vacías ("Tokens relajados" sin ítems)
-  que ensucian el doc; omitir secciones vacías.
 - **X-2 ·** `check_naming` también podría chequear nombres de paquetes/directorios, no
   solo identificadores y stems de archivo.
 - **X-3 ·** Adaptadores `node`/`go` (deuda ya registrada en historial y SPEC-001).

@@ -136,6 +136,44 @@ def test_constitucion_incluye_preambulo_y_governance(tmp_path):
     assert "Procedimiento de enmienda" in text
 
 
+def test_naming_spec_omite_relajadas_en_tests_si_esta_vacia(tmp_path):
+    # FR-014: una lista vacia no debe dejar un header sin contenido real.
+    cfg = _cfg(tmp_path, {"naming": {"prohibited": ["storage"]}})
+
+    text = render.render_naming_spec(cfg)
+
+    assert "## Palabras excluidas relajadas en tests" not in text
+
+
+def test_naming_spec_omite_identificadores_permitidos_si_esta_vacia(tmp_path):
+    # FR-014: idem para "Identificadores permitidos (excepciones)".
+    cfg = _cfg(tmp_path, {"naming": {"prohibited": ["storage"]}})
+
+    text = render.render_naming_spec(cfg)
+
+    assert "## Identificadores permitidos (excepciones)" not in text
+
+
+def test_naming_spec_incluye_las_secciones_cuando_hay_items(tmp_path):
+    cfg = _cfg(
+        tmp_path,
+        {
+            "naming": {
+                "prohibited": ["storage"],
+                "allowed_identifiers": ["s3"],
+                "relax_in_tests": ["mock"],
+            }
+        },
+    )
+
+    text = render.render_naming_spec(cfg)
+
+    assert "## Identificadores permitidos (excepciones)" in text
+    assert "- `s3`" in text
+    assert "## Palabras excluidas relajadas en tests" in text
+    assert "- `mock`" in text
+
+
 def test_constitucion_declara_el_dominio_del_config(tmp_path):
     # SPEC-014 FR-US2-006: el dominio lo afirma un artefacto generado, para que
     # cambiarlo en el config y regenerar alcance para actualizarlo (V-3).

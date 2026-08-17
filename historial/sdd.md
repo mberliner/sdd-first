@@ -1,5 +1,60 @@
 # Historial SDD — sdd-first
 
+## 2026-08-17 — Correcciones de docs/IDEAS.md: X-1, X-4, C-1, E-5
+
+**Scope:** `core/render.py`, `specs/SPEC-005-desduplicar-ssot.md` (FR-014,
+Coverage mapping), `tests/unit/test_render.py`, `specs/SPEC-000-naming.md`
+(regenerado), `specs/SPECS_REGISTRY.md` (iteración de SPEC-005),
+`examples/config/config.yaml`, `README.md`, `docs/IDEAS.md`,
+`docs/IDEAS-CERRADAS.md`.
+
+**Qué cambió:** cuatro ítems del backlog abierto, cada uno en su propio
+commit, priorizando reusar la spec origen de la funcionalidad tocada antes
+que crear una nueva:
+- **X-1 → SPEC-005 FR-014 (único con cambio de comportamiento, requirió
+  spec):** `render_naming_spec` emitía un placeholder `- (ninguno)` bajo un
+  header sin contenido real cuando `naming_allowed`/`naming_relax_in_tests`
+  estaban vacías en el config. Se reusó SPEC-005 (ya gobierna `render.py` y
+  trata `SPEC-000-naming.md` como archivo sincronizado) en vez de crear spec
+  nueva; se agregó FR-014, su fila en el Coverage mapping y 2 tests nuevos en
+  `tests/unit/test_render.py` (no había cobertura previa de
+  `render_naming_spec`). Se corrigieron las dos secciones que podían quedar
+  vacías, no solo la que citaba el ítem original.
+- **X-4 → cerrado sin spec, por revisión de código:** la marca
+  `.sdd-e2e-workspace` de `tests/e2e/lib/entorno.py:rehacer()` ya se escribe
+  inmediatamente tras el `mkdir` desde el commit `3ad7b82` (2026-08-08),
+  anterior al registro del ítem. La descripción no correspondía al estado
+  real del código; se cerró como obsoleta, sin tocar código.
+- **C-1 (resto) → doc, sin spec (no cambia comportamiento):**
+  `examples/config/config.yaml` seguía listando `gate` como paso de proceso
+  del pipeline, contradiciendo la línea vecina y la decisión ya tomada de que
+  el gate se cablea vía hooks.
+- **E-5 → doc, sin spec:** el README prometía soporte a "Cursor" sin
+  respaldo real; se corrigió por Antigravity (sí documentado como consumidor
+  de `.agents/skills/`). La mitad del ítem sobre tooling del adaptador python
+  ya estaba resuelta, sin que quedara registrado el cierre.
+
+**Decisiones de diseño:**
+- **Solo X-1 pasó por `sdd-spec`**, porque es el único de los cuatro que
+  cambia la salida de una herramienta del kit; los otros tres son ediciones
+  de doc/config de ejemplo sin efecto en el comportamiento verificado por el
+  pipeline, así que no requieren declarar spec (AGENTS.md exige spec para
+  "cambio de comportamiento", no para cualquier edición de texto).
+- **Commits independientes por ítem** (no uno solo de "correcciones de
+  IDEAS.md"), para que cada cambio sea revisable y revertible por separado.
+
+**SSOTs afectados:** SPEC-005 (iteración 4→5 en `SPECS_REGISTRY.md`),
+`docs/IDEAS.md`/`docs/IDEAS-CERRADAS.md` (los cuatro ítems movidos con su
+post-mortem).
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-005-desduplicar-ssot (FR-014)
+- Includes/excludes verificados: core/render.py, examples/config/config.yaml, README.md; C-1/E-5/X-4 evaluados como fuera de alcance de sdd-spec (sin cambio de comportamiento)
+- SSOTs afectados: SPEC-005 + SPECS_REGISTRY.md (iteración) + docs/IDEAS.md + docs/IDEAS-CERRADAS.md
+- Verificación: .venv/bin/python core/pipeline.py → VERDE (11/11)
+```
+
 ## 2026-08-17 — C-9/C-6 de docs/IDEAS.md: bug de parser y tres vestigios de código
 
 **Scope:** `specs/SPEC-004-enforcement-hardening.md` (FR-010, SC-007),

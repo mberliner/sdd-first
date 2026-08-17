@@ -65,6 +65,7 @@
 | K-4 | La suite e2e tiene que ser un paso del pipeline local | [[SPEC-018-verificacion-e2e]] |
 | K-5 | El paso `coverage` se siembra sin umbrales, o sea inerte | [[SPEC-009-coverage-y-ci]] |
 | K-6 | No está dicho en ninguna parte que el kit es desechable | `README.md` |
+| X-1 | Render de `SPEC-000` genera secciones vacías | [[SPEC-005-desduplicar-ssot]] |
 | X-4 | Workspace e2e inutilizable tras corrida interrumpida | — (ya resuelto en el código antes del registro) |
 | X-8 | Omitido no es VERDE | [[SPEC-020-enforcement-declarado-en-config]] |
 
@@ -836,6 +837,15 @@ evidencia que les faltaba:
 
 ## Ideas sueltas (tanda X) — cerradas
 
+- **X-1 · Render de `SPEC-000` genera secciones vacías** ("Identificadores
+  permitidos" / "Palabras excluidas relajadas en tests" sin ítems, con un
+  placeholder `- (ninguno)`) que ensucian el doc; omitir secciones vacías.
+  **(cerrado el 2026-08-17)** → [[SPEC-005-desduplicar-ssot]] FR-014, reusada
+  en vez de crear spec nueva: ya gobierna `core/render.py` y trata
+  `SPEC-000-naming.md` como archivo sincronizado. `render_naming_spec` ahora
+  omite el header + párrafo + bullets completos de una sección cuando su
+  lista está vacía, en las dos secciones que podían quedar así (no solo la
+  que citaba el ítem original).
 - **X-4 · Una corrida e2e interrumpida deja el workspace inutilizable.** La
   marca `.sdd-e2e-workspace` se escribía al final de la generación, así que un
   Ctrl-C (o timeout) dejaba la carpeta con contenido y sin marca, y la guarda
