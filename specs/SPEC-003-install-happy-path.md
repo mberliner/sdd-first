@@ -173,6 +173,9 @@ distingue los pasos que verificaron algo de los que se omitieron.
   vendorizar adaptador).
 - **Given** `sdd_spec.py "búsqueda semántica"`, **When** crea la spec, **Then**
   el slug es `busqueda-semantica` (antes: `b-squeda-sem-ntica`).
+- **Given** `adapters/python/gen_import_linter.py`, **When** corre `ruff check
+  --select ARG`, **Then** no reporta `_module_of` (el parámetro `repo_root`
+  sin usar se eliminó de la firma).
 
 ## Functional Requirements
 
@@ -226,6 +229,17 @@ distingue los pasos que verificaron algo de los que se omitieron.
   capas declaradas en `layers`, o sin el paquete raíz (`source_roots[0]`) en
   disco, omite con aviso y exit 3 en vez de dejar que la tool aborte. Era el
   único paso de código sin esa guardia.
+- **FR-014** MUST: `adapters/python/gen_import_linter._module_of` no declara
+  parámetros que no usa — recibía `repo_root` sin leerlo desde el commit
+  inicial (docs/IDEAS.md C-6). Se elimina el parámetro y se actualizan los dos
+  call-sites. Se evaluó agregar la regla `ARG` (flake8-unused-arguments) de
+  ruff al `select` para prevenir la clase de bug: descartado — `ruff check
+  --select ARG` sobre `core/adapters/tests` reporta **121** violaciones
+  preexistentes, la enorme mayoría firmas de fixtures/mocks en tests que
+  deliberadamente no usan todos sus parámetros (patrón idiomático de mocking,
+  no vestigio). Habilitarla exigiría triar y silenciar esas 121 líneas primero
+  — alcance muy por encima de este FR — así que la prevención queda para
+  cuando exista una spec propia que lo aborde; este FR es solo el fix puntual.
 
 - **FR-012** MUST: `core/sdd_init.py` valida su línea de comandos antes de
   escribir nada. Un flag que no conoce, un valor de `--language` sin adaptador
@@ -309,6 +323,7 @@ distingue los pasos que verificaron algo de los que se omitieron.
 | FR-011 | tests/unit/test_python_adapter.py |
 | FR-012 | tests/unit/test_sdd_init_cli.py |
 | FR-013 | tests/unit/test_sdd_spec.py |
+| FR-014 | tests/unit/test_gen_import_linter.py |
 
 ## Fuera de alcance
 
@@ -350,3 +365,11 @@ distingue los pasos que verificaron algo de los que se omitieron.
   (4)` en vez de `VERDE 8/8`; brownfield con `app/` sale ROJO por sus 2
   violaciones reales y el gate bloquea `app/servicio.py` en las tres capas, sin
   editar el config a mano. 166 tests + 1 skip, kit VERDE 10/10.
+- 2026-08-17: **reabierta** (FR-014) por C-6 de `docs/IDEAS.md`.
+  `gen_import_linter._module_of` recibía `repo_root` sin usarlo desde el
+  commit inicial. Se evaluó agregar la regla `ARG` de ruff al `select` del kit
+  para prevenir la clase de bug y se descartó: reporta 121 violaciones
+  preexistentes, casi todas firmas de fixtures/mocks en tests que no usan
+  todos sus parámetros a propósito — habilitarla es un cambio de alcance propio,
+  no de este fix puntual. Se eliminó el parámetro y se actualizaron los dos
+  call-sites. Pipeline VERDE 11/11.

@@ -62,6 +62,17 @@ def _parseado(texto: str) -> configparser.ConfigParser:
     return parser
 
 
+def test_module_of_no_declara_parametro_sin_usar() -> None:
+    # SPEC-003 FR-014: `repo_root` estaba en la firma sin usarse (docs/IDEAS.md
+    # C-6); ruff --select ARG lo marcaria si volviera.
+    import inspect
+
+    assert list(inspect.signature(gen_import_linter._module_of).parameters) == [
+        "layer_path"
+    ]
+    assert gen_import_linter._module_of("src/domain") == "src.domain"
+
+
 def test_lo_generado_es_ini_parseable(generado: str) -> None:
     secciones = _parseado(generado).sections()
     assert "importlinter" in secciones, (

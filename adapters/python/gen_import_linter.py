@@ -31,7 +31,7 @@ from sdd_config import (  # noqa: E402
 )
 
 
-def _module_of(repo_root: Path, layer_path: str) -> str:
+def _module_of(layer_path: str) -> str:
     """Convierte 'src/domain' en el modulo importable 'src.domain'."""
     return ".".join(Path(layer_path).parts)
 
@@ -49,7 +49,7 @@ def render(repo_root: Path) -> str:
     ]
     for layer, allowed in layers.items():
         layer_path = dirs.get(layer, f"{root_package}/{layer}")
-        source_mod = _module_of(repo_root, layer_path)
+        source_mod = _module_of(layer_path)
         # forbidden = todas las capas que NO son este ni sus permitidos.
         forbidden = [
             other for other in layers if other != layer and other not in allowed
@@ -61,7 +61,7 @@ def render(repo_root: Path) -> str:
         lines.append("type = forbidden")
         lines.append(f"source_modules =\n    {source_mod}")
         forbidden_mods = "\n    ".join(
-            _module_of(repo_root, dirs.get(o, f"{root_package}/{o}")) for o in forbidden
+            _module_of(dirs.get(o, f"{root_package}/{o}")) for o in forbidden
         )
         lines.append(f"forbidden_modules =\n    {forbidden_mods}")
         lines.append("")
