@@ -180,17 +180,29 @@ arriba).
   propio (U-3, C-1, K-5: el aviso que suena siempre enseña que el verde no
   significa nada).
 
-  **Próximo paso, y es el orden invertido a propósito: primero las etiquetas.**
-  Registrar por iteración cerrada si una pasada posterior encontró algo que esa
-  iteración debió cubrir. El dato **ya existe** en `historial/sdd.md` y en los
-  post-mortems de este mismo archivo, pero en prosa: inservible para calibrar.
-  Estructurarlo es barato y es lo único que convierte el umbral en algo distinto
-  de una opinión con formato de tabla. Alternativa a evaluar antes: prototipar el
-  cálculo del conjunto de trabajo, que ya es computable y daría el orden de
-  magnitud del presupuesto *antes* de decidir si instrumentar vale la pena.
-  Cuando se promueva a spec, ojo con [[SPEC-022-reusar-specs-existentes]]: el
-  triage tiene que decidir si esto cabe en SPEC-017 (es su misma pregunta: qué
-  autoriza una edición) o si el presupuesto de contexto es capacidad nueva.
+  **La calibración se fue a `sdd-research` (2026-08-16), y este ítem queda
+  esperándola.** Medir el corpus, etiquetar la fuga de defectos y decidir si
+  existe un umbral se cierra con **evidencia**, no con una edición: es una
+  pregunta de investigación y su lugar es el backlog de ese repositorio
+  (prioridad alta #15), que además ya tiene el instrumental que hace falta
+  —preregistro, piso de ruido antes de reportar una brecha, y el anti-patrón de
+  la variable de salida que es artefacto del propio tratamiento, que es
+  exactamente el riesgo de etiquetar leyendo nuestros post-mortems—. Allá viven
+  el diseño y el resultado; acá no se reproducen.
+
+  Lo que sigue siendo del kit es la **consecuencia**: si el experimento da
+  señal, lo que se implementa es una clave de presupuesto en `.sdd/config.yaml`
+  y un reporte en `sdd-doctor`; si no da señal, este ítem se cierra como
+  descartado con el puntero al resultado. En cualquiera de los dos casos hace
+  falta spec, y el triage de [[SPEC-022-reusar-specs-existentes]] tiene que
+  decidir antes si cabe en SPEC-017 (es su misma pregunta: qué autoriza una
+  edición) o si el presupuesto de contexto es capacidad nueva.
+
+  Un dato del prototipo exploratorio que sí es del kit y conviene no perder: el
+  **FR pendiente** (escrito, sin fila en el Coverage mapping) da **0 en las 26
+  specs**, porque el flujo escribe la fila en la misma iteración. La unidad
+  existe solo *durante* la iteración — sirve para el gate de la idea hermana,
+  pero no hay lote que medir mirando el árbol en reposo.
 
 ## Huecos de enforcement del gate y la trazabilidad (tanda G)
 
