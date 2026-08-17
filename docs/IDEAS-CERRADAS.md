@@ -63,6 +63,7 @@
 | K-4 | La suite e2e tiene que ser un paso del pipeline local | [[SPEC-018-verificacion-e2e]] |
 | K-5 | El paso `coverage` se siembra sin umbrales, o sea inerte | [[SPEC-009-coverage-y-ci]] |
 | K-6 | No está dicho en ninguna parte que el kit es desechable | `README.md` |
+| X-4 | Workspace e2e inutilizable tras corrida interrumpida | — (ya resuelto en el código antes del registro) |
 | X-8 | Omitido no es VERDE | [[SPEC-020-enforcement-declarado-en-config]] |
 
 ---
@@ -806,6 +807,19 @@ evidencia que les faltaba:
   introducir una dependencia en la cabeza del lector solo para negarla. Lo que
   sí queda del razonamiento es K-2, que se sostiene solo: una referencia colgada
   es un hueco aunque el clon esté al lado.
+
+## Ideas sueltas (tanda X) — cerradas
+
+- **X-4 · Una corrida e2e interrumpida deja el workspace inutilizable.** La
+  marca `.sdd-e2e-workspace` se escribía al final de la generación, así que un
+  Ctrl-C (o timeout) dejaba la carpeta con contenido y sin marca, y la guarda
+  abortaba pidiendo elegir otra carpeta.
+  **(cerrado el 2026-08-17, sin spec — ya resuelto en el código)** revisando
+  `tests/e2e/lib/entorno.py` se encontró que la función `rehacer` ya escribe
+  la marca inmediatamente después del `mkdir` (sin ningún paso interrumpible
+  entre medio), desde el commit `3ad7b82` (2026-08-08) — anterior al registro
+  de este ítem. La descripción no correspondía al estado real del código al
+  momento de revisarlo; se cierra por eso, no por una implementación nueva.
 
 ## Técnicas — cerradas
 

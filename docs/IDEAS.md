@@ -77,7 +77,6 @@ arriba).
 | X-1 | — | `SPEC-000` renderiza secciones vacías | abierta |
 | X-2 | — | `check_naming` no mira nombres de paquetes/directorios | abierta |
 | X-3 | — | Adaptadores `node`/`go` | abierta |
-| X-4 | — | Una corrida e2e interrumpida deja el workspace inutilizable | abierta |
 | X-5 | — | `enforcement`/`detail` de un principio admiten un solo token | abierta |
 | X-6 | — | El Coverage mapping mapea archivos, no casos | abierta |
 | X-7 | — | Índice de ámbitos de las specs | abierta |
@@ -249,14 +248,6 @@ arriba).
 - **X-2 ·** `check_naming` también podría chequear nombres de paquetes/directorios, no
   solo identificadores y stems de archivo.
 - **X-3 ·** Adaptadores `node`/`go` (deuda ya registrada en historial y SPEC-001).
-- **X-4 · Una corrida e2e interrumpida deja el workspace inutilizable.** La marca
-  `.sdd-e2e-workspace` se escribe al final de la generación, así que un Ctrl-C (o
-  un timeout) deja la carpeta con contenido y sin marca, y a partir de ahí la
-  suite aborta en el fixture pidiendo elegir otra carpeta con `SDD_E2E_WORK`. La
-  guarda es correcta —no borrar lo que no dejó la suite— pero el remedio es
-  borrar a mano una carpeta de temp, que es justo lo que la guarda quiere evitar
-  que se haga a ciegas. Escribir la marca **primero**, apenas se crea la carpeta,
-  la vuelve idempotente sin aflojar la guarda.
 - **X-5 ·** `enforcement`/`detail` de un principio admiten un solo token: `render.py` los
   envuelve en un único code span y `check_constitution._is_path` valida
   existencia sobre él. Un principio con dos SSOTs de detalle (o con enforcement
