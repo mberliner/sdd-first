@@ -215,9 +215,10 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   (con `python3` disponible, gate corre y decide).
 - **FR-007** MUST: `core/sdd_spec.py` preserva las líneas de comentario (`#`)
   ya presentes en `.sdd/current-spec` al declarar una spec nueva; solo agrega
-  o reemplaza la línea del spec-id, nunca pisa el archivo entero. Cierra el
+  la línea del spec-id, nunca pisa el archivo entero. Cierra el
   hueco por el que `sdd_reset.py` (FR-002) no tenía comentarios que preservar
-  tras un ciclo real declarar→commitear→reset.
+  tras un ciclo real declarar→commitear→reset. *(La cláusula original decía
+  «agrega o reemplaza»; FR-011 retiró el reemplazo implícito.)*
 - **FR-008** MUST: `.sdd/current-spec` deja de estar bajo control de versiones
   — es un puntero de sesión local, no un artefacto del repo. `.gitignore` del
   kit y `templates/wiring/.gitignore` lo ignoran de forma permanente y
@@ -259,6 +260,21 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   indentación que los ítems) tiene que descartarse igual que un ítem; hoy corta
   el descarte a mitad de camino y los pasos que siguen al comentario se
   duplican en el config sembrado (docs/IDEAS.md C-9).
+- **FR-011** MUST: la declaración de specs en `.sdd/current-spec` es
+  **acumulativa dentro de la iteración**. `core/sdd_spec.py` conserva las specs
+  ya declaradas al declarar otra —creándola o adoptándola con `--reuse`—, sin
+  duplicar una ya presente ni reordenar las anteriores, e imprime el conjunto
+  vigente resultante en ambos caminos. `--clear` retira las declaraciones
+  dejando solo los comentarios; combinado con una declaración da el reemplazo
+  explícito que antes ocurría solo. Cierra el hueco por el que crear una spec a
+  mitad de iteración des-declaraba en silencio la anterior (docs/IDEAS.md G-7).
+  **No** levanta el bloqueo transitorio: mientras la spec nueva no tenga FR
+  escritos el gate sigue rechazando toda edición, porque exige las tres
+  condiciones a cada spec declarada. Lo que cambia es que la anterior no se
+  pierde, así que al escribir esos FR la autorización vuelve sola, sin
+  re-declararla. El conjunto no crece sin límite: `sdd_reset.py`
+  (FR-002) lo limpia tras cada commit, así que su alcance es exactamente la
+  iteración en curso.
 
 ## Key Entities
 
@@ -302,6 +318,14 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   incluso cuando el bloque `steps:` original del ejemplo trae un comentario
   intercalado entre pasos: ningún paso del bloque descartado sobrevive en el
   resultado.
+- **SC-008** En un proyecto instalado, crear SPEC-A, escribir su FR y crear
+  después SPEC-B deja las dos declaradas en `.sdd/current-spec` (en ese orden,
+  una por línea); el gate bloquea mientras SPEC-B no tenga FR —nombrando a
+  SPEC-B, no a las dos— y vuelve a autorizar en cuanto SPEC-B los tiene, **sin
+  re-declarar SPEC-A**. Re-declarar SPEC-A no agrega una segunda línea;
+  `--clear` deja el archivo idéntico al header; y el ciclo completo declarar A →
+  declarar B → commitear → `sdd-reset` sigue dejando el archivo byte a byte igual
+  al header (SC-004 no se degrada con el conjunto).
 
 ## Assumptions
 
@@ -323,6 +347,7 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
 | FR-008, SC-005 | tests/unit/test_current_spec_no_versionado.py, tests/e2e/escenarios/test_ciclo_spec_first.py |
 | FR-009, SC-006 | tests/unit/test_current_spec_no_versionado.py, tests/e2e/escenarios/test_instalacion_brownfield_gitignore.py |
 | FR-010, SC-007 | tests/unit/test_sdd_init_seeded_steps.py |
+| FR-011, SC-008 | tests/unit/test_sdd_spec.py, tests/e2e/escenarios/test_ciclo_spec_first.py |
 
 ## Fuera de alcance
 
@@ -350,8 +375,8 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   `test_sdd_spec.py` (incluye el ciclo real declarar→reset) y con una
   instalación fresca en `/tmp`: el archivo queda byte a byte igual al header
   de `templates/wiring/current-spec` tras el ciclo completo. Relacionado con
-  G-7 de `docs/IDEAS.md` (parcialmente resuelto — la semántica multi-spec
-  sigue pendiente). Pipeline 9/9 VERDE, 70 tests.
+  G-7 de `docs/IDEAS.md` (parcialmente resuelto entonces — la semántica
+  multi-spec la cerró FR-011 el 2026-08-17). Pipeline 9/9 VERDE, 70 tests.
 - 2026-08-11: reabierta y cerrada de nuevo (G-9, FR-008/FR-009). El reset
   post-commit (FR-002) editaba `.sdd/current-spec` *después* de que el commit
   ya cerrara, así que ese cambio nunca quedaba commiteado y el working tree
@@ -379,3 +404,28 @@ correr el pipeline instala los hooks git si faltan; un commit exitoso deja
   comentario. Fix: descarta comparando indentación contra la de `steps:`, no
   por forma de línea. Test nuevo reproduce el caso (rojo confirmado antes del
   fix). Pipeline VERDE 11/11.
+- 2026-08-17: **reabierta** (FR-011/SC-008) por G-7 de `docs/IDEAS.md`, que
+  cierra. La declaración de specs pasó de reemplazo a **acumulación dentro de la
+  iteración**, con `--clear` como vía explícita para retirarla. Enmienda la
+  cláusula «agrega o reemplaza» de FR-007: reemplazar des-declaraba en silencio
+  la spec anterior y, como una spec recién creada nace sin FR escritos, el gate
+  pasaba a bloquear también las ediciones que esa anterior ya autorizaba. El
+  triage de reutilización devolvió 7 candidatas por archivo compartido (ruido
+  conocido); se aplicó la regla por funcionalidad del precedente de C-9/C-6 y
+  ganó esta spec, cuya User Story es el ciclo de vida de `.sdd/current-spec` y
+  cuyo FR-007 es literalmente `_declare_current_spec`. La capacidad multi-spec ya
+  existía en el formato (header), en el lector (`sdd_gate._declared_specs`, que
+  valida cada spec en AND) y en la doc: faltaba solo el escritor, así que ninguna
+  vía sancionada podía producirla. Se descartó la alternativa "replace + aviso"
+  con la evidencia del propio historial —las iteraciones del 2026-08-17 (C-9/C-6,
+  cuatro specs con FR) y del 2026-08-12 (SPEC-003 + SPEC-012) editan código
+  gateado bajo varias specs en un solo commit, y son buena práctica de SPEC-022,
+  no deslices—. Seis tests unitarios nuevos y un escenario e2e (todos en rojo
+  confirmado antes del fix), incluido el ciclo con dos specs que verifica que
+  SC-004 no se degrada. El e2e existía en una forma que no probaba nada de esto:
+  llegaba al estado multi-spec escribiendo `.sdd/current-spec` a mano, la vía que
+  `AGENTS.md` prohíbe; el escenario nuevo declara solo con `sdd_spec.py` como
+  subproceso en el derivado (precedente ANA-09: probar el helper interno no
+  prueba la ruta que corre el usuario). Esa prueba en un proyecto instalado
+  corrigió un overclaim de la primera redacción: FR-011 **no** levanta el bloqueo
+  transitorio de la spec sin FR. Pipeline VERDE 11/11.

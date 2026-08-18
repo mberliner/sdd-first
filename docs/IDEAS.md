@@ -71,12 +71,12 @@ arriba).
 |----|------|------|--------|
 | T-1 | P1 | No existe métrica de abarcabilidad de una spec | abierta |
 | G-6 | P1 | `check_traceability` no exige keyword en los FR | abierta |
-| G-7 | P1 | `sdd_spec.py` sobrescribe `.sdd/current-spec` completo | parcial |
 | X-3 | — | Adaptadores `node`/`go` | abierta |
 | X-5 | — | `enforcement`/`detail` de un principio admiten un solo token | abierta |
 | X-6 | — | El Coverage mapping mapea archivos, no casos | abierta |
 | X-7 | — | Índice de ámbitos de las specs | abierta |
 | X-9 | P2 | Nada verifica la consistencia del propio backlog | abierta |
+| X-10 | P2 | El texto del kit dentro de una semilla es inmutable tras instalar | abierta |
 
 ---
 
@@ -215,14 +215,6 @@ arriba).
   [[SPEC-024-traza-fr-en-test]], que prohíbe la lista de exenciones); aflojar
   `templates/docs/SPEC-FORMAT.md` deja `sdd_spec.py:309` sembrando el formato
   y `sdd_gate.py:227` citándolo en el mensaje de bloqueo.
-- **G-7 · `sdd_spec.py` sobrescribe `.sdd/current-spec` completo.**
-  Parcialmente resuelto → [[SPEC-004-enforcement-hardening]] FR-007
-  (2026-08-01): ahora preserva el header de comentarios (el síntoma que
-  dejaba el working tree sucio tras cada commit, vía `sdd_reset.py`). Sigue
-  pendiente la semántica multi-spec en sí: crear una segunda spec todavía
-  des-declara la primera sin aviso — falta definir append vs replace (con
-  flag).
-
 ## Ideas sueltas (tanda X)
 
 - **X-3 ·** Adaptadores `node`/`go` (deuda ya registrada en historial y SPEC-001).
@@ -254,6 +246,58 @@ arriba).
   ser capacidad nueva. Ojo con el alcance: el kit **no** instala este archivo en
   los derivados, así que el check es del propio kit y no debería nacer en
   `core/` sin decidir antes si el backlog es un artefacto SDD o algo nuestro.
+- **X-10 · El texto de autoría del kit que vive dentro de una semilla es
+  inmutable en todo derivado ya instalado.** Salió de analizar las opciones de
+  G-7 (2026-08-17, hoy cerrado en [`IDEAS-CERRADAS.md`](IDEAS-CERRADAS.md)): las
+  que corregían el header de `.sdd/current-spec` no llegaban **a nadie**. G-7 se
+  cerró por la vía que no toca el header, así que el defecto sigue entero: es de
+  la clase, no de ese archivo.
+
+  **Mecanismo.** Una `SEMILLA` (`core/sdd_catalog.py:104`) se crea si falta y no
+  se actualiza nunca: `sdd_update.construir_plan` (`core/sdd_update.py:126`) solo
+  la agrega a `semillas_nuevas` cuando el destino **no existe**, y el `diff`/
+  reconciliación por hash que sí tienen las `plantilla` no se le aplica. Es la
+  decisión correcta para el *contenido del dueño* —nadie quiere que `sdd-update`
+  pise su registro o su historial—, pero las semillas no son solo contenido del
+  dueño: llevan adentro **texto que el kit escribió y del que el kit es SSOT**.
+  Hoy: el header de comentarios de `.sdd/current-spec` (que además `sdd_reset.py`
+  preserva deliberadamente para siempre) y, en `specs/SPECS_REGISTRY.md`, la
+  sección *Convenciones* y la cabecera de columnas de la tabla.
+
+  **Por qué muerde de verdad y no es cosmético.** La cabecera de columnas del
+  registro es **contrato de parser**: `_parse_registry`
+  (`core/check_traceability.py:252`) lee por posición (`cells[:6]`). O sea que el
+  kit no puede evolucionar la estructura de una semilla en las instalaciones
+  existentes ni aunque quiera. Y el caso de `current-spec` muestra la variante
+  silenciosa: el header afirma una capacidad ("una por línea") que un core
+  actualizado podría haber dejado de tener, sin ninguna vía para corregir la
+  afirmación.
+
+  **No hay que inventar la solución: el kit ya la resolvió dos veces, de dos
+  formas distintas.** (a) *Parche puntual por línea* —
+  `ensure_gitignore_current_spec` (`core/sdd_config.py:359`) inserta la línea que
+  falta en un `.gitignore` conservado, sin pisar el resto (SPEC-004 FR-009).
+  (b) *Acompañante vendorizado* — `.sdd/config.reference.yaml` se reescribe
+  siempre al lado de la semilla `.sdd/config.yaml` (SPEC-013 FR-008), así que la
+  verdad del kit vive en un archivo del que el kit sí es dueño. Lo que falta es
+  **elegir la política y declararla**, no descubrirla: hoy cada caso se resolvió
+  ad hoc cuando dolió, que es exactamente el patrón que este backlog quiere
+  cortar.
+
+  **Alcance a decidir al promoverlo.** Si el criterio es "el kit es dueño del
+  bloque de comentarios/cabecera y el usuario del resto", la semilla deja de ser
+  una clase monolítica y pasa a tener **dos zonas**, lo cual es cambio de núcleo
+  (`sdd_catalog` + `sdd_update` + `sdd_doctor` para reportar la deriva). Si el
+  criterio es (b), no hay zonas pero hay un artefacto más por semilla. Antes de
+  cablear conviene medir cuántas semillas tienen realmente texto del kit — puede
+  que sean dos y la respuesta correcta sea sacarles el texto en vez de hacer
+  migrable la clase entera.
+
+  Triage con [[SPEC-022-reusar-specs-existentes]]: la pregunta es de
+  actualización de un derivado, así que mirar primero
+  [[SPEC-003-install-happy-path]] y las specs de `sdd-update` antes de asumir
+  capacidad nueva. Condiciona cualquier corrección futura del texto del kit
+  dentro de una semilla, que es lo que dejó a G-7 sin la opción del header.
 
 ## Índice de descartes
 
@@ -282,6 +326,8 @@ evaluó y se dejó afuera:
 | Un tope de FR acumulados por spec, y "una spec = una US" | T-1 (b) |
 | Importar las constantes de la industria (~200-400 LOC, ~60 min de revisión) | T-1 |
 | Un aviso perpetuo de lote sobredimensionado | T-1, por precedente de U-3 · C-1 · K-5 |
+| Corregir la mentira multi-spec solo en la doc, sin tocar el escritor | G-7, en [`IDEAS-CERRADAS.md`](IDEAS-CERRADAS.md) |
+| Que declarar dos specs a la vez contradiga el lote acotado de T-1 | G-7 (retirado con la evidencia del historial), en [`IDEAS-CERRADAS.md`](IDEAS-CERRADAS.md) |
 | Registrar el hash de la spec en `.sdd/current-spec` | G-5 → [[SPEC-017-gate-decision-spec-first]] |
 | Migrar `sdd_init` a `argparse` | C-7 → [[SPEC-003-install-happy-path]] |
 | Preguntarle al adaptador qué pasos soporta | C-8 → [[SPEC-005-desduplicar-ssot]] |

@@ -1,11 +1,14 @@
 """Crea una spec nueva y la deja lista para codear (respaldo de `sdd-spec`).
 
 Genera `specs/SPEC-NNN-slug.md` desde la plantilla, agrega la fila al registro y
-declara la spec en `.sdd/current-spec` (desbloqueando el gate spec-first).
+declara la spec en `.sdd/current-spec` (desbloqueando el gate spec-first). La
+declaracion acumula dentro de la iteracion (SPEC-004 FR-011): `--clear` es la
+via explicita para retirarla.
 
 Uso:
     python core/sdd_spec.py "<slug-o-titulo>" [--title "Título legible"]
                             [--extends SPEC-NNN] [--supersedes SPEC-NNN]
+    python core/sdd_spec.py --clear
 
 El número NNN se asigna como el siguiente correlativo disponible en specs/.
 """
@@ -35,8 +38,9 @@ from sdd_gate import is_source_path  # noqa: E402
 
 _USO = (
     'Uso: sdd_spec.py "<slug>" [--title "Título"]\n'
-    "                 [--extends SPEC-NNN] [--supersedes SPEC-NNN]\n"
-    "     sdd_spec.py --reuse SPEC-NNN --fr FR-NNN"
+    "                 [--extends SPEC-NNN] [--supersedes SPEC-NNN] [--clear]\n"
+    "     sdd_spec.py --reuse SPEC-NNN --fr FR-NNN\n"
+    "     sdd_spec.py --clear   (retira las specs declaradas)"
 )
 
 # Estados del registro sobre los que se puede adoptar una spec: los mismos que
@@ -75,6 +79,10 @@ def _build_parser() -> _Parser:
     parser.add_argument("--touches", action="append", default=[], metavar="RUTA")
     parser.add_argument("--new", action="store_true")
     parser.add_argument("--rationale", default=None)
+    # SPEC-004 FR-011: la declaracion acumula, asi que des-declarar necesita
+    # una via explicita. Solo, limpia y termina; junto a una declaracion, da
+    # el reemplazo.
+    parser.add_argument("--clear", action="store_true")
     # Repetibles y combinables (SPEC-023 FR-US1-001): una spec puede nacer
     # extendiendo a dos y reemplazando a una tercera.
     parser.add_argument("--extends", action="append", default=[], metavar="SPEC-NNN")
@@ -99,23 +107,77 @@ def _next_number(specs_dir: Path) -> int:
     return (max(nums) + 1) if nums else 1
 
 
-def _declare_current_spec(current: Path, spec_id: str) -> None:
-    """Declara `spec_id` preservando las líneas de comentario ya presentes.
+def _partir_current_spec(current: Path) -> tuple[list[str], list[str]]:
+    """`(comentarios, specs declaradas)` de `.sdd/current-spec`.
 
-    SPEC-004 FR-007: antes esto pisaba el archivo entero, destruyendo el
-    header de `templates/wiring/current-spec`; `sdd_reset.py` (FR-002) filtra
-    comentarios post-commit, pero sin header no había nada que preservar y el
-    working tree quedaba sucio tras cada commit.
+    Mismo criterio de lectura que `sdd_gate._declared_specs`: comentario es la
+    línea que empieza con `#`, declaración es cualquier otra línea no vacía.
     """
+    if not current.exists():
+        return [], []
     comments: list[str] = []
-    if current.exists():
-        comments = [
-            ln
-            for ln in current.read_text(encoding="utf-8").splitlines()
-            if ln.startswith("#")
-        ]
+    specs: list[str] = []
+    for raw in current.read_text(encoding="utf-8").splitlines():
+        if raw.startswith("#"):
+            comments.append(raw)
+        elif raw.strip():
+            specs.append(raw.strip())
+    return comments, specs
+
+
+def _specs_declaradas(current: Path) -> list[str]:
+    """Specs hoy declaradas, en orden de declaración."""
+    return _partir_current_spec(current)[1]
+
+
+def _escribir_current_spec(
+    current: Path, comments: list[str], specs: list[str]
+) -> None:
     current.parent.mkdir(exist_ok=True)
-    write_text_lf(current, "\n".join([*comments, spec_id]) + "\n")
+    write_text_lf(current, "\n".join([*comments, *specs]) + "\n")
+
+
+def _declare_current_spec(current: Path, spec_id: str) -> list[str]:
+    """Agrega `spec_id` al conjunto declarado. Devuelve el conjunto resultante.
+
+    SPEC-004 FR-007: preserva las líneas de comentario, que son el header de
+    `templates/wiring/current-spec`; `sdd_reset.py` (FR-002) filtra comentarios
+    post-commit, pero sin header no había nada que preservar y el working tree
+    quedaba sucio tras cada commit.
+
+    SPEC-004 FR-011: la declaración es **acumulativa dentro de la iteración**.
+    El criterio original reemplazaba, y eso des-declaraba en silencio la spec
+    anterior: como una spec recién creada nace sin FR escritos, el gate pasaba
+    a bloquear también las ediciones que esa anterior ya autorizaba
+    (docs/IDEAS.md G-7). Acumular no deja el conjunto creciendo sin límite —
+    `sdd_reset.py` lo limpia tras cada commit, así que su alcance es
+    exactamente la iteración en curso. Re-declarar una ya presente no duplica
+    ni reordena: el conjunto es un set con orden de llegada.
+    """
+    comments, specs = _partir_current_spec(current)
+    if spec_id not in specs:
+        specs.append(spec_id)
+    _escribir_current_spec(current, comments, specs)
+    return specs
+
+
+def _clear_current_spec(current: Path) -> None:
+    """Retira las declaraciones dejando los comentarios (SPEC-004 FR-011).
+
+    Es la vía explícita para des-declarar sin commitear; combinada con una
+    declaración da el reemplazo que antes ocurría solo, y en silencio.
+    """
+    comments, _ = _partir_current_spec(current)
+    _escribir_current_spec(current, comments, [])
+
+
+def _informe_declaradas(current: Path, specs: list[str]) -> str:
+    """Línea que reporta el conjunto vigente tras declarar o limpiar."""
+    if not specs:
+        return (
+            f"Sin specs declaradas en {current}: ninguna edición de código permitida."
+        )
+    return f"Declarada(s) en {current}: {', '.join(specs)}"
 
 
 def _insert_registry_row(text: str, row: str) -> str:
@@ -320,9 +382,9 @@ def _reuse(spec_token: str, fr_id: str, repo_root: Path) -> int:
             return 1
 
     current = repo_root / ".sdd" / "current-spec"
-    _declare_current_spec(current, spec_id)
+    declaradas = _declare_current_spec(current, spec_id)
     print(f"Adoptada {row.archivo} ({row.estado}) para {fr_id}: no se creo spec nueva.")
-    print(f"Declarada en {current}")
+    print(_informe_declaradas(current, declaradas))
     for aviso in avisos:
         print(f"Aviso: {aviso}")
     return 0
@@ -434,6 +496,13 @@ def main(argv: list[str]) -> int:
         print(f"{_USO}\n{exc}", file=sys.stderr)
         return 2
 
+    if ns.clear:
+        current = find_repo_root() / ".sdd" / "current-spec"
+        _clear_current_spec(current)
+        if not (ns.slug or ns.reuse):
+            print(_informe_declaradas(current, []))
+            return 0
+
     if ns.reuse:
         if ns.slug:
             print(
@@ -538,8 +607,8 @@ def main(argv: list[str]) -> int:
 
     # Declara la spec vigente para el gate.
     current = repo_root / ".sdd" / "current-spec"
-    _declare_current_spec(current, spec_id)
-    print(f"Declarada en {current}")
+    declaradas = _declare_current_spec(current, spec_id)
+    print(_informe_declaradas(current, declaradas))
     print(
         "\nEscribí los FR de la spec ANTES de tocar código: el gate exige que la "
         "spec declarada tenga requisitos escritos (los placeholders de la "

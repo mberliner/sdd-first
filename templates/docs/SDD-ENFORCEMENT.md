@@ -78,6 +78,20 @@ segundo commit de una misma spec alcanza con redeclararla**, sin volver a tocarl
 Que los requisitos sean *adecuados* al cambio en curso sigue siendo juicio de
 `analyze`/`clarify` (ver "Límite: presencia, no adecuación").
 
+**La declaración acumula dentro de la iteración.** Declarar una spec —creándola
+o adoptándola con `--reuse`— **no** des-declara las anteriores: se agregan a la
+lista, sin duplicados, y `sdd-spec` imprime el conjunto vigente resultante. Una
+iteración que toca dos capacidades declara las dos, que es lo que ya registra la
+línea `Specs leídas:` del bloque `[SDD-Check]`. El conjunto no crece sin límite
+porque el reset post-commit lo vacía: su alcance es exactamente la iteración en
+curso. Para des-declarar sin commitear está `sdd-spec --clear`, que retira las
+declaraciones y deja los comentarios; combinado con una declaración
+(`sdd-spec "<slug>" --clear`) da el reemplazo explícito.
+
+Ojo con el reverso: como el gate exige las tres condiciones a **cada** spec
+listada, una spec declarada que quede sin FR escritos bloquea todas las
+ediciones, no solo las suyas. El mensaje de bloqueo nombra cuál es.
+
 **Escape hatch** (`SDD_GATE_BYPASS`): con un valor no vacío, el gate imprime el
 bloqueo que correspondería, agrega el motivo del bypass y devuelve exit 0. Es la
 alternativa acotada a `--no-verify`, que apaga *todo* el `pre-commit` —gate,

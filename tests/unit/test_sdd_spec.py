@@ -76,15 +76,51 @@ def test_declare_current_spec_preserva_comentarios(tmp_path):
     assert "SPEC-005-demo" in text
 
 
-def test_declare_current_spec_reemplaza_spec_previa_no_apila(tmp_path):
+def test_declare_current_spec_acumula_sin_perder_la_previa(tmp_path):
+    """SPEC-004 FR-011: la declaracion es acumulativa dentro de la iteracion.
+
+    Invierte el criterio original de FR-007 ("agrega o reemplaza"): reemplazar
+    des-declaraba en silencio la spec anterior, y como una spec recien creada
+    nace sin FR escritos, el gate pasaba a bloquear tambien las ediciones que
+    esa anterior ya autorizaba (docs/IDEAS.md G-7).
+    """
     current = tmp_path / "current-spec"
     current.write_text(CURRENT_SPEC_HEADER + "SPEC-004-vieja\n", encoding="utf-8")
 
     sdd_spec._declare_current_spec(current, "SPEC-005-demo")
 
-    text = current.read_text(encoding="utf-8")
-    assert "SPEC-004-vieja" not in text
-    assert "SPEC-005-demo" in text
+    declaradas = sdd_spec._specs_declaradas(current)
+    assert declaradas == ["SPEC-004-vieja", "SPEC-005-demo"]
+    for line in CURRENT_SPEC_HEADER.splitlines():
+        assert line in current.read_text(encoding="utf-8")
+
+
+def test_declare_current_spec_no_duplica_una_ya_declarada(tmp_path):
+    """FR-011: re-declarar no agrega una segunda linea ni reordena (SC-008)."""
+    current = tmp_path / "current-spec"
+    current.write_text(CURRENT_SPEC_HEADER, encoding="utf-8")
+
+    sdd_spec._declare_current_spec(current, "SPEC-004-vieja")
+    sdd_spec._declare_current_spec(current, "SPEC-005-demo")
+    sdd_spec._declare_current_spec(current, "SPEC-004-vieja")
+
+    assert sdd_spec._specs_declaradas(current) == [
+        "SPEC-004-vieja",
+        "SPEC-005-demo",
+    ]
+
+
+def test_clear_current_spec_deja_el_archivo_igual_al_header(tmp_path):
+    """FR-011: `--clear` retira las declaraciones y conserva los comentarios."""
+    current = tmp_path / "current-spec"
+    current.write_text(CURRENT_SPEC_HEADER, encoding="utf-8")
+    sdd_spec._declare_current_spec(current, "SPEC-004-vieja")
+    sdd_spec._declare_current_spec(current, "SPEC-005-demo")
+
+    sdd_spec._clear_current_spec(current)
+
+    assert current.read_text(encoding="utf-8") == CURRENT_SPEC_HEADER
+    assert sdd_spec._specs_declaradas(current) == []
 
 
 def test_declare_current_spec_sin_archivo_previo_no_falla(tmp_path):
@@ -106,6 +142,27 @@ def test_ciclo_declarar_luego_reset_deja_solo_el_header(tmp_path, monkeypatch):
     monkeypatch.setattr(sdd_reset, "find_repo_root", lambda: tmp_path)
 
     sdd_spec._declare_current_spec(current, "SPEC-005-demo")
+    assert sdd_reset.main() == 0
+
+    assert current.read_text(encoding="utf-8") == CURRENT_SPEC_HEADER
+
+
+def test_ciclo_con_dos_specs_declaradas_tambien_vuelve_al_header(tmp_path, monkeypatch):
+    """SPEC-004 SC-008: el conjunto acumulado no degrada SC-004.
+
+    El reset acota el alcance de FR-011 a la iteracion en curso: por eso la
+    acumulacion no crece sin limite.
+    """
+    import sdd_reset
+
+    (tmp_path / "CONSTITUTION.md").write_text("# demo\n", encoding="utf-8")
+    (tmp_path / ".sdd").mkdir()
+    current = tmp_path / ".sdd" / "current-spec"
+    current.write_text(CURRENT_SPEC_HEADER, encoding="utf-8")
+    monkeypatch.setattr(sdd_reset, "find_repo_root", lambda: tmp_path)
+
+    sdd_spec._declare_current_spec(current, "SPEC-004-una")
+    sdd_spec._declare_current_spec(current, "SPEC-005-otra")
     assert sdd_reset.main() == 0
 
     assert current.read_text(encoding="utf-8") == CURRENT_SPEC_HEADER
@@ -134,6 +191,55 @@ def _repo(tmp_path, con_template=True, con_registro=True):
     if con_registro:
         (specs / "SPECS_REGISTRY.md").write_text(REGISTRY_CON_ROADMAP, encoding="utf-8")
     return tmp_path
+
+
+def test_main_crear_una_segunda_spec_no_desdeclara_la_primera(
+    tmp_path, monkeypatch, capsys
+):
+    """SPEC-004 FR-011/SC-008 por el entrypoint, que es lo que corre la skill.
+
+    Antes, crear la segunda spec dejaba declarada solo a esa; como nace sin FR
+    escritos, el gate bloqueaba tambien lo que la primera ya autorizaba.
+    """
+    repo = _repo(tmp_path)
+    monkeypatch.chdir(repo)
+
+    assert sdd_spec.main(["primera"]) == 0
+    assert sdd_spec.main(["segunda"]) == 0
+
+    current = repo / ".sdd" / "current-spec"
+    assert sdd_spec._specs_declaradas(current) == [
+        "SPEC-001-primera",
+        "SPEC-002-segunda",
+    ]
+    # El conjunto resultante se imprime: la acumulacion no es silenciosa.
+    assert "SPEC-001-primera, SPEC-002-segunda" in capsys.readouterr().out
+
+
+def test_main_clear_retira_las_declaraciones(tmp_path, monkeypatch, capsys):
+    """FR-011: `--clear` es la via explicita para des-declarar sin commitear."""
+    repo = _repo(tmp_path)
+    monkeypatch.chdir(repo)
+    assert sdd_spec.main(["primera"]) == 0
+
+    assert sdd_spec.main(["--clear"]) == 0
+
+    current = repo / ".sdd" / "current-spec"
+    assert current.read_text(encoding="utf-8") == CURRENT_SPEC_HEADER
+    assert "Sin specs declaradas" in capsys.readouterr().out
+
+
+def test_main_clear_con_slug_reemplaza(tmp_path, monkeypatch):
+    """FR-011: `--clear` + declaracion da el reemplazo explicito."""
+    repo = _repo(tmp_path)
+    monkeypatch.chdir(repo)
+    assert sdd_spec.main(["primera"]) == 0
+
+    assert sdd_spec.main(["segunda", "--clear"]) == 0
+
+    assert sdd_spec._specs_declaradas(repo / ".sdd" / "current-spec") == [
+        "SPEC-002-segunda"
+    ]
 
 
 def test_main_sin_argumentos_devuelve_2(capsys):

@@ -127,6 +127,50 @@ def test_escenario_3_dos_specs_con_commit_al_final(derivado_con_hooks: Path) -> 
     espera_exit(entorno.commitear(destino, "feat: dos capacidades"))
 
 
+def test_escenario_4_crear_la_segunda_spec_no_desdeclara_la_primera(
+    derivado_con_hooks: Path,
+) -> None:
+    """SPEC-004 FR-011/SC-008 por la ruta real de instalacion.
+
+    El escenario 3 llega al estado multi-spec escribiendo `.sdd/current-spec` a
+    mano, que es justo la via que `AGENTS.md` prohibe: hasta FR-011 ningun
+    camino sancionado lo producia (el formato, el lector y la doc soportaban N
+    specs; faltaba el escritor). Aca no se llama a `_declarar` en ningun paso —
+    la declaracion sale entera de `sdd_spec.py` corriendo como subproceso en el
+    derivado, que es lo unico que prueba que el core vendorizado se comporta.
+
+    Mismo motivo que ANA-09 de esta spec: probar el helper interno no prueba la
+    ruta que el usuario corre.
+    """
+    destino = derivado_con_hooks
+    una = _crear_spec(destino, "capacidad-uno", "Capacidad uno")
+    _escribir_requisitos(una, "el modulo expone el saldo de una cuenta.")
+    _escribir_codigo(destino, "def saldo(cuenta):\n    return cuenta\n")
+
+    otra = _crear_spec(destino, "capacidad-dos", "Capacidad dos")
+
+    # La asercion que falla con el criterio viejo: crear la segunda spec
+    # des-declaraba la primera en silencio.
+    assert _declaradas(destino) == [una.stem, otra.stem], (
+        "crear la segunda spec tiene que conservar la primera declarada; "
+        f"quedo {_declaradas(destino)}"
+    )
+
+    # FR-011 no levanta el bloqueo transitorio: el gate exige FR a *cada* spec
+    # declarada, asi que la recien creada bloquea hasta tenerlos. Lo que cambia
+    # es a quien nombra y que no se pierde nada.
+    bloqueado = entorno.commitear(destino, "feat: dos capacidades")
+    assert bloqueado.exit != 0, f"el commit no debio pasar{bloqueado.detalle()}"
+    dice(bloqueado, otra.stem, "no tiene(n) requisitos")
+
+    _escribir_requisitos(otra, "el modulo informa el limite de una cuenta.")
+    espera_exit(
+        entorno.commitear(destino, "feat: dos capacidades"),
+        porque="con los FR de la segunda escritos vuelve a autorizar, y la "
+        "primera sigue declarada sin re-declararla",
+    )
+
+
 def test_el_escape_hatch_permite_y_deja_rastro(derivado_con_hooks: Path) -> None:
     """`SDD_GATE_BYPASS` es la salida acotada; `--no-verify` apagaria todo.
 

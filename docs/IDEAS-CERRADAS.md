@@ -26,6 +26,7 @@
 | G-3 | Matcher del hook de Claude solo cubre `Edit\|Write` | [[SPEC-015-wiring-apunta-al-codigo-real]] |
 | G-4 | `sdd-doctor` valida existencia, no contenido, del wiring | [[SPEC-014-derivado-dice-la-verdad]] |
 | G-5 | Criterio mtime del gate sin documentar ni escape hatch | [[SPEC-017-gate-decision-spec-first]] |
+| G-7 | Ninguna vía sancionada declara dos specs vigentes a la vez | [[SPEC-004-enforcement-hardening]] |
 | G-8 | Los tests no referencian el FR que dicen cubrir | [[SPEC-024-traza-fr-en-test]] |
 | G-9 | El reset post-commit deja el working tree sucio | [[SPEC-004-enforcement-hardening]] |
 | R-1..R-3 | Duplicación de SSOT: docs/templates, template de spec, defaults | [[SPEC-005-desduplicar-ssot]] |
@@ -182,6 +183,60 @@
   cubierta si el FR aparece en **al menos uno**, y las specs `active` que el
   check nuevo ponía en rojo se migraron en la misma iteración, sin lista de
   exenciones — hardcodearla la prohíbe el propio `AGENTS.md`.
+- **G-7 · Ninguna vía sancionada declaraba dos specs vigentes a la vez, y el
+  kit decía que sí.** El síntoma original —`sdd_spec.py` pisaba el archivo
+  entero— lo cerró SPEC-004 FR-007 el 2026-08-01 preservando el header; lo que
+  quedó abierto tres meses fue la semántica multi-spec.
+  **(cerrado el 2026-08-17)** → [[SPEC-004-enforcement-hardening]] FR-011/SC-008,
+  opción *append*: la declaración acumula dentro de la iteración, con `--clear`
+  como vía explícita para retirarla. Lo que la idea no registraba, en orden de
+  importancia:
+
+  **(a) No era "falta un flag" sino una capacidad implementada sin productor.**
+  El formato la prometía (header, «una por línea»), el lector la implementaba
+  (`sdd_gate._declared_specs` parsea N líneas y valida **cada** una en AND) y la
+  doc la documentaba; faltaba solo el escritor, y la vía manual la prohíbe
+  `AGENTS.md`. Tres capas de cuatro construidas para una capacidad inalcanzable.
+
+  **(b) El daño no era cosmético: crear una spec a mitad de iteración bloqueaba
+  el trabajo ya autorizado.** La spec nueva nace con placeholders y sin FR, y al
+  reemplazar a la anterior el gate pasaba a exigirle FR a ella y bloqueaba
+  *todas* las ediciones — incluidas las que la spec des-declarada autorizaba
+  legítimamente. El aviso existente («escribí los FR») no mencionaba la pérdida.
+  Precisión que la prueba en un derivado real obligó a escribir, y que la
+  primera redacción del FR daba por resuelta de más: **append no levanta ese
+  bloqueo**, porque el gate exige las tres condiciones a cada spec declarada.
+  Lo que cambia es que la anterior no se pierde, así que al escribir los FR de
+  la nueva la autorización vuelve sola, sin re-declararla — y el mensaje de
+  bloqueo nombra solo a la incompleta.
+
+  **(c) El argumento de que acumular contradecía el lote acotado de T-1 se
+  evaluó y se retiró.** Confundía **declaración** con **lote**: el archivo no
+  carga contexto, autoriza ediciones; el conjunto co-residente lo determina el
+  trabajo, así que reemplazar no ahorra un token — solo hace que la declaración
+  mienta. Además la unidad de T-1 es el FR pendiente, y acumular no agrega
+  ninguno. La refutación decisiva fue empírica y salió del propio historial: las
+  iteraciones del 2026-08-17 (C-9/C-6, FR en cuatro specs) y del 2026-08-12
+  (SPEC-003 + SPEC-012) editan código gateado bajo varias specs en un solo
+  commit, y son **buena práctica de [[SPEC-022-reusar-specs-existentes]]** —
+  reusar la spec que ya gobierna cada archivo en vez de abrir una "de higiene"—,
+  no deslices. La práctica que el kit promueve fabrica iteraciones multi-spec, y
+  el modelo contable ya lo asumía: esas entradas incrementan la columna
+  `Iteración` «de cada una».
+
+  **(d) Lo que hace segura la acumulación es el reset, no la disciplina.**
+  `sdd_reset.py` vacía el conjunto tras cada commit, así que su alcance es
+  exactamente la iteración en curso; el archivo queda siendo el borrador
+  legible por máquina de la línea `Specs leídas:` del `[SDD-Check]`. Contrapeso
+  que quedó documentado en `SDD-ENFORCEMENT.md`: como el gate exige las tres
+  condiciones a cada spec listada, una declarada sin FR bloquea todo, no solo lo
+  suyo.
+
+  **(e) Costo evitado.** Las dos alternativas que corregían el header (replace
+  con aviso, o solo-doc) chocaban con que **el header es inmutable en un derivado
+  ya instalado** — `.sdd/current-spec` es semilla y `sdd-update` solo la escribe
+  si falta. Ese defecto es más ancho que G-7 y quedó como **X-10**; *append* lo
+  esquiva porque no toca el header.
 - **G-9 · El reset post-commit de `.sdd/current-spec` nunca queda commiteado
   — el working tree SIEMPRE sale sucio tras un commit con spec declarada.**
   `core/sdd_reset.py` (hook `post-commit`, SPEC-004 FR-002) edita el archivo

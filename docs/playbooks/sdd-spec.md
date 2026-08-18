@@ -57,9 +57,39 @@ pisan rompe ese invariante y deja la verdad repartida.
 
      Ambas banderas son repetibles y combinables. Ver abajo cuándo usar cada una.
 
+   La declaración **acumula**: si ya venías con una spec declarada en esta
+   iteración, la nueva se suma y la anterior sigue vigente (el comando imprime
+   el conjunto). Para des-declarar sin commitear:
+
+   ```
+   python tools/sdd/core/sdd_spec.py --clear
+   ```
+
+   Sola limpia todo; junto a una declaración (`... "<slug>" --clear`) reemplaza.
+   El reset post-commit vacía el conjunto igual, así que su alcance normal es la
+   iteración en curso.
+
 5. Si creaste una spec, **completala** según `docs/SPEC-FORMAT.md` (User Story
    con prioridad, FR-NNN con `MUST:`, SC-NNN, Coverage mapping). Es obligatorio:
    el gate exige que la spec declarada tenga requisitos escritos.
+
+   **Crear una spec te bloquea hasta escribir sus FR, y bloquea todo** —también
+   lo que otra spec ya declarada autorizaba—, porque el gate exige requisitos a
+   *cada* spec listada y no correlaciona archivo con spec. Es el invariante
+   spec-first, no un efecto colateral: aflojarlo a "alcanza con que alguna
+   declarada tenga FR" es el bypass que el endurecimiento multi-spec cerró. Si
+   estabas trabajando en otra capacidad y todavía no vas a redactar los
+   requisitos de la nueva, **no la crees todavía**; y si ya la creaste, volvé a
+   trabajar solo con la anterior:
+
+   ```
+   python tools/sdd/core/sdd_spec.py --clear
+   python tools/sdd/core/sdd_spec.py --reuse SPEC-NNN --fr FR-NNN
+   ```
+
+   `--clear` sola no destraba nada (te deja sin ninguna spec declarada, que
+   bloquea más): no es una salida del gate, es reordenar la intención. La salida
+   de emergencia sigue siendo `SDD_GATE_BYPASS`, con su rastro.
 6. Opcional pero recomendado: corré la skill `clarify` para cerrar ambigüedades y
    `analyze` para validar adecuación antes de codear.
 7. Recién entonces empezá a editar código.

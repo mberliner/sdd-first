@@ -1,5 +1,85 @@
 # Historial SDD — sdd-first
 
+## 2026-08-17 — SPEC-004 FR-011 (G-7): la declaración de specs acumula dentro de la iteración
+
+**Scope:** `core/sdd_spec.py` (`_declare_current_spec`, `--clear`),
+`specs/SPEC-004-enforcement-hardening.md` (FR-011/SC-008, enmienda a FR-007),
+`tests/unit/test_sdd_spec.py`, `templates/docs/SDD-ENFORCEMENT.md`,
+`templates/docs/playbooks/sdd-spec.md` (+ sus derivados en `docs/`),
+`specs/SPECS_REGISTRY.md`, `docs/IDEAS.md`, `docs/IDEAS-CERRADAS.md`.
+
+**Qué cambió:** declarar una spec ya no des-declara las anteriores. El conjunto
+se acumula (sin duplicados ni reordenamientos), los dos caminos —creación y
+`--reuse`— imprimen el conjunto vigente resultante, y `--clear` es la vía
+explícita para retirarlo (sola limpia; junto a una declaración, reemplaza).
+
+**Por qué no era cosmético:** crear una spec a mitad de iteración pisaba la
+declaración anterior y, como la spec nueva nace con placeholders y sin FR
+escritos, el gate pasaba a exigirle FR a ella y bloqueaba *todas* las ediciones
+—incluidas las que la spec des-declarada ya autorizaba—. El aviso existente
+("escribí los FR") no mencionaba la pérdida.
+
+**Lo que el fix NO hace, corregido tras probarlo en un derivado real:** append
+no levanta el bloqueo transitorio. Mientras la spec nueva no tenga FR, el gate
+sigue rechazando toda edición, porque exige las tres condiciones a **cada** spec
+declarada. Lo que cambia es que la anterior no se pierde: al escribir esos FR la
+autorización vuelve sola, sin re-declarar, y el mensaje nombra solo a la
+incompleta. La primera redacción de FR-011 daba el bloqueo por cerrado; se
+corrigió el FR, el SC y el post-mortem.
+
+**Decisiones de diseño:**
+- **Reuso, no spec nueva.** El triage devolvió 7 candidatas por archivo
+  compartido (ruido conocido de `sdd_spec.py`/`sdd_gate.py`); se aplicó la regla
+  por funcionalidad del precedente de C-9/C-6 y ganó SPEC-004, cuya User Story es
+  el ciclo de vida de `.sdd/current-spec` y cuyo FR-007 es literalmente
+  `_declare_current_spec`.
+- **Append y no "replace + aviso".** La alternativa se descartó con evidencia del
+  propio historial: las iteraciones del 2026-08-17 (C-9/C-6, FR en cuatro specs)
+  y del 2026-08-12 (SPEC-003 + SPEC-012) editan código gateado bajo varias specs
+  en un solo commit, y son buena práctica de SPEC-022 —reusar la spec que ya
+  gobierna cada archivo en vez de abrir una "de higiene"—, no deslices. El modelo
+  contable ya lo asumía: esas entradas incrementan la columna `Iteración` de cada
+  spec.
+- **El argumento "acumular contradice el lote acotado de T-1" se evaluó y se
+  retiró.** Confundía declaración con lote: el archivo no carga contexto,
+  autoriza ediciones; reemplazar no reduce el conjunto co-residente, solo hace
+  que la declaración mienta. Y la unidad de T-1 es el FR pendiente, que acumular
+  no incrementa. Queda en el índice de descartes para no re-litigarlo.
+- **Enmienda explícita de FR-007**, cuya cláusula "agrega o reemplaza" estaba
+  codificada en un test (`..._reemplaza_spec_previa_no_apila`). Se invirtió el
+  test en vez de agregar uno que lo contradijera en silencio.
+- **No se tocó el header de `.sdd/current-spec`**, que ya prometía "una por
+  línea" y ahora es cierto. Eso además esquiva X-10 (el texto del kit dentro de
+  una semilla es inmutable en derivados ya instalados), que quedó registrado como
+  ítem propio en esta misma sesión.
+- **El bloqueo global de una spec sin FR se ratificó como correcto**, no como
+  aspereza a limar. Sin correlación archivo→spec (deuda de SPEC-017), las únicas
+  semánticas posibles son AND u OR, y el OR ya se eliminó el 2026-08-14 por ser
+  un bypass: declarar una spec vieja y completa habilitaría codear contra una
+  nueva vacía. Lo que sí se hizo es documentar la salida ordenada en el playbook
+  (`--clear` + `--reuse` de la anterior si todavía no vas a redactar los FR de la
+  nueva), aclarando que `--clear` sola no destraba nada — bloquea más — así que
+  no es una vía de escape del gate.
+
+**Lo que ya estaba construido y no tenía productor:** el formato (header), el
+lector (`sdd_gate._declared_specs`, que parsea N líneas y valida cada una en AND)
+y la doc soportaban multi-spec desde SPEC-017; faltaba solo el escritor, y la vía
+manual la prohíbe `AGENTS.md`. Tres capas de cuatro para una capacidad que
+ninguna vía sancionada podía producir.
+
+**Deuda:** el gate sigue sin correlacionar archivo→spec (deuda anotada en
+SPEC-017), así que declarar varias specs no autoriza de forma diferenciada: si
+eso se implementa, la acumulación pasa de "declarar con precisión" a "autorizar
+con precisión". Y X-10 queda abierto.
+
+```
+[SDD-Check]
+- Specs leídas: SPEC-004-enforcement-hardening (adoptada, FR-011 nuevo + FR-007 enmendado)
+- Includes/excludes verificados: core/sdd_spec.py + tests/unit/test_sdd_spec.py + tests/e2e/escenarios/test_ciclo_spec_first.py; templates/docs (SDD-ENFORCEMENT, playbook sdd-spec) regenerados con render.py
+- SSOTs afectados: SPEC-004 + SPECS_REGISTRY.md (iteración 13) + docs/SDD-ENFORCEMENT.md + docs/playbooks/sdd-spec.md + docs/IDEAS.md + docs/IDEAS-CERRADAS.md
+- Verificación: .venv/bin/python core/pipeline.py → VERDE (11/11); 6 tests unitarios + 1 escenario e2e nuevos, todos en rojo confirmado antes del fix (el e2e revertiendo `_declare_current_spec` a replace); derivado real instalado en /tmp con `sdd_init.py`: dos specs declaradas por el propio comando, gate bloqueando y nombrando solo a la incompleta, autorizando con ambas completas, y `--clear` dejando el archivo en el header
+```
+
 ## 2026-08-17 — SPEC-003 FR-015: `_vendor_kit` no copia `__pycache__`/`*.pyc`
 
 **Scope:** `core/sdd_init.py` (`_vendor_kit`), `specs/SPEC-003-install-happy-path.md`
