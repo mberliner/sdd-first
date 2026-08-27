@@ -164,3 +164,70 @@ def test_una_spec_sin_seccion_recibe_la_vuelta_en_la_misma_corrida(tmp_path):
 
     escrito = (tmp_path / "specs" / "SPEC-002-x.md").read_text(encoding="utf-8")
     assert "**Extendida por:** [SPEC-001](SPEC-001-x.md)" in escrito
+
+
+# -- FR-US1-006: se verifica la estructura, no el texto crudo ------------------
+
+from pathlib import Path  # noqa: E402
+
+import pytest  # noqa: E402
+
+# Wiring *inerte* que menciona la invocacion donde no ejecuta nada. Es el caso
+# que el `in` sobre el archivo entero daba por bueno: un comentario alcanza para
+# satisfacerlo, incluso uno que dice lo contrario de lo que el chequeo afirma.
+WIRING_INERTE = {
+    ".pre-commit-config.yaml": (
+        "# Este proyecto NO usa sdd_gate.py: se saco el hook a proposito.\n"
+        "repos:\n"
+        "  - repo: local\n"
+        "    hooks:\n"
+        "      - id: ruff\n"
+        "        name: ruff\n"
+        "        entry: ruff check\n"
+        "        language: system\n"
+    ),
+    ".claude/settings.json": '{"hooks": {"PreToolUse": []}, "_nota": "sin sdd_gate_hook.sh"}',
+    ".agents/hooks.json": '{"sdd-gate": {"PreToolUse": []}, "_nota": "agy_gate_hook.py"}',
+    ".opencode/plugin/sdd-gate.js": "// sdd_gate.py — plugin vaciado a proposito\n",
+}
+
+
+def _proyecto_con_wiring(tmp_path: Path, contenidos: dict[str, str]) -> Path:
+    (tmp_path / ".sdd").mkdir(parents=True)
+    (tmp_path / ".sdd" / "config.yaml").write_text(
+        "project:\n  name: probe\ndirs:\n  source_roots: [src]\n", encoding="utf-8"
+    )
+    for rel, cuerpo in contenidos.items():
+        destino = tmp_path / rel
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(cuerpo, encoding="utf-8")
+    return tmp_path
+
+
+@pytest.mark.parametrize("rel", sorted(WIRING_INERTE))
+def test_una_mencion_sin_ejecucion_no_cuenta_como_cableado(tmp_path, rel):
+    """FR-US1-006: la invocacion tiene que estar donde algo la ejecuta."""
+    repo = _proyecto_con_wiring(tmp_path, WIRING_INERTE)
+    problemas = sdd_doctor._gate_wiring_problems(repo)
+    assert any(rel in p for p in problemas), (
+        f"{rel} menciona la invocacion pero no la ejecuta, y el doctor lo dio "
+        f"por cableado. Problemas reportados: {problemas}"
+    )
+
+
+def test_el_plugin_de_opencode_esta_bajo_control(tmp_path):
+    """FR-US1-006: sdd-init lo instala siempre, asi que su ausencia es un problema."""
+    contenidos = dict(WIRING_INERTE)
+    del contenidos[".opencode/plugin/sdd-gate.js"]
+    repo = _proyecto_con_wiring(tmp_path, contenidos)
+    problemas = sdd_doctor._gate_wiring_problems(repo)
+    assert any("sdd-gate.js" in p for p in problemas), problemas
+
+
+def test_un_wiring_que_no_parsea_es_un_problema(tmp_path):
+    """Un JSON roto no puede contar como pase: no se pudo verificar nada."""
+    contenidos = dict(WIRING_INERTE)
+    contenidos[".claude/settings.json"] = "{ esto no es JSON sdd_gate_hook.sh"
+    repo = _proyecto_con_wiring(tmp_path, contenidos)
+    problemas = sdd_doctor._gate_wiring_problems(repo)
+    assert any("settings.json" in p for p in problemas), problemas

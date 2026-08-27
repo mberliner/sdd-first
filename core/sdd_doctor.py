@@ -14,9 +14,14 @@ Exit 0 si todo OK, 1 si hay problemas.
 
 from __future__ import annotations
 
+import json
+import re
 import subprocess  # nosec B404 - corre checks del propio proyecto
 import sys
+from collections.abc import Iterator
 from pathlib import Path
+
+import yaml
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -25,6 +30,7 @@ import sdd_lock  # noqa: E402
 import spec_relations  # noqa: E402
 from sdd_config import (  # noqa: E402
     GATE_WIRING,
+    GATE_WIRING_FORMATO,
     KIT_VERSION,
     TEST_DIRS,
     find_repo_root,
@@ -75,13 +81,54 @@ def _drift(script: Path, repo_root: Path) -> list[str] | None:
     ]
 
 
+_COMENTARIO_JS = re.compile(r"//[^\n]*|/\*.*?\*/", re.DOTALL)
+
+
+# Claves que en el wiring declarativo llevan lo que se EJECUTA: `command` en los
+# hooks de Claude Code y de Antigravity, `entry` en los de pre-commit. Mirar
+# todos los valores no alcanzaba: JSON no admite comentarios, asi que una
+# mencion inerte solo puede vivir en un valor cualquiera (`"_nota": "..."`) y
+# quedaba indistinguible de un cableado real.
+_CLAVES_EJECUTABLES = frozenset({"command", "entry"})
+
+
+def _valores_ejecutables(estructura: object) -> Iterator[str]:
+    """Cada string bajo una clave que el runtime ejecuta."""
+    if isinstance(estructura, dict):
+        for clave, valor in estructura.items():
+            if str(clave) in _CLAVES_EJECUTABLES and isinstance(valor, str):
+                yield valor
+            else:
+                yield from _valores_ejecutables(valor)
+    elif isinstance(estructura, (list, tuple)):
+        for item in estructura:
+            yield from _valores_ejecutables(item)
+
+
+def _texto_ejecutable(rel: str, contenido: str) -> str:
+    """Parte de `rel` donde una invocacion **ejecuta** algo (FR-US1-006).
+
+    Buscar con `in` sobre el archivo entero daba por bueno un comentario --uno
+    que dijera "este proyecto NO usa sdd_gate.py" incluido--, que es la misma
+    clase de falso positivo que FR-US1-002 existe para cerrar. Lanza si el
+    archivo declarativo no parsea: no haber podido verificar no es un pase.
+    """
+    formato = GATE_WIRING_FORMATO.get(rel, "codigo")
+    if formato == "json":
+        return "\n".join(_valores_ejecutables(json.loads(contenido)))
+    if formato == "yaml":
+        return "\n".join(_valores_ejecutables(yaml.safe_load(contenido)))
+    return _COMENTARIO_JS.sub("", contenido)
+
+
 def _gate_wiring_problems(repo_root: Path) -> list[str]:
     """Verifica que el wiring de gate exista Y cablee el gate (FR-US1-002).
 
     Un archivo con el nombre correcto no prueba nada: el proyecto pudo tener su
     propio `.pre-commit-config.yaml` (que `sdd-init` conserva por diseno) y
     entonces no hay ninguna capa de enforcement activa. Reportar "sana" en ese
-    caso es peor que no tener la herramienta.
+    caso es peor que no tener la herramienta. Que la invocacion **este donde se
+    ejecuta**, y no en un comentario, lo aporta `_texto_ejecutable`.
     """
     problems: list[str] = []
     for rel, invocacion in GATE_WIRING.items():
@@ -94,7 +141,15 @@ def _gate_wiring_problems(repo_root: Path) -> list[str]:
         except OSError as exc:
             problems.append(f"Gate no verificable: no se pudo leer {rel} ({exc}).")
             continue
-        if invocacion not in contenido:
+        try:
+            ejecutable = _texto_ejecutable(rel, contenido)
+        except Exception as exc:  # noqa: BLE001 - cualquier parser puede fallar
+            problems.append(
+                f"Gate no verificable: {rel} no se pudo interpretar ({exc}). "
+                "Un wiring ilegible no cablea nada: compara con templates/wiring/."
+            )
+            continue
+        if invocacion not in ejecutable:
             problems.append(
                 f"Gate no cableado: {rel} existe pero no invoca {invocacion} "
                 "(¿es el wiring propio del proyecto? compara con templates/wiring/)."

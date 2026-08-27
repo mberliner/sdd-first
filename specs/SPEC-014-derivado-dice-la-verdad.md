@@ -198,6 +198,26 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   redacción denegaba toda edición sin raíz resoluble.)*
 - **FR-US1-004** SHOULD: la salida de instalación nombra `00-INDEX.md` como
   puerta de entrada a la documentación instalada.
+- **FR-US1-006** MUST: la verificación de FR-US1-002 se hace sobre la
+  **estructura parseada** del wiring, no sobre su texto crudo, y `GATE_WIRING`
+  cubre las cuatro superficies que `sdd-init` instala —incluido
+  `.opencode/plugin/sdd-gate.js`, que hoy no está y por lo tanto nadie
+  verifica—. Buscar la invocación con `in` sobre el archivo entero es la misma
+  clase de defecto que [[SPEC-017-gate-decision-spec-first]] FR-US2-001 ya
+  cerró para el registro de specs: un comentario que dice *«este proyecto no usa
+  `sdd_gate.py`»* satisface el chequeo. Medido: un proyecto con
+  `PreToolUse: []`, un `.pre-commit-config.yaml` sin el hook y sin plugin de
+  opencode obtiene **cero** problemas de wiring. Los archivos declarativos
+  (`.claude/settings.json`, `.agents/hooks.json`, `.pre-commit-config.yaml`) se
+  parsean y la invocación tiene que aparecer bajo una clave que el
+  runtime **ejecuta** (`command`, `entry`); un archivo que no parsea es un
+  problema, no un pase. Mirar todos los valores no alcanza: JSON no admite
+  comentarios, así que ahí la mención inerte vive en un valor cualquiera
+  (`"_nota": "…"`) y queda indistinguible de un cableado real. Para el
+  plugin —que es código y no configuración— se descartan los comentarios antes
+  de buscar. Reportar un gate sano sobre wiring inerte es peor que no tener la
+  herramienta, que es lo que dice el docstring que este chequeo existe para
+  impedir.
 - **FR-US1-005** MUST: `core/sdd_init.py` siembra el paso `render` en
   `pipeline.steps` (`_SEEDED_STEPS`), antes de los pasos de código, para que el
   pipeline del derivado detecte el drift de los artefactos generados en vez de
@@ -272,6 +292,7 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 | FR-US1-003 | `tests/unit/test_gate_sin_raiz_sdd.py` |
 | FR-US1-004 | `tests/unit/test_sdd_init_wiring_conservado.py` |
 | FR-US1-005 | `tests/unit/test_sdd_init_seeded_steps.py` |
+| FR-US1-006 | `tests/unit/test_sdd_doctor_wiring.py` |
 | FR-US2-001 | `tests/unit/test_derived_references.py` |
 | FR-US2-002 | `tests/unit/test_mensajes_de_drift.py` |
 | FR-US2-003 | `tests/unit/test_sdd_doctor_wiring.py` |
@@ -306,3 +327,14 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   vivo la edición de un archivo de otra carpeta y del propio kit. La raíz ahora
   se busca también desde la ruta del archivo, y solo se permite cuando la
   edición no pertenece a ningún proyecto SDD.
+- 2026-08-26: FR-US1-006, de la auditoría de hooks y checks. FR-US1-002 se
+  había implementado con `invocacion in contenido` sobre el archivo entero, así
+  que un comentario lo satisfacía: medido, un proyecto con `PreToolUse: []`, un
+  `.pre-commit-config.yaml` cuyo comentario decía *«NO usa sdd_gate.py»* y sin
+  plugin de opencode obtenía **cero** problemas — exactamente el falso positivo
+  que el chequeo existe para cerrar, un nivel más adentro. Al escribir los tests
+  apareció que mirar todos los valores tampoco alcanza en JSON, que no admite
+  comentarios: la mención inerte vive ahí en un valor cualquiera. El criterio
+  quedó en las claves que el runtime ejecuta (`command`, `entry`). Se sumó
+  `.opencode/plugin/sdd-gate.js` a `GATE_WIRING`: `sdd-init` lo instala siempre
+  y no lo verificaba nadie.

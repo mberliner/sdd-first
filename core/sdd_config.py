@@ -137,6 +137,21 @@ GATE_WIRING = {
     ".claude/settings.json": "sdd_gate_hook.sh",
     ".agents/hooks.json": "agy_gate_hook.py",
     ".pre-commit-config.yaml": "sdd_gate.py",
+    # `sdd-init` lo instala siempre (sdd_catalog.WIRING), asi que su ausencia es
+    # un agujero real y no una preferencia del proyecto (SPEC-014 FR-US1-006).
+    ".opencode/plugin/sdd-gate.js": "sdd_gate.py",
+}
+
+# Como se lee cada archivo de `GATE_WIRING` para saber si la invocacion esta
+# donde algo la ejecuta (SPEC-014 FR-US1-006). Los declarativos se parsean y la
+# invocacion se busca entre los VALORES de la estructura, asi un comentario deja
+# de satisfacer el chequeo; el plugin es codigo y ahi lo unico que se puede
+# hacer sin un parser de JS es descartar los comentarios antes de buscar.
+GATE_WIRING_FORMATO = {
+    ".claude/settings.json": "json",
+    ".agents/hooks.json": "json",
+    ".pre-commit-config.yaml": "yaml",
+    ".opencode/plugin/sdd-gate.js": "codigo",
 }
 
 
