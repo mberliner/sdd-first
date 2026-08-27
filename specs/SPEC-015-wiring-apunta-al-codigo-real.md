@@ -125,6 +125,10 @@ de juguete, un escenario por caso; la evidencia queda en
   roots, **Then** obtiene `pkg` — el mismo valor que `SddConfig.source_roots`.
 - **Given** un proyecto sin `.sdd/config.yaml` legible, **When** la rama
   fail-closed pre-filtra, **Then** cae al default `src` sin romperse.
+- **Given** un proyecto con `dirs.source_roots: [pkg]` y ningún intérprete
+  Python, **When** el payload de Claude Code declara la ruta con separador de
+  Windows (`c:\\proj\\pkg\\x.py`), **Then** la rama fail-closed bloquea igual
+  que con `c:/proj/pkg/x.py` (exit 2), y sigue permitiendo `c:\\proj\\docs\\nota.md`.
 - **Given** el hook `PreToolUse` de Claude Code, **When** la edición llega por
   `MultiEdit` o `NotebookEdit` en vez de `Edit`/`Write`, **Then** el gate se
   ejecuta igual.
@@ -177,6 +181,16 @@ de juguete, un escenario por caso; la evidencia queda en
   `dirs.source_roots`, y registra el bypass por `Bash` (`echo > pkg/x.py`) como
   límite conocido del hook de Claude, con pre-commit y el pipeline como
   backstop.
+- **FR-008** MUST: la rama fail-closed de `templates/wiring/sdd_gate_hook.sh` y
+  `.claude/sdd_gate_hook.sh` reconoce las rutas del payload **cualquiera sea el
+  separador de directorios**: normaliza `\` a `/` sobre el payload antes de
+  compararlo contra los roots derivados. En Windows, Claude Code declara
+  `file_path` con backslashes (`c:\\proj\\pkg\\x.py`), que ningún patrón sobre
+  `"$_root/` matchea: el pre-filtro no encontraba ningún root, salía 0 y la
+  edición pasaba **sin que nadie la mirara**. Es fail-open en la única
+  plataforma donde el intérprete falta con frecuencia, y contradice el
+  invariante de Key Entities —un pre-filtro puede ser conservador, nunca laxo—.
+  La normalización usa solo builtins POSIX, por el mismo motivo que FR-002.
 
 
 - **FR-US2-001** MUST: `sdd_init` debe instalar el wiring de Antigravity en proyectos derivados. El archivo `templates/wiring/hooks.json` debe agregarse a la constante `_WIRING` en `core/sdd_init.py` (copiándolo a `.agents/hooks.json`).
@@ -255,6 +269,7 @@ de juguete, un escenario por caso; la evidencia queda en
 | FR-004, FR-005 | tests/unit/test_prefilter_source_roots.py |
 | FR-006 | tests/unit/test_wiring_prefiltros.py |
 | FR-007 | tests/unit/test_wiring_prefiltros.py |
+| FR-008 | tests/unit/test_sdd_gate_hook.py |
 | FR-US2-001 | tests/unit/test_wiring_prefiltros.py |
 | FR-US2-002 | tests/unit/test_wiring_prefiltros.py |
 | FR-US2-003 | tests/unit/test_sdd_gate.py, tests/unit/test_sdd_gate_hook.py |
@@ -304,3 +319,13 @@ de juguete, un escenario por caso; la evidencia queda en
   el deny con `echo`— y esas correcciones son FR-US2-002, -004, -006 y -007.
   El gate llevaba desde el 2026-08-09 apagado en Antigravity sin que ningún test
   lo notara: de ahí SC-005, que exige verificación sobre un testigo real.
+- 2026-08-26: FR-008. Auditoría de los hooks: la rama fail-closed era fail-**open**
+  en Windows. El `case` del pre-filtro comparaba contra `"$_root/` y `/$_root/`, y
+  el `file_path` que declara Claude Code en Windows llega con backslashes
+  (`c:\\proj\\pkg\\x.py`), así que no encontraba ningún root, salía 0 y la edición
+  pasaba sin ser mirada — justo en la plataforma donde el intérprete falta más
+  seguido. Los siete casos del test de paridad usaban rutas POSIX, por eso ningún
+  test lo notaba. Se agregó `_sdd_to_bs`, que convierte un root a su forma con
+  separador Windows **tal como llega JSON-escapado** (`\\`), y dos alternativas
+  al `case`. Se normaliza el root (cadena corta), nunca el payload: reconstruirlo
+  con builtins sería cuadrático en su tamaño.

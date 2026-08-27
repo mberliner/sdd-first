@@ -22,6 +22,32 @@
 #
 # Ver docs/SDD-ENFORCEMENT.md. Wiring: .claude/settings.json.
 
+# Backslash literal en una variable: escribirlo dentro de un patron de `case`
+# lo volveria un escape del propio pattern matching. Expandido entre comillas
+# dobles, en cambio, es siempre un caracter literal.
+_BS='\'
+
+# Version de una ruta con separadores de Windows *tal como llegan dentro del
+# JSON*, o sea escapados y por lo tanto dobles: `src/main` -> `src\\main`. Deja
+# el resultado en _bs. Solo se aplica a un root (cadena corta), nunca al payload:
+# reconstruir el payload entero seria cuadratico en su tamaño.
+_sdd_to_bs() {
+  _bs=""
+  _bsrest="$1"
+  while :; do
+    case "$_bsrest" in
+      */*)
+        _bs="$_bs${_bsrest%%/*}$_BS$_BS"
+        _bsrest="${_bsrest#*/}"
+        ;;
+      *)
+        _bs="$_bs$_bsrest"
+        break
+        ;;
+    esac
+  done
+}
+
 # Quita las comillas envolventes de un escalar YAML (`domain: "src/x"`) y deja
 # el resultado en _v. Sin `$(...)`: seria un subshell mas en la rama fail-closed.
 _sdd_unquote() {
@@ -157,8 +183,14 @@ done
 
 if [ -z "$PYBIN" ]; then
   for _root in $(sdd_source_roots "$ROOT"); do
+    # Las dos ultimas alternativas son el mismo root con separador de Windows
+    # (FR-008): ahi `file_path` llega como `c:\\proj\\pkg\\x.py` y ningun patron
+    # sobre `$_root/` matchea, asi que el pre-filtro no encontraba root alguno y
+    # dejaba pasar la edicion — fail-OPEN en la plataforma donde el interprete
+    # falta mas seguido.
+    _sdd_to_bs "$_root"
     case "$INPUT" in
-      *"\"$_root/"* | *"/$_root/"*)
+      *"\"$_root/"* | *"/$_root/"* | *"\"$_bs$_BS$_BS"* | *"$_BS$_BS$_bs$_BS$_BS"*)
         case "${SDD_GATE_BYPASS:-}" in
           *[![:space:]]*)
             echo "sdd-gate fail-closed bypass activo - se permite igual. Motivo: $SDD_GATE_BYPASS" >&2

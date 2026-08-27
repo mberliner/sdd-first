@@ -151,6 +151,37 @@ def test_template_hook_fail_closed_permite_fuera_de_los_roots(tmp_path):
     assert res.returncode == 0
 
 
+def test_template_hook_fail_closed_bloquea_con_separador_windows(tmp_path):
+    """SPEC-015 FR-008: el pre-filtro no puede depender del separador de rutas.
+
+    En Windows —la plataforma donde el interprete falta con mas frecuencia, y
+    por eso la que mas necesita el fail-closed— Claude Code declara `file_path`
+    con backslashes. El `case` sobre `"$_root/` no matcheaba ninguno, el hook
+    salia 0 y la edicion pasaba sin que nadie la mirara: un pre-filtro puede ser
+    conservador, nunca laxo (Key Entities de SPEC-015).
+    """
+    _seed_config(tmp_path, "dirs:\n  source_roots: [pkg]\n")
+    res = _run_hook(TEMPLATE_HOOK, tmp_path, r"C:\proj\pkg\foo.py", path="/nonexistent")
+    assert res.returncode == 2, res.stderr
+    assert "pkg/" in res.stderr
+
+
+def test_template_hook_fail_closed_separador_windows_no_es_falso_positivo(tmp_path):
+    """FR-008 normaliza para *encontrar* roots, no para bloquear todo."""
+    _seed_config(tmp_path, "dirs:\n  source_roots: [pkg]\n")
+    res = _run_hook(
+        TEMPLATE_HOOK, tmp_path, r"C:\proj\docs\nota.md", path="/nonexistent"
+    )
+    assert res.returncode == 0, res.stderr
+
+
+def test_kit_hook_fail_closed_bloquea_con_separador_windows(kit_sin_venv):
+    """FR-008 en el hook del propio kit: el kit se dogfoodea en Windows."""
+    res = _run_hook(KIT_HOOK, kit_sin_venv, r"C:\proj\core\foo.py", path="/nonexistent")
+    assert res.returncode == 2, res.stderr
+    assert "no se encontro un interprete" in res.stderr
+
+
 def _run_hook_antigravity(
     project_dir: Path,
     target_file: str,
