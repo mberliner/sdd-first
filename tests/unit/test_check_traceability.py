@@ -433,3 +433,59 @@ def test_spec_files_ignora_template(tmp_path):
     (tmp_path / "SPEC-001-a.md").write_text("", encoding="utf-8")
     files = ct._spec_files(tmp_path)
     assert [p.name for p in files] == ["SPEC-001-a.md"]
+
+
+# -- FR-009: el mismo criterio de "que es una spec" en los dos lados -----------
+
+
+def _registro(filas: str) -> str:
+    return (
+        "| ID | Título | Estado | Iteración | Formato | Archivo |\n"
+        "|----|--------|--------|-----------|---------|---------|\n" + filas
+    )
+
+
+def test_una_fila_a_spec_no_numerada_no_se_reporta_como_inexistente(tmp_path):
+    """SPEC-001 FR-009: el archivo esta en disco; decir lo contrario es falso.
+
+    El lado del disco ignora las specs no numeradas (`_SPEC_FILE` lo documenta);
+    el lado del registro las aceptaba, y de la asimetria salia un mensaje que
+    manda a buscar un archivo que esta ahi.
+    """
+    specs = tmp_path / "specs"
+    specs.mkdir()
+    (specs / "SPECS_REGISTRY.md").write_text(
+        _registro(
+            "| SPEC-TEMPLATE | Plantilla | archived | - | casero | "
+            "[SPEC-TEMPLATE.md](SPEC-TEMPLATE.md) |\n"
+        ),
+        encoding="utf-8",
+    )
+    (specs / "SPEC-TEMPLATE.md").write_text("# plantilla\n", encoding="utf-8")
+
+    errores: list[str] = []
+    filas = ct._parse_registry(specs / "SPECS_REGISTRY.md", errores)
+    ct._check_consistency(filas, specs, errores)
+
+    assert not any("inexistente" in e for e in errores), errores
+
+
+def test_una_fila_a_spec_numerada_ausente_si_se_reporta(tmp_path):
+    """Contraste de control: la simetria no puede apagar la deteccion real."""
+    specs = tmp_path / "specs"
+    specs.mkdir()
+    (specs / "SPECS_REGISTRY.md").write_text(
+        _registro(
+            "| SPEC-042 | Fantasma | active | - | hibrido | "
+            "[SPEC-042-fantasma.md](SPEC-042-fantasma.md) |\n"
+        ),
+        encoding="utf-8",
+    )
+
+    errores: list[str] = []
+    filas = ct._parse_registry(specs / "SPECS_REGISTRY.md", errores)
+    ct._check_consistency(filas, specs, errores)
+
+    assert any("SPEC-042-fantasma.md" in e and "inexistente" in e for e in errores), (
+        errores
+    )

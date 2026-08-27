@@ -68,6 +68,15 @@ y sale VERDE/ROJO según el resultado agregado.
   aplicado también a los nombres de directorio dentro de los roots recorridos —
   no solo a identificadores y al stem del archivo), layers,
   lint, format, types, security y tests.
+- **FR-009** MUST: la consistencia disco↔registro de FR-003 aplica **el mismo**
+  criterio de "qué archivo es una spec" en los dos lados. Hoy el lado del disco
+  filtra por `SPEC-<número>` (`_SPEC_FILE`, que documenta ignorar
+  `SPEC-TEMPLATE.md` y demás no numerados) y el lado del registro acepta
+  cualquier `SPEC-*.md`, así que una fila que apunte a una spec no numerada se
+  reporta como *«entrada apunta a archivo inexistente»* con el archivo presente
+  en disco. El mensaje es falso y manda a buscar un problema que no existe. Lo
+  que se ignora de un lado se ignora del otro: la asimetría, no la política, es
+  el defecto.
 - **FR-008** MUST: un archivo de entrada que el adaptador no puede leer degrada
   el paso con un aviso nominal, nunca con una excepción propagada. Es el
   invariante de FR-001 —defaults tolerantes— aplicado a lo que el adaptador
@@ -120,6 +129,7 @@ y sale VERDE/ROJO según el resultado agregado.
 | FR-004 | pipeline del kit (paso `constitution` en verde sobre CONSTITUTION.md generado) |
 | FR-005 | tests/unit/test_check_naming.py (naming); resto de pasos: verificación manual vía pipeline |
 | FR-008 | tests/unit/test_check_naming.py |
+| FR-009 | tests/unit/test_check_traceability.py |
 | FR-006 | pipeline del kit (paso `skills` con `--check` en verde) |
 | FR-007 | sdd-doctor (drift de render en verde) |
 
@@ -154,3 +164,9 @@ y sale VERDE/ROJO según el resultado agregado.
   necesita distinguirlo para nombrarlo y contarlo aparte.
   `check_traceability._read_test_text` ya resolvía lo mismo del otro lado del
   kit; esta es la instancia que había quedado sin cubrir.
+- 2026-08-26: FR-009, de la auditoría de hooks y checks. El lado del disco de
+  la consistencia filtraba por `SPEC-<número>` y el del registro aceptaba
+  cualquier `SPEC-*.md`: una fila apuntando a `SPEC-TEMPLATE.md` se reportaba
+  como *«entrada apunta a archivo inexistente»* con el archivo en disco.
+  Ambos lados pasan a usar `_SPEC_FILE`. Un test de control comprueba que la
+  simetría no apague la detección real de una spec numerada ausente.

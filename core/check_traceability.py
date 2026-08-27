@@ -355,11 +355,13 @@ def _check_fr_mentioned_in_tests(
 def _check_consistency(
     rows: list[_RegistryRow], specs_dir: Path, errors: list[str]
 ) -> None:
-    registry_specs = {
-        r.archivo
-        for r in rows
-        if r.archivo.startswith("SPEC-") and r.archivo.endswith(".md")
-    }
+    # Mismo criterio que `_spec_files` usa del lado del disco (SPEC-001 FR-009).
+    # Con `startswith("SPEC-")` a secas, una fila que apunta a una spec no
+    # numerada --`SPEC-TEMPLATE.md`, que `_SPEC_FILE` ignora a proposito-- se
+    # reportaba como "archivo inexistente" con el archivo ahi mismo en disco:
+    # un mensaje falso que manda a buscar un problema que no existe. Lo que se
+    # ignora de un lado se ignora del otro.
+    registry_specs = {r.archivo for r in rows if _SPEC_FILE.match(r.archivo)}
     disk_specs = {p.name for p in _spec_files(specs_dir)}
     for missing in sorted(disk_specs - registry_specs):
         errors.append(f"{missing}: archivo de spec no registrado en SPECS_REGISTRY.md.")
