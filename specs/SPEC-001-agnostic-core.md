@@ -68,6 +68,16 @@ y sale VERDE/ROJO según el resultado agregado.
   aplicado también a los nombres de directorio dentro de los roots recorridos —
   no solo a identificadores y al stem del archivo), layers,
   lint, format, types, security y tests.
+- **FR-008** MUST: un archivo de entrada que el adaptador no puede leer degrada
+  el paso con un aviso nominal, nunca con una excepción propagada. Es el
+  invariante de FR-001 —defaults tolerantes— aplicado a lo que el adaptador
+  **lee**, no solo a lo que el config **declara**: `check_naming` hacía
+  `read_text(encoding="utf-8")` sin guarda, así que un `.py` en latin-1 lo
+  terminaba con un `UnicodeDecodeError` y exit 1, que el pipeline muestra como
+  `[FALLO] naming` — indistinguible de violaciones de nomenclatura reales, y sin
+  decir qué archivo. El archivo ilegible se nombra y se cuenta aparte: no se
+  puede afirmar que cumple, y llamarlo violación sería igual de falso.
+  `check_traceability._read_test_text` ya resolvía esto del otro lado del kit.
 - **FR-006** MUST: `core/gen_skill_adapters.py` genera los adaptadores de
   skills de Claude y opencode desde el SSOT `.agents/skills/`, con `--check`
   de drift determinista.
@@ -109,6 +119,7 @@ y sale VERDE/ROJO según el resultado agregado.
 | FR-003 | tests/unit/test_check_traceability.py |
 | FR-004 | pipeline del kit (paso `constitution` en verde sobre CONSTITUTION.md generado) |
 | FR-005 | tests/unit/test_check_naming.py (naming); resto de pasos: verificación manual vía pipeline |
+| FR-008 | tests/unit/test_check_naming.py |
 | FR-006 | pipeline del kit (paso `skills` con `--check` en verde) |
 | FR-007 | sdd-doctor (drift de render en verde) |
 
@@ -134,3 +145,12 @@ y sale VERDE/ROJO según el resultado agregado.
   X-2). Un paquete nombrado con una palabra excluida (p. ej. `flask_adapter/`)
   pasaba verde porque `check_naming.py` nunca caminaba los directorios de los
   roots recorridos.
+- 2026-08-26: FR-008, de la auditoría de hooks y checks. `check_naming` leía
+  cada `.py` con `read_text(encoding="utf-8")` sin guarda, así que un archivo en
+  latin-1 terminaba el paso con un `UnicodeDecodeError` crudo y exit 1 — que el
+  pipeline muestra como `[FALLO] naming`, indistinguible de violaciones reales y
+  sin nombrar el archivo. El error se tipa (`_ArchivoIlegible`) en vez de
+  devolver lista vacía: "no se pudo leer" no es "no tiene violaciones", y `main`
+  necesita distinguirlo para nombrarlo y contarlo aparte.
+  `check_traceability._read_test_text` ya resolvía lo mismo del otro lado del
+  kit; esta es la instancia que había quedado sin cubrir.

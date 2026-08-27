@@ -7,6 +7,7 @@ reales prohibidos en identificadores del propio kit.
 from pathlib import Path
 
 import check_naming as cn
+import pytest
 
 
 def _check(tmp_path: Path, source: str, filename: str = "modulo.py", **kwargs):
@@ -218,3 +219,55 @@ def test_main_relaja_los_tokens_declarados_dentro_de_tests(tmp_path, monkeypatch
 
     assert cn.main(["check_naming.py", "tests/unit"]) == 0
     assert cn.main(["check_naming.py", "src"]) == 1
+
+
+# -- FR-008: un archivo ilegible degrada, no revienta --------------------------
+
+
+def _archivo_latin1(tmp_path: Path, nombre: str = "legado.py") -> Path:
+    """Un `.py` real que no decodifica como UTF-8 (bytes latin-1 crudos)."""
+    path = tmp_path / nombre
+    path.write_bytes("x = 'café'\n".encode("latin-1"))
+    return path
+
+
+def test_un_archivo_ilegible_no_propaga_la_excepcion_cruda(tmp_path):
+    """SPEC-001 FR-008: sin guarda, esto era un UnicodeDecodeError sin contexto.
+
+    El error se tipa (`_ArchivoIlegible`) en vez de devolver `[]` en silencio:
+    `main` necesita distinguirlo para nombrarlo, y "no se pudo leer" no es lo
+    mismo que "no tiene violaciones".
+    """
+    path = _archivo_latin1(tmp_path)
+    with pytest.raises(cn._ArchivoIlegible) as exc:
+        cn._violations_in_file(
+            path,
+            prohibited=("acme",),
+            allowed=frozenset(),
+            relax_tokens=frozenset(),
+            relax_format=False,
+        )
+    assert "legado.py" in str(exc.value)
+
+
+def test_un_archivo_ilegible_se_nombra_y_no_cuenta_como_violacion(
+    tmp_path, monkeypatch, capsys
+):
+    """No se puede afirmar que cumple, y llamarlo violacion seria igual de falso."""
+    _archivo_latin1(tmp_path)
+    (tmp_path / "limpio.py").write_text("def ok():\n    pass\n", encoding="utf-8")
+    (tmp_path / ".sdd").mkdir()
+    (tmp_path / ".sdd" / "config.yaml").write_text(
+        "project:\n  name: probe\nnaming:\n  prohibited: [acme]\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    cn.load.cache_clear()
+
+    codigo = cn.main(["check_naming.py", str(tmp_path)])
+    salida = capsys.readouterr()
+
+    assert codigo == 0, "un archivo ilegible no es una violacion de nomenclatura"
+    assert "legado.py" in salida.out + salida.err, (
+        "el archivo que no se pudo verificar tiene que nombrarse: "
+        f"out={salida.out!r} err={salida.err!r}"
+    )

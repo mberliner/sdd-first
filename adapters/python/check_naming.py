@@ -60,6 +60,10 @@ class _NameCollector(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+class _ArchivoIlegible(Exception):
+    """El archivo existe pero no se pudo leer como texto (SPEC-001 FR-008)."""
+
+
 def _violations_in_file(
     path: Path,
     *,
@@ -68,7 +72,15 @@ def _violations_in_file(
     relax_tokens: frozenset[str],
     relax_format: bool,
 ) -> list[tuple[Path, int, str, str]]:
-    source = path.read_text(encoding="utf-8")
+    try:
+        source = path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError) as exc:
+        # Sin esta guarda el paso moria con el traceback crudo y exit 1, que el
+        # pipeline muestra como `[FALLO] naming`: indistinguible de violaciones
+        # reales y sin nombrar el archivo. Se propaga un tipo propio para que
+        # `main` lo cuente aparte -- no se puede afirmar que cumple, y llamarlo
+        # violacion seria igual de falso.
+        raise _ArchivoIlegible(str(path)) from exc
     try:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError:
@@ -179,18 +191,22 @@ def main(argv: list[str]) -> int:
 
     test_dirs = _test_dirs(cfg, repo_root)
     all_violations: list[tuple[Path, int, str, str]] = []
+    ilegibles: list[str] = []
     for root in roots:
         relax = _is_test_root(root, test_dirs)
         for path in root.rglob("*.py"):
-            all_violations.extend(
-                _violations_in_file(
-                    path,
-                    prohibited=prohibited,
-                    allowed=allowed,
-                    relax_tokens=relax_tokens,
-                    relax_format=relax,
+            try:
+                all_violations.extend(
+                    _violations_in_file(
+                        path,
+                        prohibited=prohibited,
+                        allowed=allowed,
+                        relax_tokens=relax_tokens,
+                        relax_format=relax,
+                    )
                 )
-            )
+            except _ArchivoIlegible as exc:
+                ilegibles.append(str(exc))
         for path in root.rglob("*"):
             if path.is_dir():
                 all_violations.extend(
@@ -202,6 +218,18 @@ def main(argv: list[str]) -> int:
                         relax_format=relax,
                     )
                 )
+
+    if ilegibles:
+        # Se avisa en las dos salidas posibles del paso, y por separado de las
+        # violaciones: son archivos sobre los que el check no puede afirmar
+        # nada, ni a favor ni en contra (SPEC-001 FR-008).
+        print(
+            f"naming: {len(ilegibles)} archivo(s) no verificados (no se pudieron "
+            "leer como UTF-8):",
+            file=sys.stderr,
+        )
+        for ruta in ilegibles:
+            print(f"  ? {ruta}", file=sys.stderr)
 
     if not all_violations:
         return 0
