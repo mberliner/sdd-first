@@ -44,13 +44,23 @@ pipeline:
 
 
 def _proyecto(tmp_path, constitution=CONSTITUTION_OK, config=CONFIG_OK):
-    """Deja en tmp_path un proyecto minimo: config, constitucion y el SSOT citado."""
+    """Deja en tmp_path un proyecto minimo: config, constitucion y lo que cita.
+
+    "Lo que cita" son las **dos** referencias del principio, no solo el Detalle:
+    desde SPEC-001 FR-010 el enforcement escrito como basename tambien se
+    verifica contra los archivos del repo, asi que un fixture sin esos archivos
+    dejo de representar un proyecto valido.
+    """
     (tmp_path / ".sdd").mkdir(exist_ok=True)
     (tmp_path / ".sdd" / "config.yaml").write_text(config, encoding="utf-8")
     (tmp_path / "specs").mkdir(exist_ok=True)
     (tmp_path / "specs" / "SPEC-000-naming.md").write_text(
         "# naming\n", encoding="utf-8"
     )
+    herramientas = tmp_path / "adapters" / "python"
+    herramientas.mkdir(parents=True, exist_ok=True)
+    for tool in ("check_naming.py", "mi_check.py", "sdd_gate.py"):
+        (herramientas / tool).write_text("", encoding="utf-8")
     destino = tmp_path / "CONSTITUTION.md"
     destino.write_text(constitution, encoding="utf-8")
     return destino
@@ -116,10 +126,27 @@ def test_referencia_a_ruta_inexistente_es_error(tmp_path):
     assert any("referencia inexistente 'docs/NO-EXISTE.md'" in e for e in errors)
 
 
-def test_token_sin_barra_no_se_valida_como_ruta(tmp_path):
-    """`check_naming.py` es una tool, no un path: no se exige que exista."""
+def test_un_token_con_extension_si_se_valida_aunque_no_lleve_barra(tmp_path):
+    """SPEC-001 FR-010: revierte la regla anterior, que miraba solo la barra.
+
+    Estaba escrito que `check_naming.py` "es una tool, no un path" y por eso no
+    se le exigia existir. La preocupacion era legitima --no exigirle existencia
+    a algo que no es un archivo-- pero la barra dejaba fuera justo a los
+    enforcements que SI son archivos: los del kit se escriben todos como
+    basename, asi que la verificacion no corria para ninguno.
+    """
     principio = cc._Principle("I. Demo")
     principio.enforcement = ["check_naming.py"]
+    principio.detalle = ["algo"]
+    errors: list[str] = []
+    cc._check_references([principio], tmp_path, set(), {}, errors)
+    assert any("referencia inexistente 'check_naming.py'" in e for e in errors)
+
+
+def test_un_token_sin_extension_sigue_sin_validarse(tmp_path):
+    """La extension separa un archivo de una tool (`pytest-cov`, `ruff`)."""
+    principio = cc._Principle("V. Cobertura")
+    principio.enforcement = ["pytest-cov"]
     principio.detalle = ["algo"]
     errors: list[str] = []
     cc._check_references([principio], tmp_path, set(), {}, errors)
@@ -130,6 +157,7 @@ def test_paso_declarado_y_no_cableado_es_error(tmp_path):
     principio = cc._Principle("I. Demo")
     principio.enforcement = ["check_naming.py"]
     principio.detalle = ["algo"]
+    (tmp_path / "check_naming.py").write_text("", encoding="utf-8")
     errors: list[str] = []
     cc._check_references(
         [principio], tmp_path, {"traceability"}, {"check_naming.py": "naming"}, errors
@@ -147,6 +175,7 @@ def test_paso_declarado_y_cableado_pasa(tmp_path):
     principio = cc._Principle("I. Demo")
     principio.enforcement = ["check_naming.py"]
     principio.detalle = ["algo"]
+    (tmp_path / "check_naming.py").write_text("", encoding="utf-8")
     errors: list[str] = []
     cc._check_references(
         [principio], tmp_path, {"naming"}, {"check_naming.py": "naming"}, errors
@@ -159,6 +188,7 @@ def test_enforcement_sin_step_declarado_no_verifica_cableado(tmp_path):
     principio = cc._Principle("III. Gate")
     principio.enforcement = ["sdd_gate.py"]
     principio.detalle = ["algo"]
+    (tmp_path / "sdd_gate.py").write_text("", encoding="utf-8")
     errors: list[str] = []
     cc._check_references([principio], tmp_path, set(), {}, errors)
     assert errors == []
@@ -287,3 +317,70 @@ def test_un_error_de_integridad_prevalece_sobre_la_reserva(
     monkeypatch.setenv(PIPELINE_STEPS_RUN_ENV, "")
     destino = _proyecto(tmp_path, config=config)
     assert cc.main(["check_constitution.py", str(destino)]) == 1
+
+
+# -- FR-010: los enforcements escritos como basename tambien se verifican ------
+
+CONSTITUCION_CON_BASENAMES = """**Versión:** 1.0.0 | Ratificada: 2026-01-01 | Última enmienda: 2026-01-02
+
+## Principios
+
+### I. Test
+- **Detalle:** `{detalle}`
+- **Enforcement:** `{enforcement}`
+"""
+
+
+def _repo_con_constitucion(tmp_path, *, enforcement: str, detalle: str):
+    (tmp_path / ".sdd").mkdir()
+    (tmp_path / ".sdd" / "config.yaml").write_text(
+        "project:\n  name: probe\npipeline:\n  steps: [naming]\n",
+        encoding="utf-8",
+    )
+    constitucion = tmp_path / "CONSTITUTION.md"
+    constitucion.write_text(
+        CONSTITUCION_CON_BASENAMES.format(enforcement=enforcement, detalle=detalle),
+        encoding="utf-8",
+    )
+    return constitucion
+
+
+def test_un_enforcement_basename_inexistente_es_un_error(tmp_path, capsys):
+    """SPEC-001 FR-010: renombrar un check tiene que romper el gate que lo cita.
+
+    `_is_path` exigia `/` o `.` inicial, asi que `check_naming.py` --y todos los
+    enforcements del kit, que se escriben como basename-- no se verificaban:
+    la constitucion podia citar un archivo borrado y el paso salia verde.
+    """
+    constitucion = _repo_con_constitucion(
+        tmp_path, enforcement="check_QUE_NO_EXISTE.py", detalle="NADA_TAMPOCO.md"
+    )
+    codigo = cc.main(["check_constitution.py", str(constitucion)])
+    salida = capsys.readouterr()
+    assert codigo == 1, salida.out + salida.err
+    assert "check_QUE_NO_EXISTE.py" in salida.err
+    assert "NADA_TAMPOCO.md" in salida.err
+
+
+def test_un_enforcement_basename_existente_no_es_un_error(tmp_path, capsys):
+    """Control: el basename se resuelve contra los archivos del repositorio."""
+    (tmp_path / "herramientas").mkdir()
+    (tmp_path / "herramientas" / "check_real.py").write_text("", encoding="utf-8")
+    (tmp_path / "GUIA.md").write_text("", encoding="utf-8")
+    constitucion = _repo_con_constitucion(
+        tmp_path, enforcement="check_real.py", detalle="GUIA.md"
+    )
+    cc.main(["check_constitution.py", str(constitucion)])
+    salida = capsys.readouterr()
+    assert "inexistente" not in salida.err, salida.err
+
+
+def test_un_token_sin_extension_no_se_verifica(tmp_path, capsys):
+    """`pytest-cov` es un paquete, no un archivo: exigirle existencia seria falso."""
+    constitucion = _repo_con_constitucion(
+        tmp_path, enforcement="pytest-cov", detalle="GUIA.md"
+    )
+    (tmp_path / "GUIA.md").write_text("", encoding="utf-8")
+    cc.main(["check_constitution.py", str(constitucion)])
+    salida = capsys.readouterr()
+    assert "pytest-cov" not in salida.err, salida.err

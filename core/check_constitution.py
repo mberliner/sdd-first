@@ -33,7 +33,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sdd_config import (  # noqa: E402
@@ -85,7 +85,44 @@ def _parse(text: str) -> tuple[str | None, list[_Principle]]:
 
 
 def _is_path(token: str) -> bool:
-    return "/" in token or token.startswith(".")
+    """El token nombra un archivo: ruta explicita o basename con extension.
+
+    Antes exigia `/` o punto inicial, y los enforcements se escriben como
+    basename (`check_naming.py`): ninguno se verificaba, asi que renombrar o
+    borrar un check no lo detectaba el gate que existe para eso (SPEC-001
+    FR-010). La extension es lo que separa un archivo de un paquete
+    (`pytest-cov`), sin necesidad de una lista de extensiones conocidas.
+    """
+    return "/" in token or token.startswith(".") or bool(PurePosixPath(token).suffix)
+
+
+def _basenames_del_repo(repo_root: Path) -> set[str]:
+    """Nombres de archivo presentes en el repo, para resolver un token sin ruta.
+
+    Se saltean los directorios ocultos (`.git`, `.venv`) y los `__pycache__`:
+    es una regla estructural, no una lista de nombres del dominio.
+    """
+    nombres: set[str] = set()
+    pendientes = [repo_root]
+    while pendientes:
+        actual = pendientes.pop()
+        try:
+            entradas = list(actual.iterdir())
+        except OSError:
+            continue
+        for entrada in entradas:
+            if entrada.is_dir():
+                if not entrada.name.startswith(".") and entrada.name != "__pycache__":
+                    pendientes.append(entrada)
+            else:
+                nombres.add(entrada.name)
+    return nombres
+
+
+def _referencia_existe(token: str, repo_root: Path, basenames: set[str]) -> bool:
+    if "/" in token or token.startswith("."):
+        return (repo_root / token).exists()
+    return token in basenames
 
 
 def _check_version(version_line: str | None, errors: list[str]) -> None:
@@ -107,6 +144,7 @@ def _check_references(
     enforcement_steps: dict[str, str],
     errors: list[str],
 ) -> None:
+    basenames = _basenames_del_repo(repo_root)
     for p in principles:
         tokens = [(t, "Detalle") for t in p.detalle]
         tokens += [(t, "Enforcement") for t in p.enforcement]
@@ -117,7 +155,7 @@ def _check_references(
             errors.append(f"Principio '{p.title}' sin linea Enforcement.")
 
         for token, field in tokens:
-            if _is_path(token) and not (repo_root / token).exists():
+            if _is_path(token) and not _referencia_existe(token, repo_root, basenames):
                 errors.append(
                     f"Principio '{p.title}' {field}: referencia inexistente '{token}'."
                 )

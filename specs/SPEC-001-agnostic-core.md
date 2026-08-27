@@ -77,6 +77,23 @@ y sale VERDE/ROJO según el resultado agregado.
   en disco. El mensaje es falso y manda a buscar un problema que no existe. Lo
   que se ignora de un lado se ignora del otro: la asimetría, no la política, es
   el defecto.
+- **FR-010** MUST: la verificación de referencias de FR-004 alcanza a los tokens
+  escritos como **basename**, no solo a los que llevan `/`. `_is_path` exigía una
+  barra o un punto inicial, y los enforcements del kit se escriben
+  `check_naming.py`, `sdd_gate.py`, `check_traceability.py`: ninguno se
+  verificaba, ni los Detalle `AGENTS.md` y `00-INDEX.md`. Medido: una
+  constitución cuyo Enforcement y Detalle apuntan a archivos inexistentes sale
+  **exit 0**. Renombrar o borrar un check no lo detectaba el gate que existe para
+  eso. Un token cuenta como referencia a archivo si tiene `/`, empieza con `.` o
+  tiene extensión (`Path(token).suffix`), y el basename se resuelve contra los
+  archivos del repositorio; los tokens sin extensión (`pytest-cov`, `ruff`, un
+  paquete o un comando) siguen sin verificarse, que es lo correcto.
+  **Revierte una decisión previa**, no un olvido: `test_token_sin_barra_no_se_valida_como_ruta`
+  la dejó escrita como *«`check_naming.py` es una tool, no un path»*. La
+  preocupación era legítima —no exigirle existencia a algo que no es un
+  archivo— pero el criterio elegido para expresarla, la barra, dejaba fuera
+  exactamente a los enforcements que sí son archivos. La extensión separa las
+  dos cosas sin sacrificar la verificación.
 - **FR-008** MUST: un archivo de entrada que el adaptador no puede leer degrada
   el paso con un aviso nominal, nunca con una excepción propagada. Es el
   invariante de FR-001 —defaults tolerantes— aplicado a lo que el adaptador
@@ -130,6 +147,7 @@ y sale VERDE/ROJO según el resultado agregado.
 | FR-005 | tests/unit/test_check_naming.py (naming); resto de pasos: verificación manual vía pipeline |
 | FR-008 | tests/unit/test_check_naming.py |
 | FR-009 | tests/unit/test_check_traceability.py |
+| FR-010 | tests/unit/test_check_constitution.py |
 | FR-006 | pipeline del kit (paso `skills` con `--check` en verde) |
 | FR-007 | sdd-doctor (drift de render en verde) |
 
@@ -170,3 +188,13 @@ y sale VERDE/ROJO según el resultado agregado.
   como *«entrada apunta a archivo inexistente»* con el archivo en disco.
   Ambos lados pasan a usar `_SPEC_FILE`. Un test de control comprueba que la
   simetría no apague la detección real de una spec numerada ausente.
+- 2026-08-26: FR-010, de la auditoría de hooks y checks. `_is_path` exigía `/`
+  o punto inicial, y los enforcements del kit se escriben como basename: ninguno
+  se verificaba, ni los Detalle `AGENTS.md` y `00-INDEX.md`. Medido: una
+  constitución con Enforcement y Detalle inexistentes salía **exit 0**; ahora
+  renombrar `check_naming.py` en el propio kit lo reporta. Revierte una decisión
+  previa —`test_token_sin_barra_no_se_valida_como_ruta` la dejó escrita— cuya
+  preocupación era legítima pero cuyo criterio, la barra, excluía justo a los
+  archivos reales; la extensión separa archivo de tool sin perder verificación.
+  Los fixtures de los tests pasan a crear también el archivo del enforcement:
+  citaban uno inexistente y hasta ahora eso no representaba nada.
