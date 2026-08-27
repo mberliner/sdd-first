@@ -134,6 +134,10 @@ solo tiene los placeholders de la plantilla bloquea.
   declarar la spec o crearla con `sdd-spec`.
 - **Given** el mismo estado, **When** el archivo está fuera de
   `dirs.source_roots` o el payload no declara ruta, **Then** permite (exit 0).
+- **Given** `.sdd/current-spec` vacío, **When** la edición llega por
+  `NotebookEdit` —que declara su ruta en `notebook_path`— sobre un archivo
+  bajo `dirs.source_roots`, **Then** bloquea igual que un `Edit` con
+  `file_path`: la clave del payload no cambia la política.
 
 ### US2 — validez de la declaración
 
@@ -181,6 +185,16 @@ solo tiene los placeholders de la plantilla bloquea.
 - **FR-US1-003** MUST: el contrato de salida es exit 0 permite / exit 2 bloquea,
   con los motivos en stderr, para los dos transportes (argv, stdin JSON) y sin
   depender del asistente que lo invoque.
+- **FR-US1-004** MUST: la extracción de la ruta del payload reconoce **todas** las
+  claves con que las tools interceptadas la declaran —hoy `file_path`, `path` y
+  `notebook_path`—, y existe un test que cruza esa lista contra el matcher que
+  declara [[SPEC-015-wiring-apunta-al-codigo-real]] FR-006, de modo que ampliar
+  el matcher sin enseñarle la clave nueva al gate quede en rojo. `NotebookEdit`
+  está en el matcher desde SPEC-015 pero declara su ruta en `notebook_path`: el
+  gate no la encontraba, caía en el "payload sin ruta" de FR-US1-001 y **permitía**
+  la edición. Un matcher que nombra una tool que el parser no sabe leer es peor
+  que no nombrarla: promete una cobertura que no existe, y en un proyecto de
+  datos o ML el notebook **es** el código fuente.
 
 ### US2
 
@@ -263,6 +277,7 @@ solo tiene los placeholders de la plantilla bloquea.
 | FR-US1-001 | tests/unit/test_sdd_gate.py |
 | FR-US1-002 | tests/unit/test_sdd_gate.py |
 | FR-US1-003 | tests/unit/test_sdd_gate_hook.py |
+| FR-US1-004 | tests/unit/test_sdd_gate.py |
 | FR-US2-001 | tests/unit/test_sdd_gate.py |
 | FR-US2-002 | tests/unit/test_sdd_gate.py |
 | FR-US2-003 | tests/unit/test_gate_evidencia_contenido.py |
@@ -302,3 +317,10 @@ solo tiene los placeholders de la plantilla bloquea.
   mismo estado en SPEC-023 FR-US2-007 (prosa, sin cambio de comportamiento:
   ese chequeo compara `!= "active"`, no una lista literal). Pipeline VERDE
   11/11.
+- 2026-08-26: FR-US1-004. Auditoría de los hooks: `NotebookEdit` estaba en el
+  matcher desde SPEC-015 FR-006, pero declara su ruta en `notebook_path` y el
+  gate solo leía `file_path`/`path`. No encontraba ruta, caía en el "payload
+  sin ruta" de FR-US1-001 y **permitía** la edición: el wiring prometía una
+  cobertura que la política no daba, en silencio y desde entonces. La lista de
+  claves pasa a ser una constante (`sdd_gate.TOOL_PATH_KEYS`) y un test la cruza
+  contra el matcher del wiring, para que ampliar uno sin el otro quede en rojo.

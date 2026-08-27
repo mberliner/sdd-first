@@ -144,12 +144,24 @@ def _specs_sin_requisitos(declared: list[str], repo_root: Path) -> list[str]:
     ]
 
 
+# Claves con que las tools interceptadas declaran la ruta a editar (SPEC-017
+# FR-US1-004). `NotebookEdit` esta en el matcher desde SPEC-015 FR-006 pero usa
+# `notebook_path`: mientras el gate solo miro `file_path`/`path` no la
+# encontraba, caia en el "payload sin ruta" de FR-US1-001 y **permitia** la
+# edicion. Un matcher que nombra una tool que el parser no sabe leer promete una
+# cobertura que no existe, y en un proyecto de datos el notebook es el codigo.
+# El cruce entre esta lista y el matcher lo verifica tests/unit/test_sdd_gate.py.
+TOOL_PATH_KEYS = ("file_path", "path", "notebook_path")
+
+
 def _declared_file_path(payload: dict[str, object]) -> str:
     """Ruta que el payload declara editar ("" si no declara ninguna)."""
     tool_input = payload.get("tool_input")
     tinput = tool_input if isinstance(tool_input, dict) else {}
-    if tinput:
-        return str(tinput.get("file_path") or tinput.get("path") or "")
+    for clave in TOOL_PATH_KEYS:
+        valor = tinput.get(clave)
+        if valor:
+            return str(valor)
     return ""
 
 

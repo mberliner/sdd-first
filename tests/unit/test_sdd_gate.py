@@ -235,3 +235,67 @@ def test_el_gate_real_nombra_la_spec_de_un_archivo_que_todavia_no_existe(tmp_pat
     assert not allow
     assert "SPEC-001-demo: Demo" in motivo
     assert not (repo / "src" / "nuevo.py").exists()
+
+
+# -- FR-US1-004: el gate lee la ruta de toda tool que el matcher intercepta ----
+
+# Clave con que cada tool del matcher declara la ruta que va a editar. Escrita
+# aca --y no en el gate-- porque es conocimiento del asistente, no de la
+# politica: el gate solo necesita el conjunto de claves. Sumar una tool al
+# matcher sin declararla aca pone el cruce en rojo.
+CLAVE_POR_TOOL = {
+    "Edit": "file_path",
+    "Write": "file_path",
+    "MultiEdit": "file_path",
+    "NotebookEdit": "notebook_path",
+}
+
+KIT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _tools_del_matcher() -> list[str]:
+    """Tools que el wiring de Claude Code declara interceptar (SPEC-015 FR-006)."""
+    import json
+
+    settings = json.loads(
+        (KIT_ROOT / ".claude" / "settings.json").read_text(encoding="utf-8")
+    )
+    matchers = [h["matcher"] for h in settings["hooks"]["PreToolUse"] if "matcher" in h]
+    assert matchers, "el wiring no declara ningun matcher PreToolUse"
+    return [t for matcher in matchers for t in matcher.split("|")]
+
+
+def test_el_gate_conoce_la_clave_de_cada_tool_interceptada():
+    """FR-US1-004: el matcher no puede prometer una tool que el parser no lee.
+
+    `NotebookEdit` estaba en el matcher desde SPEC-015 y declara su ruta en
+    `notebook_path`. El gate solo miraba `file_path`/`path`, no encontraba
+    ninguna, caia en el "payload sin ruta" de FR-US1-001 y **permitia** la
+    edicion. En un proyecto de datos el notebook es el codigo fuente.
+    """
+    for tool in _tools_del_matcher():
+        assert tool in CLAVE_POR_TOOL, (
+            f"el matcher intercepta '{tool}' pero nadie declaro con que clave "
+            "declara su ruta: agregala a CLAVE_POR_TOOL y a sdd_gate.TOOL_PATH_KEYS"
+        )
+        assert CLAVE_POR_TOOL[tool] in sdd_gate.TOOL_PATH_KEYS, (
+            f"'{tool}' declara su ruta en '{CLAVE_POR_TOOL[tool]}', que el gate "
+            "no lee: agregala a sdd_gate.TOOL_PATH_KEYS"
+        )
+
+
+def test_bloquea_una_edicion_de_notebook_sin_spec(tmp_path):
+    """FR-US1-004: la clave del payload no cambia la politica."""
+    repo = _make_repo(tmp_path)
+    payload = {"tool_input": {"notebook_path": str(repo / "src" / "analisis.ipynb")}}
+    allow, reason = sdd_gate.decide(payload, repo)
+    assert not allow
+    assert "spec" in reason.lower()
+
+
+def test_permite_un_notebook_fuera_del_codigo_fuente(tmp_path):
+    """La clave nueva no ensancha lo que se bloquea: sigue mandando source_roots."""
+    repo = _make_repo(tmp_path)
+    payload = {"tool_input": {"notebook_path": str(repo / "docs" / "demo.ipynb")}}
+    allow, _ = sdd_gate.decide(payload, repo)
+    assert allow
