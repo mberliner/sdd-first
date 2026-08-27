@@ -122,7 +122,11 @@ sdd_source_roots() {
           done
         fi
         ;;
-      tests_unit: | tests_integration:) ;;
+      # Las claves de TEST_DIRS (core/sdd_config.py). Aca hay que enumerarlas
+      # —no hay con que importarlas—, pero el caso `toda_carpeta_de_tests_
+      # declarada` del test de paridad las genera desde `declared_test_dirs()`,
+      # asi que una clase de test nueva pone esta linea en rojo (FR-010).
+      tests_unit: | tests_integration: | tests_e2e:) ;;
       *:)
         _v="${2%%/*}"
         _sdd_unquote "$_v"

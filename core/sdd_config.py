@@ -524,8 +524,15 @@ class SddConfig:
         if isinstance(explicit, list) and explicit:
             return [str(x) for x in explicit]
         roots: list[str] = []
+        # La exclusion sale de `TEST_DIRS`, no de una lista escrita aca
+        # (SPEC-015 FR-009). Enumerarlas a mano ya se pago una vez: cuando
+        # SPEC-018 sumo `tests_e2e`, esta linea siguio nombrando dos claves y un
+        # proyecto que declaraba e2e sin `source_roots` explicito derivaba
+        # `tests` como carpeta de CODIGO -- el gate le bloqueaba escribir sus
+        # propios tests, o sea el rojo de TDD.
+        excluidas = {*declared_test_dirs(), "source_roots"}
         for key, path in self.dirs.items():
-            if key in {"tests_unit", "tests_integration", "source_roots"}:
+            if key in excluidas:
                 continue
             top = Path(path).parts[0] if path else path
             if top and top not in roots:

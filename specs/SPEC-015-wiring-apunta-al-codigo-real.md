@@ -123,6 +123,11 @@ de juguete, un escenario por caso; la evidencia queda en
 - **Given** un `.sdd/config.yaml` sin `dirs.source_roots` explícito pero con
   `dirs.domain: pkg/domain`, **When** el pre-filtro de cualquier capa deriva los
   roots, **Then** obtiene `pkg` — el mismo valor que `SddConfig.source_roots`.
+- **Given** un `.sdd/config.yaml` sin `dirs.source_roots` explícito que declara
+  `dirs.domain: src/domain` junto a `tests_unit`, `tests_integration` y
+  `tests_e2e`, **When** cualquiera de las tres capas deriva los roots, **Then**
+  obtiene `src` y **no** `tests`: el gate protege el código y deja escribir los
+  tests.
 - **Given** un proyecto sin `.sdd/config.yaml` legible, **When** la rama
   fail-closed pre-filtra, **Then** cae al default `src` sin romperse.
 - **Given** un proyecto con `dirs.source_roots: [pkg]` y ningún intérprete
@@ -191,6 +196,22 @@ de juguete, un escenario por caso; la evidencia queda en
   plataforma donde el intérprete falta con frecuencia, y contradice el
   invariante de Key Entities —un pre-filtro puede ser conservador, nunca laxo—.
   La normalización usa solo builtins POSIX, por el mismo motivo que FR-002.
+- **FR-009** MUST: la exclusión de FR-004 abarca **toda** carpeta de tests que el
+  kit declara, no una lista fija. `SddConfig.source_roots` la deriva de
+  `declared_test_dirs()` —el SSOT de `TEST_DIRS`— y los pre-filtros de FR-002 y
+  FR-003 enumeran las mismas claves. FR-004 se escribió con
+  `tests_unit`/`tests_integration`, y cuando SPEC-018 sumó `tests_e2e` las tres
+  capas quedaron derivando `tests` como carpeta de **código**: en un proyecto que
+  declara e2e sin `source_roots` explícito, el gate spec-first pasa a bloquear la
+  edición de todos los tests —los unitarios incluidos—, o sea impide escribir el
+  test antes que el código, que es el ciclo que el kit existe para sostener.
+- **FR-010** MUST: el test de paridad de FR-005 incluye un caso construido
+  **desde `declared_test_dirs()`**, no una lista escrita a mano: declarar una
+  clase de test nueva en `TEST_DIRS` tiene que poner el test en rojo hasta que
+  las tres capas la reconozcan. La duplicación de FR-004 sólo es sostenible
+  atada (Clarification del 2026-08-05), y estuvo desatada justo donde importaba:
+  los siete casos existentes no declaraban `tests_e2e`, así que las tres capas
+  coincidían en estar mal y el test las daba por parejas.
 
 
 - **FR-US2-001** MUST: `sdd_init` debe instalar el wiring de Antigravity en proyectos derivados. El archivo `templates/wiring/hooks.json` debe agregarse a la constante `_WIRING` en `core/sdd_init.py` (copiándolo a `.agents/hooks.json`).
@@ -270,6 +291,7 @@ de juguete, un escenario por caso; la evidencia queda en
 | FR-006 | tests/unit/test_wiring_prefiltros.py |
 | FR-007 | tests/unit/test_wiring_prefiltros.py |
 | FR-008 | tests/unit/test_sdd_gate_hook.py |
+| FR-009, FR-010 | tests/unit/test_prefilter_source_roots.py |
 | FR-US2-001 | tests/unit/test_wiring_prefiltros.py |
 | FR-US2-002 | tests/unit/test_wiring_prefiltros.py |
 | FR-US2-003 | tests/unit/test_sdd_gate.py, tests/unit/test_sdd_gate_hook.py |
@@ -329,3 +351,14 @@ de juguete, un escenario por caso; la evidencia queda en
   separador Windows **tal como llega JSON-escapado** (`\\`), y dos alternativas
   al `case`. Se normaliza el root (cadena corta), nunca el payload: reconstruirlo
   con builtins sería cuadrático en su tamaño.
+- 2026-08-26: FR-009 y FR-010, misma auditoría. La exclusión de FR-004 estaba
+  escrita como lista fija (`tests_unit`/`tests_integration`) en las tres capas, y
+  cuando SPEC-018 sumó `tests_e2e` ninguna se actualizó: un derivado que declara
+  e2e sin `source_roots` explícito derivaba `tests` como carpeta de código y el
+  gate le bloqueaba editar sus propios tests. El autoritativo pasa a derivarla de
+  `declared_test_dirs()`; los pre-filtros siguen enumerando —no tienen cómo
+  importarla— pero ahora atados por un caso del test de paridad construido desde
+  esa misma función. Los siete casos previos usaban configs escritos a mano y
+  ninguno declaraba `tests_e2e`: las tres capas coincidían en estar mal y el test
+  las daba por parejas, que es exactamente el modo en que una duplicación
+  deliberada deja de estar atada.

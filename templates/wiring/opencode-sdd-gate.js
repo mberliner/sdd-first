@@ -99,6 +99,10 @@ const collectPaths = (input, output) => {
 // verifica tests/unit/test_prefilter_source_roots.py.
 const unquote = (s) => s.replace(/^["']|["']$/g, "")
 
+// Claves de `dirs:` que declaran carpetas de TESTS, no de codigo: espejo de
+// `TEST_DIRS` en {{sdd.core}}/sdd_config.py (SPEC-015 FR-009).
+const TEST_DIR_KEYS = ["tests_unit", "tests_integration", "tests_e2e"]
+
 export const sourceRoots = (root) => {
   let text
   try {
@@ -139,7 +143,11 @@ export const sourceRoots = (root) => {
         }
       continue
     }
-    if (key === "tests_unit" || key === "tests_integration") continue
+    // Las claves de TEST_DIRS ({{sdd.core}}/sdd_config.py). Enumeradas por la misma
+    // razon que en el hook sh —el plugin se versiona sin dependencias— y atadas
+    // por el mismo caso del test de paridad, que las genera desde
+    // `declared_test_dirs()` (FR-010).
+    if (TEST_DIR_KEYS.includes(key)) continue
     const top = unquote(value).split("/")[0]
     if (top && !implicit.includes(top)) implicit.push(top)
   }
