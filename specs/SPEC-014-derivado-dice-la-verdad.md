@@ -253,7 +253,22 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 - **FR-US2-007** MUST: `sdd-init` siembra las fechas de ratificación/enmienda de la
   constitución en `.sdd/config.yaml` y la fecha de instalación en `historial/sdd.md`
   con la fecha real del día, en lugar de arrastrar valores fijos como `2026-01-01`
-  o `YYYY-MM-DD` que dejan al derivado afirmando fechas irreales.
+  que dejan al derivado afirmando fechas irreales. El mecanismo de sustitución lo
+  fija FR-US2-008.
+- **FR-US2-008** MUST: la fecha de instalación se resuelve por marcador
+  explícito (`{{today}}`), como las otras cuatro sustituciones, y no por
+  reemplazo del literal `YYYY-MM-DD`. Las plantillas que el kit instala para que
+  el dueño las use después (`specs/SPEC-TEMPLATE.md`, `docs/playbooks/clarify.md`)
+  conservan `YYYY-MM-DD` como placeholder literal: sustituirlo deja al derivado
+  con una plantilla que manda fechar toda spec futura con el día de la
+  instalación. Como efecto, ninguna plantilla del catálogo resuelve distinto
+  según el día, y `sdd-update` deja de clasificar `actualizar` a plantillas
+  intactas por el mero paso del calendario.
+- **FR-US2-009** SHOULD: la fecha entra a la sustitución como parámetro, no
+  leída del reloj por dentro, y queda registrada en `substitutions` del lock. La
+  comparación que dispara el aviso de sustituciones cambiadas en `sdd-update`
+  sigue mirando solo los valores del proyecto (nombre y dominio), para que la
+  fecha no reintroduzca por otra vía el ruido que FR-US2-008 elimina.
 
 ## Success Criteria
 
@@ -272,6 +287,9 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   viejo.
 - **SC-008**: en un derivado recién instalado, el drift de un artefacto generado
   lo detecta el pipeline, no solo `sdd-doctor` corrido a mano.
+- **SC-009**: resolver todas las plantillas del catálogo con dos fechas
+  distintas da hashes idénticos, y `specs/SPEC-TEMPLATE.md` instalado conserva su
+  `### Session YYYY-MM-DD`.
 
 ## Key Entities
 
@@ -300,6 +318,8 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
 | FR-US2-005 | `tests/unit/test_render.py`, `tests/unit/test_sdd_init_seeded_config.py` |
 | FR-US2-006 | `tests/unit/test_render.py`, `tests/e2e/escenarios/test_configuracion.py` |
 | FR-US2-007 | `tests/unit/test_sdd_init.py` |
+| FR-US2-008 | `tests/unit/test_sdd_init_fechas.py` |
+| FR-US2-009 | `tests/unit/test_sdd_init_fechas.py` |
 
 ## Fuera de alcance
 
@@ -338,3 +358,13 @@ rutas que existen en el destino, y el `ci.yml` generado dispara en la rama real.
   quedó en las claves que el runtime ejecuta (`command`, `entry`). Se sumó
   `.opencode/plugin/sdd-gate.js` a `GATE_WIRING`: `sdd-init` lo instala siempre
   y no lo verificaba nadie.
+- 2026-09-03: FR-US2-008/009 y SC-009, por reuso de esta spec. FR-US2-007 se
+  había implementado reemplazando el literal `YYYY-MM-DD` en cualquier parte del
+  texto, así que se llevaba puesto el placeholder que `SPEC-TEMPLATE.md` y el
+  playbook `clarify` dejan a propósito: en un derivado, la plantilla de spec
+  mandaba fechar toda spec futura con el día de la instalación. Medido además en
+  el lock: `build_lock` resolvía las plantillas leyendo el reloj, el hash de esas
+  dos cambiaba con el calendario y `sdd-update` corrido otro día las reescribía
+  por sí solo. La fecha pasó a marcador `{{today}}` y a parámetro de
+  `_substitute`; el aviso de sustituciones cambiadas sigue mirando solo nombre y
+  dominio para no mudar el ruido de lugar.

@@ -113,6 +113,10 @@ def construir_plan(
     kit_root: Path, target: Path, cfg, lock: sdd_lock.Lock | None
 ) -> Plan:
     plan = Plan()
+    # La fecha con la que el kit resuelve sus plantillas es la de la
+    # instalacion, no la de hoy (SPEC-014 FR-US2-009): comparar contra el lock
+    # exige resolver con los mismos valores con los que se hasheo.
+    today = (lock.substitutions.get("today") if lock else None) or sdd_init.hoy()
     catalogo = sdd_catalog.catalogo_plantillas()
     catalogo_dst = {dst for _src, dst in catalogo}
 
@@ -122,6 +126,7 @@ def construir_plan(
             (kit_root / "templates" / src_rel).read_text(encoding="utf-8"),
             cfg.name,
             cfg.domain,
+            today,
         )
         if clase == sdd_catalog.Clase.SEMILLA:
             if not (target / dst_rel).exists():
@@ -196,8 +201,12 @@ def construir_plan(
     plan.gitignore_faltantes = sorted(lineas_kit - lineas_dueno)
 
     if lock and lock.substitutions:
+        # Solo los valores del proyecto: la fecha del lock cambia con el
+        # calendario y avisar por ella seria el mismo ruido que FR-US2-008
+        # elimina, mudado de lugar (SPEC-014 FR-US2-009).
         actuales = {"project.name": cfg.name, "project.domain": cfg.domain}
-        plan.substitutions_cambiaron = lock.substitutions != actuales
+        del_lock = {k: v for k, v in lock.substitutions.items() if k in actuales}
+        plan.substitutions_cambiaron = del_lock != actuales
 
     return plan
 
@@ -420,10 +429,13 @@ def aplicar_plantillas(target: Path, kit_root: Path, plan: Plan) -> None:
             (kit_root / "templates" / src_rel).read_text(encoding="utf-8"),
             "",
             "",
+            sdd_init.hoy(),
         )
         # Las semillas no llevan placeholders de nombre/dominio (son
         # `SPECS_REGISTRY.md`, `historial/sdd.md`, `.gitignore`,
         # `.sdd/current-spec`): se resuelven igual por si alguna lo tuviera.
+        # La fecha si: `historial/sdd.md` abre con `{{today}}`, y una semilla
+        # sembrada hoy se fecha hoy, no el dia de la instalacion original.
         dst = target / dst_rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         write_text_lf(dst, contenido)
@@ -612,7 +624,8 @@ def main(argv: list[str]) -> int:
         return 1
 
     sdd_lock.write_lock(
-        target, sdd_lock.build_lock(KIT_ROOT, target, cfg.name, cfg.domain)
+        target,
+        sdd_lock.build_lock(KIT_ROOT, target, cfg.name, cfg.domain, sdd_init.hoy()),
     )
     print(f"  lock reescrito: {target / sdd_lock.LOCK_RELPATH}")
 

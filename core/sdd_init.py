@@ -70,22 +70,36 @@ _EXECUTABLE_WIRING = sdd_catalog.EXECUTABLE_WIRING
 PROJECT_SKILLS = ["analyze", "clarify", "sdd-spec", "sdd-doctor", "sdd-configure"]
 
 
-def _substitute(text: str, name: str, domain: str) -> str:
+def hoy() -> str:
+    """La fecha de instalación, en un solo lugar (SPEC-014 FR-US2-009)."""
+    import datetime as _dt
+
+    return _dt.date.today().isoformat()
+
+
+def _substitute(text: str, name: str, domain: str, today: str) -> str:
     """Resuelve los placeholders de plantilla para el proyecto destino.
 
     Los de ruta (`{{sdd.core}}`, `{{sdd.adapters}}`) resuelven al andamiaje
     vendorizado, que es donde vive en un proyecto instalado — no en `core/`
     como en el repo del kit (SPEC-010 FR-007).
-    """
-    import datetime as _dt
 
-    today = _dt.date.today().isoformat()
+    Las cinco sustituciones son por marcador `{{...}}`, la fecha incluida
+    (SPEC-014 FR-US2-008): reemplazar el literal `YYYY-MM-DD` se llevaba puesto
+    el placeholder que `SPEC-TEMPLATE.md` y el playbook `clarify` dejan a
+    propósito para que el dueño lo complete al crear cada spec.
+
+    `today` entra como parámetro y no se lee del reloj acá adentro
+    (FR-US2-009): así una corrida resuelve todo el catálogo con la misma fecha,
+    y el hash de una plantilla no depende del día en que se calcula — que es lo
+    que hacía a `sdd-update` reescribir plantillas intactas por el calendario.
+    """
     return (
         text.replace("{{project.name}}", name)
         .replace("{{project.domain}}", domain)
         .replace("{{sdd.core}}", f"{VENDOR_PREFIX}/core")
         .replace("{{sdd.adapters}}", f"{VENDOR_PREFIX}/adapters")
-        .replace("YYYY-MM-DD", today)
+        .replace("{{today}}", today)
     )
 
 
@@ -96,6 +110,7 @@ def _copy_text(
     domain: str,
     force: bool,
     *,
+    today: str,
     dst_rel: str = "",
     lock: Lock | None = None,
 ) -> str:
@@ -106,7 +121,7 @@ def _copy_text(
     `force=True`, la política de conflicto (`decidir_plantilla`) contra el
     lock existente en vez de pisar a ciegas.
     """
-    text = _substitute(src.read_text(encoding="utf-8"), name, domain)
+    text = _substitute(src.read_text(encoding="utf-8"), name, domain, today)
     clase = sdd_catalog.clase_de(dst_rel) if dst_rel else Clase.PLANTILLA
 
     if dst.exists():
@@ -204,9 +219,7 @@ def _write_config(
     example = example.replace("name: mi-proyecto", f"name: {name}")
     example = example.replace("language: python", f"language: {language}")
 
-    import datetime as _dt
-
-    today = _dt.date.today().isoformat()
+    today = hoy()
     example = example.replace("ratified: 2026-01-01", f"ratified: {today}")
     example = example.replace("amended: 2026-01-01", f"amended: {today}")
 
@@ -847,6 +860,10 @@ def main(argv: list[str]) -> int:
     cfg = load(target)
     name = cfg.name
     domain = cfg.domain
+    # Una sola fecha para toda la instalacion (SPEC-014 FR-US2-009): resolver
+    # cada plantilla con su propia lectura del reloj podria partir una
+    # instalacion iniciada justo antes de medianoche.
+    today = hoy()
 
     log: list[str] = []
     for src_rel, dst_rel in STATIC_DOCS:
@@ -857,6 +874,7 @@ def main(argv: list[str]) -> int:
                 name,
                 domain,
                 force,
+                today=today,
                 dst_rel=dst_rel,
                 lock=existing_lock,
             )
@@ -869,6 +887,7 @@ def main(argv: list[str]) -> int:
                 name,
                 domain,
                 force,
+                today=today,
                 dst_rel=dst_rel,
                 lock=existing_lock,
             )
@@ -887,7 +906,9 @@ def main(argv: list[str]) -> int:
 
     # Toda instalacion (incluida --force) deja lock: es lo que le permite a
     # una actualizacion futura afirmar que hubo instalacion (SPEC-025 FR-US1-002).
-    sdd_lock.write_lock(target, sdd_lock.build_lock(KIT_ROOT, target, name, domain))
+    sdd_lock.write_lock(
+        target, sdd_lock.build_lock(KIT_ROOT, target, name, domain, today)
+    )
 
     print(_next_steps(target, layout, wiring_conservado))
     return 0

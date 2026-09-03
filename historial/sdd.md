@@ -1,5 +1,36 @@
 # Historial SDD — sdd-first
 
+## 2026-09-03 — SPEC-014 FR-US2-008/009: la fecha se sustituye por marcador
+
+**Scope:** `core/sdd_init.py` (`_substitute`, `_copy_text`, nuevo `hoy()`),
+`core/sdd_lock.py` (`build_lock`), `core/sdd_update.py` (`construir_plan`,
+`aplicar_plan`), `templates/historial/sdd.md`,
+`specs/SPEC-014-derivado-dice-la-verdad.md` (FR-US2-008/009, SC-009, coverage),
+`tests/unit/test_sdd_init_fechas.py` (nuevo),
+`tests/unit/test_current_spec_no_versionado.py`.
+
+**Qué cambió:** la fecha de instalación se resuelve con el marcador `{{today}}`,
+como las otras cuatro sustituciones, en vez de reemplazar el literal
+`YYYY-MM-DD` en cualquier parte del texto. Además entra a `_substitute` como
+parámetro —no leída del reloj adentro— y queda registrada en `substitutions` del
+lock; el aviso de sustituciones cambiadas de `sdd-update` sigue mirando solo
+nombre y dominio, para que la fecha no reintroduzca el ruido por otra vía.
+
+**Por qué no era cosmético:** el reemplazo por patrón se llevaba puesto el
+placeholder que `specs/SPEC-TEMPLATE.md` y el playbook `clarify` dejan a
+propósito. En un derivado, la plantilla que se copia al crear cada spec mandaba
+fechar toda spec futura con el día de la instalación, y el playbook le decía al
+asistente que grabara la sesión bajo un encabezado de hace meses. El segundo
+efecto era en el lock: `build_lock` resolvía las plantillas leyendo el reloj, así
+que el hash de esas dos cambiaba con el calendario y `sdd-update` corrido otro
+día las clasificaba `actualizar` —intactas respecto del lock, distintas de lo que
+el kit entrega hoy— y las reescribía solas. Sin pérdida de trabajo (lo editado
+sigue cayendo en `conflicto`), pero con ruido recurrente en cada actualización.
+
+**Verificación:** pipeline VERDE 11/11, 839 passed + 5 skips. Instalación de
+prueba: `SPEC-TEMPLATE.md` y `clarify.md` conservan `### Session YYYY-MM-DD`,
+`historial/sdd.md` queda fechado hoy, y el lock registra `today`.
+
 ## 2026-08-17 — SPEC-004 FR-011 (G-7): la declaración de specs acumula dentro de la iteración
 
 **Scope:** `core/sdd_spec.py` (`_declare_current_spec`, `--clear`),

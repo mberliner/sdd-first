@@ -2,7 +2,7 @@
 
 > Log evolutivo, una entrada por cierre de iteración, orden cronológico inverso.
 
-## YYYY-MM-DD — Instalación de sdd-first
+## {{today}} — Instalación de sdd-first
 
 **Scope:** bootstrap del andamiaje SDD con sdd-first.
 

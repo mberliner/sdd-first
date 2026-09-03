@@ -104,11 +104,13 @@ def load_lock(target: Path) -> Lock | None:
     )
 
 
-def build_lock(kit_root: Path, target: Path, name: str, domain: str) -> Lock:
+def build_lock(
+    kit_root: Path, target: Path, name: str, domain: str, today: str
+) -> Lock:
     """Arma el lock desde lo que el kit entrega ahora — nunca desde el disco.
 
     Por cada `plantilla` del catálogo, hashea `templates/<src>` con los
-    placeholders resueltos (`name`/`domain`): es la línea base del kit, no una
+    placeholders resueltos (`name`/`domain`/`today`): es la línea base del kit, no una
     foto de lo que quedó instalado. Para `semilla`, sí mira `target`: qué de
     `SEMILLA_DESTINOS` ya existe ahí (solo se registra presencia, nunca hash —
     una semilla no se actualiza, así que nadie compararía ese hash).
@@ -119,7 +121,7 @@ def build_lock(kit_root: Path, target: Path, name: str, domain: str) -> Lock:
         if sdd_catalog.clase_de(dst_rel) != sdd_catalog.Clase.PLANTILLA:
             continue
         texto = sdd_init._substitute(
-            (templates / src_rel).read_text(encoding="utf-8"), name, domain
+            (templates / src_rel).read_text(encoding="utf-8"), name, domain, today
         )
         plantillas[Path(dst_rel).as_posix()] = hash_bytes(texto.encode("utf-8"))
     semillas = sorted(
@@ -130,7 +132,11 @@ def build_lock(kit_root: Path, target: Path, name: str, domain: str) -> Lock:
     return Lock(
         kit_version=KIT_VERSION,
         algorithm=ALGORITHM,
-        substitutions={"project.name": name, "project.domain": domain},
+        substitutions={
+            "project.name": name,
+            "project.domain": domain,
+            "today": today,
+        },
         plantillas=plantillas,
         semillas=semillas,
     )

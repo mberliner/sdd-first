@@ -154,6 +154,7 @@ def test_sdd_init_agrega_la_linea_a_un_gitignore_propio_conservado(tmp_path):
         "demo",
         "dominio",
         force=False,
+        today=sdd_init.hoy(),
     )
 
     texto = gitignore.read_text(encoding="utf-8")
