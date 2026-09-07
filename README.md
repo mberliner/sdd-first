@@ -186,6 +186,68 @@ la registra y la declara vigente. Lo mismo vale para cada capacidad nueva.
 > falta regenerar los adaptadores con
 > `python tools/sdd/core/gen_skill_adapters.py` — ver `docs/SKILLS-MULTITOOL.md`.
 
+## Adopción en proyectos existentes (brownfield)
+
+Si tu proyecto ya tiene código, historia en Git y su propia documentación, podés
+incorporar `sdd-first` sin fricción y sin rehacer el pasado:
+
+### La regla de oro: de acá en adelante
+
+**No necesitás escribir specs retrospectivas para el código que ya funciona.** La
+disciplina spec-first entra en vigencia a partir del momento en que instalás el
+kit: las capacidades nuevas, refactors grandes o fixes importantes se especifican
+antes de tocar el código; lo previo convive en paz.
+
+### Flujo de adopción paso a paso
+
+1. **Sembrá el andamiaje sin riesgo:**
+   ```bash
+   python core/sdd_init.py /ruta/a/mi-proyecto --language=python
+   ```
+   La instalación es **segura e idempotente**: nunca pisa tus archivos (tu propio
+   `README.md`, tu código o tu `.gitignore` se conservan intactos). Además, el
+   instalador auto-detecta:
+   - Las carpetas donde vive tu código (`app/`, `src/`, `lib/`, etc.) y las deja
+     declaradas en `.sdd/config.yaml` para que el gate proteja el código real.
+   - Las carpetas de tests.
+   - Tu rama activa de Git (`main`, `master`, `develop`, etc.) para que el CI
+     dispare donde corresponde.
+
+2. **Tu guía dentro del proyecto:**
+   Como tu `README.md` original no fue modificado, la documentación del andamiaje
+   dentro de tu repositorio se navega desde **`00-INDEX.md`** y el catálogo
+   operativo de skills en **`docs/SDD-OPERACION.md`**.
+
+3. **Calibrá las reglas a tu proyecto con `sdd-configure`:**
+   Tu código preexistente puede tener nombres o dependencias que choquen con los
+   valores por defecto del kit. Abrí tu asistente en el proyecto y pedile
+   `sdd-configure` (o editá `.sdd/config.yaml`):
+   - **`dirs.source_roots`:** Confirmá que apunte a las carpetas de código que
+     deseás proteger con el gate.
+   - **`naming.prohibited`:** Si tu código actual usa legítimamente ciertas palabras
+     (ej. nombres de vendors o formatos), quitalas de la lista o adaptá las
+     reglas para que solo veten lo que decidas a futuro.
+   - **Tooling:** Si todavía no tenés `mypy`, `ruff` o linters configurados, el
+     pipeline los omite con un aviso sin romper.
+
+4. **Validá tu primer estado VERDE:**
+   ```bash
+   cd /ruta/a/mi-proyecto
+   python tools/sdd/core/render.py
+   python tools/sdd/core/pipeline.py
+   ```
+   Ajustá la configuración si surge alguna advertencia sobre tu estructura hasta
+   que el pipeline confirme `VERDE`.
+
+5. **Arrancá tu siguiente cambio con una spec:**
+   Apenas vayas a programar una mejora o fix:
+   ```bash
+   python tools/sdd/core/sdd_spec.py "mi-primera-spec" --title="Mi primera spec"
+   ```
+   (O simplemente pedile a tu asistente la skill `sdd-spec`). Esto registra la
+   spec en `specs/SPECS_REGISTRY.md`, la activa en `.sdd/current-spec`, destraba
+   el gate y ya podés codear bajo el estándar SDD.
+
 ## Cómo está armado
 
 ```
