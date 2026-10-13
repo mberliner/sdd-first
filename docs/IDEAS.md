@@ -77,6 +77,9 @@ arriba).
 | X-7 | — | Índice de ámbitos de las specs | abierta |
 | X-9 | P2 | Nada verifica la consistencia del propio backlog | abierta |
 | X-10 | P2 | El texto del kit dentro de una semilla es inmutable tras instalar | abierta |
+| X-11 | P2 | Playbook / skill `converge` para detección de drift código ↔ spec post-implementación | abierta |
+| X-12 | P3 | Playbook / skill `checklist` para validación de calidad de redacción de requisitos | abierta |
+| X-13 | P2 | Pautas de redacción asistida en playbook `sdd-spec` (inferencias razonables, tope de [NEEDS CLARIFICATION], slicing de US) | abierta |
 
 ---
 
@@ -298,6 +301,53 @@ arriba).
   [[SPEC-003-install-happy-path]] y las specs de `sdd-update` antes de asumir
   capacidad nueva. Condiciona cualquier corrección futura del texto del kit
   dentro de una semilla, que es lo que dejó a G-7 sin la opción del header.
+- **X-11 · Playbook / skill `converge` (auditoría de convergencia código ↔ spec post-implementación).**
+  Inspirado en `/speckit.converge`. A diferencia de `analyze` (que audita la
+  spec antes de implementar), `converge` audita el código ya implementado
+  contra los requisitos de la spec activa (`SPEC-NNN.md` en `.sdd/current-spec`)
+  para cerrar el bucle de construcción (`implement` 🔁 `converge`).
+  Detecta trabajo faltante (`missing`), completado a medias (`partial`),
+  contradictorio con la spec o la constitución (`contradicts`) o código no
+  solicitado (`unrequested`). En `sdd-first`, el alcance de análisis debe
+  delimitarse estrictamente a los archivos de test y código del Coverage
+  mapping de la spec activa (evitando alertar sobre código legado no
+  involucrado). El contrato es append-only: nunca borra código, solo sugiere
+  los pendientes para que el agente complete la implementación antes de dar
+  por cerrada la iteración.
+  Prioridad **P2** (valor medio): añade una red de seguridad contra
+  implementaciones incompletas o alucinadas por asistentes en specs de múltiples FR.
+- **X-12 · Playbook / skill `checklist` ("unit tests" para redacción de requisitos).**
+  Inspirado en `/speckit.checklist`. Genera listas de verificación personalizadas
+  para auditar la calidad intrínseca de la redacción de la spec desde la
+  perspectiva del revisor humano (completitud, claridad de expresiones,
+  consistencia en componentes, cobertura de casos de borde y accesibilidad/seguridad).
+  No valida si el código funciona, sino si la spec está bien escrita y lista para
+  implementarse sin ambigüedades.
+  Prioridad **P3** (valor bajo / pulido): deseable como herramienta de revisión
+  para equipos o specs de alta complejidad, pero no bloqueante para el flujo
+  esencial de desarrollo SDD.
+- **X-13 · Pautas de redacción asistida en playbook `sdd-spec` (slicing MVP, inferencias y límite de clarificaciones).**
+  Inspirado en el flujo de creación de `/speckit.specify`. Hoy `sdd-spec` se
+  enfoca estrictamente en el mecanismo operativo (triage anti-solapamiento con
+  `sdd_spec.py`, adopción con `--reuse`, enlaces con `--extends`/`--supersedes` y
+  desbloqueo del gate en `.sdd/current-spec`). Sin embargo, carece de directivas
+  para el asistente cuando este redacta la spec inicial a partir del prompt en
+  lenguaje natural del usuario.
+  Las pautas a incorporar en `templates/docs/playbooks/sdd-spec.md` son:
+  1. **Regla de inferencia razonable por defecto:** No interrumpir la creación
+     inicial de la spec ante cualquier detalle no especificado; inferir defaults
+     razonables de la industria y registrarlos explícitamente en `## Assumptions`.
+  2. **Límite estricto de dudas pendientes:** Marcar como máximo **hasta 3
+     `[NEEDS CLARIFICATION: ...]`** para aspectos críticos que realmente
+     carezcan de un valor por defecto razonable o cambien drásticamente el
+     alcance (dejando su resolución ordenada en manos del playbook `clarify`).
+  3. **Cortes verticales independientes (slicing MVP):** Exigir que cada User
+     Story (`P1`, `P2`, etc.) sea testeable de forma aislada y represente un
+     incremento funcional demostrable, evitando partir historias por capas
+     técnicas (ej. "hacer solo la base de datos").
+  Prioridad **P2** (valor medio): mejora la calidad inicial de las specs
+  generadas por agentes antes de pasar a `clarify` y `analyze`, reduciendo
+  iteraciones y fricción de redacción.
 
 ## Índice de descartes
 
